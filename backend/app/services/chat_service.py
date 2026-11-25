@@ -139,16 +139,18 @@ async def learned_it_reasons(db: aiosqlite.Connection, call: dict) -> None:
     await models_repo.learn_reasons(db, call["model_id"], call["model"])
 
 
-def _counted_before(messages: list[dict], model_id: str, leaving: dict | None) -> list[tuple[int, int]]:
-    """The last two whole replies of the story that this AI's server counted, oldest first: what
-    it read of each, and what the engine had estimated. ``leaving``, the reply being rewritten,
-    is not one of them."""
+def _counted_before(messages: list[dict], call: dict, leaving: dict | None) -> list[tuple[int, int]]:
+    """The last two whole replies of the story that this AI's server counted for the model it
+    names now, oldest first: what it read of each, and what the engine had estimated. A count
+    that does not name its model was stored before counts did, by a model no longer known: it is
+    not one of them. ``leaving``, the reply being rewritten, is not one of them either."""
     found = []
     for message in messages:
         meta = message.get("meta") or {}
         usage, context = meta.get("usage"), meta.get("context")
         if (message is leaving or message["role"] != "assistant" or not isinstance(usage, dict)
-                or not isinstance(context, dict) or usage.get("model_id") != model_id):
+                or not isinstance(context, dict) or usage.get("model_id") != call["model_id"]
+                or usage.get("model") != call["model"]):
             continue
         prompt, estimate = usage.get("prompt"), context.get("used_tokens")
         if isinstance(prompt, int) and isinstance(estimate, int):
@@ -482,10 +484,10 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         # One cut at its ceiling, or a continuation, has no length of its own.
         length=None if at_ceiling or continue_mode else way["reply_length"],
         visible="".join(chunks),
-        earlier=_counted_before(messages, call["model_id"], target))
+        earlier=_counted_before(messages, call, target))
     if counts := learning.counts_of(figures.usage):
         ending["usage"] = {"prompt": counts[0], "completion": counts[1],
-                           "model_id": call["model_id"]}
+                           "model_id": call["model_id"], "model": call["model"]}
     if cut is not None:
         ending["truncated"] = cut
     await save(ending, at_ceiling=at_ceiling)

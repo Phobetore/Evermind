@@ -94,9 +94,10 @@ async def last_reply(client, convo: dict) -> dict:
 
 class Counting:
     """A model's server that counts what it reads as ``times`` the engine's estimate, and keeps
-    each (prompt, estimate) and each call."""
+    each (prompt, estimate) and each call. ``at``, when set, is the count it gives instead."""
 
     times = 1.2
+    at: ClassVar[int | None] = None
     seen: ClassVar[list] = []
     calls: ClassVar[list] = []
 
@@ -107,7 +108,7 @@ class Counting:
     async def stream_chat(self, payload):
         self.figures.reset()
         estimate = payload.stats["used_tokens"]
-        prompt = round(Counting.times * estimate)
+        prompt = Counting.at or round(Counting.times * estimate)
         Counting.seen.append((prompt, estimate))
         self.figures.take_usage({"prompt_tokens": prompt, "completion_tokens": 40}, final=True)
         yield ProviderEvent(type="delta", text="*She nods.*")
@@ -116,7 +117,7 @@ class Counting:
 
 @pytest.fixture()
 def counting(monkeypatch):
-    Counting.seen, Counting.calls = [], []
+    Counting.seen, Counting.calls, Counting.at = [], [], None
     monkeypatch.setattr("app.services.chat_service.get_provider", Counting)
     return Counting
 
@@ -208,6 +209,12 @@ def test_truncation_needs_a_round_size_or_a_plateau():
                      [(6800, 8000), (7480, 8200)], [(3000, 8000), (7480, 8800)]):
         assert learning.truncated(prompt=8100, estimate=9500, ratio=1.4, model=model,
                                   earlier=unproved), unproved
+    # The rate they show is kept at double: just under 4096, a count far under the estimate at
+    # 2.6 but not at 2.0 is no cut.
+    above = [(5200, 2000), (5980, 2300)]
+    assert 4090 < 0.7 * 2.6 * 2900 and not 4090 < 0.7 * 2.0 * 2900
+    assert not learning.truncated(prompt=4090, estimate=2900, ratio=1.0, model=model,
+                                  earlier=above)
 
 
 def test_the_ratio_is_kept_between_half_and_double():
@@ -273,7 +280,8 @@ async def test_the_ratio_moves_towards_what_the_server_counts(client, counting):
     assert row["token_ratio_n"] == 3
     assert row["usage_seen"] == 1
     usage = (await last_reply(client, convo))["meta"]["usage"]
-    assert usage == {"prompt": counting.seen[-1][0], "completion": 40, "model_id": ai["id"]}
+    assert usage == {"prompt": counting.seen[-1][0], "completion": 40, "model_id": ai["id"],
+                     "model": ai["model"]}
 
     assert await send(client, convo["id"]) is None
     assert counting.calls[-1]["margin"] == max(200, int(16384 * 0.03))
@@ -300,6 +308,66 @@ async def test_another_model_forgets_what_the_one_before_measured(client, counti
     assert counting.calls[-1]["margin"] == int(16384 * 0.06)
     assert counting.calls[-1]["token_ratio"] is None
     assert (await row_of(ai["id"]))["token_ratio"] == pytest.approx(1.0, abs=0.01)
+
+
+async def test_the_counts_of_the_model_before_are_not_the_new_ones(client, counting, monkeypatch):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 4, 1300)
+    monkeypatch.setattr(counting, "times", 1.6)
+    for turn in range(2):
+        if turn:
+            await grown(convo["id"])
+        assert await send(client, convo["id"]) is None
+    resp = await client.put(f"/api/models/{ai['id']}", json={"model": "another"})
+    assert resp.status_code == 200, resp.text
+
+    # The new model counts what it is sent about as the engine estimates it, and its first count
+    # lands just under 4096: far under the rate the model before showed, but no cut.
+    await grown(convo["id"])
+    counting.at = 4090
+    assert await send(client, convo["id"]) is None
+    (p1, e1), (p2, e2), (p3, e3) = counting.seen
+    assert (p1, p2) == (round(1.6 * e1), round(1.6 * e2)) and e3 > e2 > e1 * 1.05
+    assert 0.9 < p3 / e3 < 1.1 and p3 < 0.7 * 1.6 * e3
+    meta = (await last_reply(client, convo))["meta"]
+    assert "truncated" not in meta and meta["usage"]["model"] == "another"
+    row = await row_of(ai["id"])
+    assert (row["token_ratio"], row["token_ratio_n"]) == (pytest.approx(p3 / e3), 1)
+
+
+async def without_model_names(convo_id: str) -> None:
+    """The counts of the story as a reply stored them before they named their model."""
+    conn = await open_db()
+    try:
+        rows = await (await conn.execute(
+            "SELECT id, meta FROM messages WHERE conversation_id = ?", (convo_id,))).fetchall()
+        for row in rows:
+            meta = json.loads(row["meta"] or "{}")
+            if isinstance(meta.get("usage"), dict) and meta["usage"].pop("model", None):
+                await conn.execute("UPDATE messages SET meta = ? WHERE id = ?",
+                                   (json.dumps(meta), row["id"]))
+        await conn.commit()
+    finally:
+        await conn.close()
+
+
+async def test_a_count_that_does_not_name_its_model_is_not_one_of_the_counts_before(
+        client, reading):
+    _, convo = await a_story(client)
+    await long_story(convo["id"], 12, 1300)
+    reading.counts = [3000, 3010, 3020]
+    for turn in range(2):
+        if turn:
+            await grown(convo["id"])
+        assert await send(client, convo["id"]) is None
+    await without_model_names(convo["id"])
+
+    # Named, the two counts before would make the third point of a plateau.
+    await grown(convo["id"])
+    assert await send(client, convo["id"]) is None
+    assert reading.seen[-1][1] > reading.seen[0][1] * 1.05
+    meta = (await last_reply(client, convo))["meta"]
+    assert "truncated" not in meta and meta["usage"]["prompt"] == 3020
 
 
 async def test_counts_that_cannot_be_right_teach_nothing(client, monkeypatch):
@@ -397,6 +465,28 @@ async def test_a_count_that_grew_with_the_story_is_not_a_truncation(
     (_, e1), (_, e2), (p3, e3) = counting.seen
     assert 4096 * 0.98 <= p3 <= 4096 and e3 > e2 > e1 * 1.05
     assert p3 < 0.7 * counting.calls[-1]["token_ratio"] * e3
+
+
+async def test_a_server_counting_far_under_the_estimate_is_learned_once_its_counts_grew(
+        client, counting, monkeypatch):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 12, 1300)
+    monkeypatch.setattr(counting, "times", 0.6)
+    for turn in range(3):
+        if turn:
+            await grown(convo["id"])
+        assert await send(client, convo["id"]) is None
+        assert "truncated" not in (await last_reply(client, convo))["meta"], turn
+        row = await row_of(ai["id"])
+        # Far under the estimate at 1.0, a count teaches nothing until two before it grew with
+        # the story and so prove that the server reads what it is sent.
+        assert row["token_ratio_n"] == (1 if turn == 2 else 0), turn
+
+    assert row["token_ratio"] == pytest.approx(0.6, abs=0.01)
+    assert all(p < 0.7 * e for p, e in counting.seen)
+    # None lands just under a round size, which would be a cut whatever was proved.
+    assert not any(size * 0.98 <= p <= size for p, _ in counting.seen
+                   for size in (2048, 4096, 8192))
 
 
 async def test_a_new_version_is_not_one_of_the_counts_before_it(client, reading):
