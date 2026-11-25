@@ -959,7 +959,7 @@
       "removeOrphans_one": "1 conversation n'aura plus d'IA jusqu'à ce que vous en ajoutiez une.",
       "removeKey": "C'est la dernière IA de {service} : sa clé sera oubliée aussi.",
       "gone": "Cette IA n'existe plus.",
-      "noUsage": "Ce serveur ne dit pas ce qu'il compte : Evermind garde une marge plus large."
+      "noUsage": "Ce serveur ne dit pas ce qu'il compte\u00a0: Evermind garde une marge plus large."
     },
     "service": {
       "title": "Modifier {name}",
@@ -991,10 +991,10 @@
       "lighter": "En {name}, elle en relirait {count}."
     },
     "chip": {
-      "aria": "Façon de jouer : {label}. Changer.",
+      "aria": "Façon de jouer\u00a0: {label}. Changer.",
       "adjusted": "{name} · ajusté",
       "full": "{label} · relit {read} sur {asked}",
-      "fullAria": "Façon de jouer : {label}. Sa capacité de lecture est pleine : elle relit {read} messages sur {asked}. Changer."
+      "fullAria": "Façon de jouer\u00a0: {label}. Sa capacité de lecture est pleine\u00a0: elle relit {read} messages sur {asked}. Changer."
     }
   }
 }
