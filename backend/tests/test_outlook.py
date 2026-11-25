@@ -48,6 +48,21 @@ def no_passages(monkeypatch) -> None:
     monkeypatch.setattr(embeddings, "installed", lambda: False)
 
 
+async def next_turn_context(client, convo_id: str, model: Model) -> dict:
+    """What the next turn stores of what it read: the person's message, last, gets its reply."""
+    sent = len(model.bodies)
+    resp = await client.post("/api/chat", json={"conversation_id": convo_id,
+                                                "mode": "regenerate"})
+    assert resp.status_code == 200, resp.text
+    from app.services import turns
+
+    if running := await turns.running_for(convo_id):
+        await running.finished.wait()
+    assert len(model.bodies) == sent + 1
+    messages = (await client.get(f"/api/conversations/{convo_id}")).json()["messages"]
+    return messages[-1]["meta"]["context"]
+
+
 async def test_the_outlook_is_the_turn_s_dry_run(client, monkeypatch):
     no_passages(monkeypatch)
     await no_memory_pass(client)
@@ -58,21 +73,43 @@ async def test_the_outlook_is_the_turn_s_dry_run(client, monkeypatch):
     current = (await outlook_of(client, convo["id"], only="current"))["current"]
 
     model = Model(writing("*She nods.*")).serve(monkeypatch)
-    resp = await client.post("/api/chat", json={"conversation_id": convo["id"],
-                                                "mode": "regenerate"})
-    assert resp.status_code == 200, resp.text
-    from app.services import turns
-
-    if running := await turns.running_for(convo["id"]):
-        await running.finished.wait()
-    assert len(model.bodies) == 1
-    messages = (await client.get(f"/api/conversations/{convo['id']}")).json()["messages"]
-    context = messages[-1]["meta"]["context"]
+    context = await next_turn_context(client, convo["id"], model)
     assert current["messages_total"] == 40
     assert current["messages_included"] == context["messages_included"] == 24
     assert current["budget"] == context["budget"]
     assert current["used_tokens"] == context["used_tokens"]
     assert current["model_id"] == ai["id"] and current["play_style"] == "balanced"
+
+
+async def test_the_dry_run_holds_with_every_reminder_and_a_story_cut_by_the_budget(
+        client, monkeypatch):
+    no_passages(monkeypatch)
+    await no_memory_pass(client)
+    resp = await client.put("/api/settings", json={"global_instructions": "Always in English."})
+    assert resp.status_code == 200, resp.text
+    await client.post("/api/personas", json={"name": "Alex", "description": "A tired courier."})
+    ai = await an_ai(client, context_own=4096)
+    convo = await conversation_on(client, ai["id"])
+    resp = await client.put(f"/api/characters/{convo['character_id']}", json={"lore_entries": [
+        {"keys": ["line 37"], "content": "The bell of the keep rings at noon."}]})
+    assert resp.status_code == 200, resp.text
+    for n in range(4):
+        resp = await client.post(f"/api/conversations/{convo['id']}/memories",
+                                 json={"content": f"Serana owes Alex boot number {n}."})
+        assert resp.status_code in (200, 201), resp.text
+    await long_story(convo["id"], 39, 300)  # the person's last: it waits for its reply
+
+    current = (await outlook_of(client, convo["id"], only="current"))["current"]
+
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    context = await next_turn_context(client, convo["id"], model)
+    assert context["lore_matched"] > 0
+    assert current["messages_included"] == context["messages_included"] < 24
+    assert current["history_limit"] == 24  # cut by the budget, not by the way
+    assert current["budget"] == context["budget"]
+    assert current["used_tokens"] == context["used_tokens"]
+    assert current["parts"] == context["parts"]
+    assert current["parts"]["reminders"] > 0
 
 
 async def test_it_asks_no_model_and_no_vector(client, monkeypatch):
@@ -144,6 +181,11 @@ async def test_the_current_way_carries_its_adjustments(client):
 
     assert current["way"]["adjusted"] is True
     assert current["way"]["history_limit"] == current["history_limit"] == 10
+    # Every other AI is counted under the way this conversation plays, adjustments and all.
+    await an_ai(client, model="model-2")
+    every = (await outlook_of(client, convo["id"]))["models"]
+    assert len(every) == 2
+    assert [e["history_limit"] for e in every] == [10, 10]
 
 
 async def test_a_fixed_ceiling_under_the_way_s_room_is_said(client):
@@ -155,6 +197,30 @@ async def test_a_fixed_ceiling_under_the_way_s_room_is_said(client):
     assert outlook["current"]["cap_short"] == 600
     assert outlook["current"]["reply_room"] == 2048
     assert way_entry(outlook, "light")["cap_short"] is None
+
+
+async def test_a_way_that_leaves_the_room_to_the_ai_counts_the_room_the_turn_keeps(
+        client, monkeypatch):
+    no_passages(monkeypatch)
+    await no_memory_pass(client)
+    mine = await copy_of(client)
+    resp = await client.put(f"/api/ways/{mine['id']}", json={"reply_room": None})
+    assert resp.status_code == 200, resp.text
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    kept = {}
+    for name, cap in (("auto", {"mode": "auto"}), ("fixed", {"mode": "fixed", "tokens": 600}),
+                      ("unsent", {"mode": "unsent"})):
+        ai = await an_ai(client, model=f"model-{name}", reply_cap=cap)
+        convo = await conversation_on(client, ai["id"], play_style=mine["id"])
+        await story(convo["id"], 9)  # the person's last: it waits for its reply
+
+        current = (await outlook_of(client, convo["id"], only="current"))["current"]
+        context = await next_turn_context(client, convo["id"], model)
+
+        assert current["reply_room"] == context["reply_room"], name
+        assert current["cap_short"] is None, name
+        kept[name] = current["reply_room"]
+    assert kept == {"auto": 4096, "fixed": 600, "unsent": 1024}
 
 
 async def test_passages_are_counted_at_their_budget(client, monkeypatch):
@@ -174,10 +240,17 @@ async def test_passages_are_counted_at_their_budget(client, monkeypatch):
     assert budget > 0
     assert immersive["parts"]["reminders"] - light["parts"]["reminders"] >= budget
 
+    # A story read whole looks for no passage: none is counted.
+    fits = await conversation_on(client, ai["id"])
+    await story(fits["id"], 9)
+    whole = way_entry(await outlook_of(client, fits["id"]), "immersive")
+    assert whole["messages_included"] == whole["messages_total"]
+
     no_passages(monkeypatch)
     found = await outlook_of(client, convo["id"])
     immersive, light = way_entry(found, "immersive"), way_entry(found, "light")
     assert immersive["parts"]["reminders"] - light["parts"]["reminders"] < budget
+    assert way_entry(await outlook_of(client, fits["id"]), "immersive")["parts"] == whole["parts"]
 
 
 async def test_the_counts_are_the_server_s_once_measured(client):
@@ -210,6 +283,18 @@ async def test_with_no_ai_the_outlook_still_counts_messages(client):
     assert current["messages_total"] == 30
     assert current["messages_included"] == 24
     assert outlook["models"] == []
+    # Every way is still counted, on the window assumed and the margin of an AI not yet measured.
+    assert [e["play_style"] for e in outlook["ways"]] == list(ways.BUILT_IN)
+    assert {e["model_id"] for e in outlook["ways"]} == {None}
+    assert current["reply_room"] == ways.BUILT_IN["balanced"]["reply_room"] == 1024
+    assert current["budget"] == (ai_call.ASSUMED_WINDOW - current["reply_room"]
+                                 - max(200, int(16384 * 0.06)))
+    # As an AI of that size that leaves its room to the way would count it.
+    ai = await an_ai(client, context_own=16384, **AUTO)
+    on_ai = await conversation_on(client, ai["id"])
+    counted = (await outlook_of(client, on_ai["id"], only="current"))["current"]
+    assert counted["budget"] == current["budget"]
+    assert counted["reply_room"] == current["reply_room"]
 
 
 async def test_an_unknown_conversation_has_no_outlook(client):
@@ -228,6 +313,15 @@ async def test_the_figures_the_page_counts_with(client):
     assert fresh["usage_seen"] is None
     assert fresh["anthropic"] is False
     assert fresh["margin"] == max(200, int(16384 * 0.06))
+
+    # A figure stored with nothing measured behind it is not shown as measured.
+    unmeasured = {"short": {"avg": 120, "n": 0}, "thinking": {"avg": 900, "n": 0}}
+    await sql("UPDATE models SET token_ratio = 1.3, token_ratio_n = 0, reply_tokens_avg = ?"
+              " WHERE id = ?", (json.dumps(unmeasured), ai["id"]))
+    unsure = await model_of(client, ai["id"])
+    assert unsure["token_ratio"] is None
+    assert unsure["reply_tokens"] == {"short": None, "medium": None, "long": None}
+    assert unsure["thinking_measured"] is False
 
     averages = {"medium": {"avg": 301.6, "n": 3}, "thinking": {"avg": 812.4, "n": 2}}
     await sql("UPDATE models SET token_ratio = 1.1, token_ratio_n = 2, usage_seen = 1,"
