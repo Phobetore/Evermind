@@ -31,6 +31,8 @@ ROLEPLAY = {"temperature": 0.8, "top_p": 0.95, "frequency_penalty": 0.15,
 SAMPLING = tuple(ROLEPLAY)
 _READ = ("context_read", "context_read_kind", "output_read", "reasons", "price_in", "price_out",
          "price_cache_read", "price_cache_write", "price_varies", "limits_read_at")
+# What the replies of a model taught: another model counts, writes and thinks its own way.
+_MEASURED = ("token_ratio", "fit_margin", "usage_seen", "reply_tokens_avg")
 
 
 def _family(service: dict) -> str:
@@ -265,7 +267,7 @@ async def _insert(db: aiosqlite.Connection, service_id: str, service: dict, fami
 
 async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict | None:
     """``fields`` as ModelUpdate gave them, only those sent. A model id changed forgets in the
-    same write all that was read of the one before; what was typed stays."""
+    same write all that was read and measured of the one before; what was typed stays."""
     sets: dict = {}
     for key in ("name", "model", "context_own", *SAMPLING, "price_own_in", "price_own_out"):
         if key in fields:
@@ -281,8 +283,8 @@ async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict 
         if current is None:
             return None
         if "model" in sets and sets["model"] is not None and sets["model"] != current["model"]:
-            sets.update({key: None for key in _READ})
-            sets["price_varies"] = 0
+            sets.update({key: None for key in (*_READ, *_MEASURED)})
+            sets.update(price_varies=0, token_ratio_n=0)
         elif sets.get("model") is None:
             sets.pop("model", None)
         if sets.get("name") is None:

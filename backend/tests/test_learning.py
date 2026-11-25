@@ -277,6 +277,28 @@ async def test_the_ratio_moves_towards_what_the_server_counts(client, counting):
     assert counting.calls[-1]["token_ratio"] == pytest.approx(by_hand)
 
 
+async def test_another_model_forgets_what_the_one_before_measured(client, counting, monkeypatch):
+    ai, convo = await a_story(client, read={"reasons": True}, reply_cap={"mode": "auto"})
+    monkeypatch.setattr(counting, "times", 1.6)
+    for _ in range(3):
+        assert await send(client, convo["id"]) is None
+    await set_row(ai["id"], fit_margin=0.1)
+    row = await row_of(ai["id"])
+    assert row["token_ratio_n"] == 3 and row["usage_seen"] == 1 and row["reply_tokens_avg"]
+
+    resp = await client.put(f"/api/models/{ai['id']}", json={"model": "another"})
+    assert resp.status_code == 200, resp.text
+    row = await row_of(ai["id"])
+    assert (row["token_ratio"], row["token_ratio_n"], row["fit_margin"], row["usage_seen"],
+            row["reply_tokens_avg"]) == (None, 0, None, None, None)
+
+    monkeypatch.setattr(counting, "times", 1.0)
+    assert await send(client, convo["id"]) is None
+    assert counting.calls[-1]["margin"] == int(16384 * 0.06)
+    assert counting.calls[-1]["token_ratio"] is None
+    assert (await row_of(ai["id"]))["token_ratio"] == pytest.approx(1.0, abs=0.01)
+
+
 async def test_counts_that_cannot_be_right_teach_nothing(client, monkeypatch):
     ai, convo = await a_story(client)
     Model(*(answer("*She nods.*", usage=usage) for usage in (
