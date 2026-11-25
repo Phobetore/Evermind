@@ -381,6 +381,25 @@ test.describe("nothing scrolls sideways at 390, 320 and a 32 px root, the four c
   }
 });
 
+// The page of a way that no longer exists: its link back wraps at the largest text, as the other
+// buttons of a way's page do.
+test.describe("a way gone keeps its link back on the screen at 390, 320 and a 32 px root", () => {
+  for (const locale of ["fr", "de"]) {
+    test(`in ${locale}`, async ({ page }) => {
+      await inLocale(page, locale);
+      await page.addInitScript(rootAt, "32px");
+      for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+        await page.setViewportSize(size);
+        await page.goto("about:blank");
+        await page.goto("/#/settings/way/gone-way");
+        await expect(page.locator("main a.btn[href='#/settings']")).toBeVisible();
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+        expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+      }
+    });
+  }
+});
+
 /** The side gutters of the fold of exact values, its title's and its body's, in pixels: layout,
  *  not text, so they do not grow with the text and leave its words one to a line. */
 const foldGutters = (page: Page) => page.locator("main details > summary, main details > div").evaluateAll((all) => all
