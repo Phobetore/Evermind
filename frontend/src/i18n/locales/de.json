@@ -1069,7 +1069,7 @@
     "chip": {
       "aria": "Spielweise: {label}. Ändern.",
       "adjusted": "{name} · angepasst",
-      "full": "{label} · liest {read} von {asked}",
+      "full": "{label} · liest {read} von {asked} erneut",
       "fullAria": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {read} von {asked} Nachrichten erneut. Ändern.",
       "fullAria_one": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {count} von {asked} Nachrichten erneut. Ändern."
     },
@@ -1077,9 +1077,9 @@
       "title": "Spielweise",
       "hint": "Nur für diese Unterhaltung.",
       "row": "{messages} · {pages}",
-      "rowNoSize": "Liest {read} der {total} Nachrichten",
+      "rowNoSize": "Liest {read} der {total} Nachrichten erneut",
       "rowNone": "Noch keine Nachricht zu lesen",
-      "rowOnly": "Liest die einzige Nachricht",
+      "rowOnly": "Liest die einzige Nachricht erneut",
       "adjust": "Für diese Unterhaltung anpassen",
       "backTo": "Zurück zu {name} ohne Anpassungen",
       "editAll": "{name} für alle Unterhaltungen ändern…"
@@ -1100,9 +1100,9 @@
       "pagesSent": "≈ {count:grouped} Seiten gesendet",
       "pagesSent_one": "≈ {count:grouped} Seite gesendet",
       "rereadNone": "noch keine Nachricht zu lesen",
-      "rereadOne": "liest 1 Nachricht, mehr ist nicht verlangt",
-      "rereadAll": "liest {read} Nachrichten, alle verlangten",
-      "rereadSome": "liest {read} der {asked} verlangten"
+      "rereadOne": "liest 1 Nachricht erneut, mehr ist nicht verlangt",
+      "rereadAll": "liest {read} Nachrichten erneut, alle verlangten",
+      "rereadSome": "liest {read} der {asked} verlangten erneut"
     },
     "longRoom": {
       "text": "{name} erhält keine Obergrenze, und Evermind hält ihr nur {tokens:grouped} Tokens frei: Eine lange Antwort passt vielleicht nicht in das, was die KI liest.",

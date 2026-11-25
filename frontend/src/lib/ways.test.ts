@@ -41,6 +41,7 @@ describe("the way's chip", () => {
       full: true,
     });
     expect(wayLabel(full, fr).text).toBe("Immersif · relit 33 sur 60");
+    expect(wayLabel(full, (key, vars) => translate("de", key, vars)).text).toBe("Immersiv · liest 33 von 60 erneut");
   });
 
   test("a built-in and my settings are named in the interface's language", () => {
@@ -91,7 +92,7 @@ describe("the reading line", () => {
     expect(readingLine(entry(), "Yvonne", fr)).toMatch(/^Ce qu'Yvonne lit/);
     expect(readingLine(entry(), "Yann", fr)).toBe("Ce que Yann lit : ≈ 18 pages · relit 24 messages, tous ceux demandés");
     expect(readingLine(entry(), "yasmine", fr)).toMatch(/^Ce que yasmine lit/);
-    expect(readingLine(entry(), "Aube", (key, vars) => translate("de", key, vars))).toBe("Was Aube liest: ≈ 18 Seiten · liest 24 Nachrichten, alle verlangten");
+    expect(readingLine(entry(), "Aube", (key, vars) => translate("de", key, vars))).toBe("Was Aube liest: ≈ 18 Seiten · liest 24 Nachrichten erneut, alle verlangten");
   });
 
   test("a full capacity says what it rereads of what was asked", () => {
@@ -113,7 +114,7 @@ describe("the reading line", () => {
       "No message to reread yet", "Rereads 1 message, all it was asked"],
     ["fr", "Ce que Brume lit : ≈ 1 page · aucun message à relire pour l'instant", "Ce que Brume lit : ≈ 1 page · relit 1 message, le seul demandé",
       "Aucun message à relire pour l'instant", "Relit 1 message, le seul demandé"],
-    ["de", "Was Brume liest: ≈ 1 Seite · noch keine Nachricht zu lesen", "Was Brume liest: ≈ 1 Seite · liest 1 Nachricht, mehr ist nicht verlangt",
+    ["de", "Was Brume liest: ≈ 1 Seite · noch keine Nachricht zu lesen", "Was Brume liest: ≈ 1 Seite · liest 1 Nachricht erneut, mehr ist nicht verlangt",
       "Noch keine Nachricht zu lesen", "Liest 1 Nachricht erneut, mehr ist nicht verlangt"],
     ["es", "Lo que Brume lee: ≈ 1 página · aún no hay mensajes que releer", "Lo que Brume lee: ≈ 1 página · relee 1 mensaje, el único pedido",
       "Aún no hay mensajes que releer", "Relee 1 mensaje, el único pedido"],
@@ -128,7 +129,7 @@ describe("the reading line", () => {
   test.each([
     ["en", "What Brume reads: ≈ 18 pages · rereads 24 messages, all it was asked", "What Small reads: ≈ 7 pages · rereads 1 of the 60 asked"],
     ["fr", "Ce que Brume lit : ≈ 18 pages · relit 24 messages, tous ceux demandés", "Ce que Small lit : ≈ 7 pages · relit 1 des 60 demandés"],
-    ["de", "Was Brume liest: ≈ 18 Seiten · liest 24 Nachrichten, alle verlangten", "Was Small liest: ≈ 7 Seiten · liest 1 der 60 verlangten"],
+    ["de", "Was Brume liest: ≈ 18 Seiten · liest 24 Nachrichten erneut, alle verlangten", "Was Small liest: ≈ 7 Seiten · liest 1 der 60 verlangten erneut"],
     ["es", "Lo que Brume lee: ≈ 18 páginas · relee 24 mensajes, todos los pedidos", "Lo que Small lee: ≈ 7 páginas · relee 1 de los 60 pedidos"],
   ] as const)("in %s says more messages and pages as before, and what it rereads of what was asked", (locale, many, some) => {
     const said = (key: string, vars?: Record<string, string | number>) => translate(locale, key, vars);
@@ -141,7 +142,7 @@ describe("a way's row in a sheet", () => {
   test.each([
     ["en", "No message to reread yet", "Rereads the only message", "Rereads 3 of the 40 messages", "≈ 1 page sent", "≈ 18 pages sent"],
     ["fr", "Aucun message à relire pour l'instant", "Relit le seul message", "Relit 3 des 40 messages", "≈ 1 page envoyée", "≈ 18 pages envoyées"],
-    ["de", "Noch keine Nachricht zu lesen", "Liest die einzige Nachricht", "Liest 3 der 40 Nachrichten", "≈ 1 Seite gesendet", "≈ 18 Seiten gesendet"],
+    ["de", "Noch keine Nachricht zu lesen", "Liest die einzige Nachricht erneut", "Liest 3 der 40 Nachrichten erneut", "≈ 1 Seite gesendet", "≈ 18 Seiten gesendet"],
     ["es", "Aún no hay mensajes que releer", "Relee el único mensaje", "Relee 3 de los 40 mensajes", "≈ 1 página enviada", "≈ 18 páginas enviadas"],
   ] as const)("in %s says none, the only one and the others, then the pages sent", (locale, nothing, only, some, page, many) => {
     const said = (key: string, vars?: Record<string, string | number>) => translate(locale, key, vars);
