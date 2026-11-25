@@ -1,0 +1,8 @@
+{
+ "object": "list",
+ "data": [
+  {"id": "eclair/eclair-1", "object": "model", "created": 1793232000, "owned_by": "other"},
+  {"id": "brume/brume-mini", "object": "model", "created": 1791000000, "owned_by": "brume"},
+  {"id": "givre/givre-chat", "object": "model", "created": 1789000000, "owned_by": "givre"}
+ ]
+}

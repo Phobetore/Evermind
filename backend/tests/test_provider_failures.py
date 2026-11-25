@@ -228,9 +228,19 @@ async def test_an_error_in_an_openai_compatible_stream_ends_the_reply(error, bef
 
 
 @pytest.mark.parametrize(("name", "make"), PROVIDERS)
-@pytest.mark.parametrize("content", [b"<html>not json</html>", b'["a", "b"]', b'{"data": 5}'])
+@pytest.mark.parametrize("content", [b"<html>not json</html>", b'"a"', b'{"data": 5}'])
 async def test_a_list_of_models_that_cannot_be_read_is_unreadable(name, make, content):
     error = await failure_of(models, make(lambda _: httpx.Response(200, content=content)))
+    assert error.kind == "model_unreadable"
+
+
+async def test_a_bare_list_is_read_at_an_openai_compatible_address_only():
+    """Some servers send their list as a bare array: an OpenAI-compatible address reads it, and
+    the strings in it are not models; Anthropic's list is always an object."""
+    content = b'[{"id": "a"}, "b"]'
+    provider = oai_provider(lambda _: httpx.Response(200, content=content))
+    assert await models(provider) == ["a"]
+    error = await failure_of(models, anth_provider(lambda _: httpx.Response(200, content=content)))
     assert error.kind == "model_unreadable"
 
 
