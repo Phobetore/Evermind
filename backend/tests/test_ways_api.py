@@ -264,6 +264,8 @@ async def test_removing_the_default_way_offers_balanced(client):
 
     assert resp.json() == {"moved": 1, "to": "balanced"}
     assert (await listing(client))["default"] == "balanced"
+    # What is stored, not only what it reads as: the next device reads the setting as it is.
+    assert (await client.get("/api/settings")).json()["default_play_style"] == "balanced"
 
 
 async def test_a_built_in_way_cannot_be_removed(client):
@@ -294,6 +296,9 @@ async def test_an_unknown_way_plays_as_the_default_then_balanced(client, monkeyp
     body = await turn(client, convo["id"], model)
     assert history_of(body) == 24
     assert "LENGTH OVERRIDE" not in body["messages"][0]["content"]
+    # Settings marks the way offered from the listing; a new conversation plays it.
+    assert (await listing(client))["default"] == "balanced"
+    assert (await conversation_on(client, ai["id"]))["play_style"] == "balanced"
 
 
 async def test_reset_brings_back_the_original_values(client):
