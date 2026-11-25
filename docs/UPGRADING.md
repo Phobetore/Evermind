@@ -36,8 +36,9 @@ when Evermind starts, and a copy of it is kept first, as
   and make copies of your own. The ceilings of 200 messages reread and of 4,000
   tokens of old passages are gone: the only limit is the model's.
 - **Evermind says what the AI reads.** At the top of the list of ways, in the
-  conversation, and under **What the AI reads** on a way's page in Settings: the pages sent, the messages
-  reread, and when the AI's reading capacity is full. The small context bar in
+  conversation, and under **What the AI reads** on a way's page in Settings:
+  the pages sent, the messages reread, and when the AI's reading capacity is
+  full. The small context bar in
   the header of a conversation, on a computer, is gone, and so is its speed in
   tokens per second; the speed test stays on the AI's page.
 - **Under a reply cut short**, its reason and the button that mends it: the AI's
@@ -57,17 +58,17 @@ when Evermind starts, and a copy of it is kept first, as
   asks the server how many tokens it counted (one field more in each request to
   an OpenAI-compatible server, `stream_options`; a server that refuses it is
   asked again without) and trusts the answer. Until it has measured an AI, it
-  keeps a wider margin under what the AI reads: 6% of it, 3% once measured, and never
-  under the 200 tokens it was before. On a story that already fills what the AI reads, a
-  message or two more or fewer may be reread, and the facts and the lorebook
-  of a community card, which take a share of that room, follow.
+  keeps a wider margin under what the AI reads: 6% of it, 3% once measured, and
+  never under the 200 tokens it was before. On a story that already fills what
+  the AI reads, a message or two more or fewer may be reread, and the facts and
+  the lorebook of a community card, which take a share of that room, follow.
 - **Going back.** Besides putting the copy back, the previous release also
   starts on the migrated database. It finds your three old settings as they were
   the day of the update, and knows nothing of the ways to play. **Coming back to
   this release** replays nothing: the ways are there. A conversation started
   meanwhile in the previous release plays Balanced here, whatever your settings
-  were then. What you changed there in the three old settings is not carried back
-  either: the ways keep the values they had.
+  were then. What you changed there in the three old settings is not carried
+  back either: the ways keep the values they had.
 - **A page open before the update** must be reloaded. Meanwhile it cannot save
   the three old settings (it says "reload this page"), and its conversations
   answer as usual.

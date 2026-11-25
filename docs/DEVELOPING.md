@@ -388,16 +388,17 @@ Balanced is the engine as it was, figure for figure.
   call: the server's usage, the id of the generation, the model and upstream that
   answered, the stop reason, the characters received, and whether the request
   was sent and a stream opened. It stays readable after a stop or an error.
-  `Answer.figures` carries it out of `complete_answer`. What spending is counted from
-  is read from these without opening the providers again; `on_id` is where its recorder
-  hooks in.
+  `Answer.figures` carries it out of `complete_answer`. What spending is counted
+  from is read from these without opening the providers again; `on_id` is where
+  its recorder hooks in.
 - **What an update must not change** is held by three things, run before every
   commit that touches the engine, a provider or a service that builds a request,
   from `backend/`:
 
   ```bash
   .venv/Scripts/python tests/cases_kept.py <commit before the ways>
-  .venv/Scripts/python -m pytest -q tests/test_requests_before.py tests/test_requests_3_7.py \n    tests/test_my_ais_api.py::test_an_update_sends_each_model_the_request_it_sent_before
+  .venv/Scripts/python -m pytest -q tests/test_requests_before.py tests/test_requests_3_7.py \
+    tests/test_my_ais_api.py::test_an_update_sends_each_model_the_request_it_sent_before
   ```
 
   `cases_kept.py` says that no recorded case of that commit changed its input or
