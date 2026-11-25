@@ -72,3 +72,17 @@ describe("the AIs' sheet while its figures are on their way", () => {
     expect(rows(aiSheet({ ais, outlook: null }))).toBe(2);
   });
 });
+
+describe("a row of either sheet", () => {
+  test("is a button in a list, the one in use marked current, none a radio button", () => {
+    const ais = [aiOf(), aiOf({ id: "m2", name: "Aube" })];
+    for (const html of [aiSheet({ ais }), waySheet({ ais })]) {
+      expect(html).not.toMatch(/role="radio/);
+      expect(html).toMatch(/<ul aria-label="[^"]+"[^>]*>\s*<li><button type="button" (?:aria-current="true" )?aria-busy/);
+      expect(html.match(/aria-current="true"/g)).toHaveLength(1);
+    }
+    // The AI answering, and the way played.
+    expect(aiSheet({ ais })).toMatch(/aria-current="true"[^>]*>(?:(?!<\/button>).)*Brume/s);
+    expect(waySheet({ ais: [] })).toMatch(/aria-current="true"[^>]*>(?:(?!<\/button>).)*Balanced/s);
+  });
+});

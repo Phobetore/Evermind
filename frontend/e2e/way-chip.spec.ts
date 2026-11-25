@@ -33,14 +33,14 @@ const chipOf = (page: Page) => statusRow(page).getByRole("button", { name: /^Way
 const aiChipOf = (page: Page) => statusRow(page).locator("[data-ai-chip]");
 const sheetOf = (page: Page) => page.getByRole("dialog", { name: "Way to play" });
 const aiSheetOf = (page: Page) => page.getByRole("dialog", { name: "Which AI answers?" });
-const rowOf = (page: Page, name: string) => sheetOf(page).getByRole("radio", { name: new RegExp(`^${name}`) });
+const rowOf = (page: Page, name: string) => sheetOf(page).getByRole("list").getByRole("button", { name: new RegExp(`^${name}`) });
 const toastOf = (page: Page) => page.locator("[data-chat-toast]");
 
 async function openSheet(page: Page) {
   await chipOf(page).click();
   await expect(sheetOf(page)).toBeVisible();
   // The rows come with the whole outlook, read as the sheet opens.
-  await expect(sheetOf(page).getByRole("radio")).toHaveCount(4);
+  await expect(sheetOf(page).getByRole("listitem")).toHaveCount(4);
   return sheetOf(page);
 }
 
@@ -78,7 +78,7 @@ test("switching the way is two taps and the next turn plays it @desktop", async 
 
   const sheet = await openSheet(page);
   await expect(sheet).toContainText("For this conversation only.");
-  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-checked", "true");
+  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-current", "true");
   await rowOf(page, "Light").click();
   await expect(sheet).toHaveCount(0);
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Light. Change.");
@@ -191,7 +191,7 @@ test("the current ai costs the same in both sheets", async ({ page, request }) =
     await expect(sheet).toHaveCount(0);
 
     await aiChipOf(page).click();
-    const aiRow = aiSheetOf(page).getByRole("radio", { name: new RegExp(`^${priced.name}`) });
+    const aiRow = aiSheetOf(page).getByRole("list").getByRole("button", { name: new RegExp(`^${priced.name}`) });
     // Under the conversation's way: the row also says what this AI rereads of it.
     await expect(aiRow).toContainText(/Rereads the only message · ≈ \d+ pages? sent/);
     await expect(aiRow.locator("[data-estimate]")).toHaveText(adjusted!);
@@ -229,7 +229,7 @@ test("an ai whose capacity is not said is given no pages in either sheet", async
     await sheet.getByRole("button", { name: "Close" }).click();
 
     await aiChipOf(page).click();
-    const aiRow = aiSheetOf(page).getByRole("radio", { checked: true });
+    const aiRow = aiSheetOf(page).getByRole("list").locator("[aria-current=true]");
     await expect(aiRow).toContainText(untold.name);
     await expect(aiRow).toContainText("reading capacity not given");
     await expect(aiRow).toContainText("Rereads the only message");
@@ -305,8 +305,8 @@ test("a way removed on another device leaves the chip on the default", async ({ 
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Harbour mornings. Change.");
   await request.delete(`${API}/api/ways/${again.id}`);
   await chipOf(page).click();
-  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-checked", "true");
-  await expect(sheetOf(page).getByRole("radio", { name: /^Harbour/ })).toHaveCount(0);
+  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-current", "true");
+  await expect(sheetOf(page).getByRole("list").getByRole("button", { name: /^Harbour/ })).toHaveCount(0);
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Balanced. Change.");
 });
 
@@ -337,7 +337,7 @@ test("a turn that ends with the sheet open leaves it its rows, counted again", a
   // The reply ends while the sheet is open: the turn's end reads it all again.
   await stopTurn(request, convo.id);
   await expect(rowOf(page, "Balanced")).toContainText("Rereads 5 of the 5 messages");
-  await expect(sheetOf(page).getByRole("radio")).toHaveCount(4);
+  await expect(sheetOf(page).getByRole("listitem")).toHaveCount(4);
 });
 
 test("a turn that ends with the ais' sheet open leaves its rows their figures, counted again", async ({ page, request }) => {
@@ -347,7 +347,7 @@ test("a turn that ends with the ais' sheet open leaves its rows their figures, c
   await page.locator('button[title="Send"]').click();
   await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
   await aiChipOf(page).click();
-  const row = aiSheetOf(page).getByRole("radio", { checked: true });
+  const row = aiSheetOf(page).getByRole("list").locator("[aria-current=true]");
   await expect(row).toContainText("Rereads 4 of the 4 messages");
   await stopTurn(request, convo.id);
   await expect(row).toContainText("Rereads 5 of the 5 messages");
@@ -371,8 +371,8 @@ test("the sheet answers the touch before anything it shows has come", async ({ p
   await expect(sheet.locator("[aria-busy=true]")).toHaveCount(1);
   expect(await misfits(page, "dialog")).toEqual([]);
   release();
-  await expect(sheet.getByRole("radio")).toHaveCount(4);
-  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-checked", "true");
+  await expect(sheet.getByRole("listitem")).toHaveCount(4);
+  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-current", "true");
 });
 
 test("a failed switch keeps the sheet open and the chip as it was", async ({ page, request }) => {
@@ -386,7 +386,7 @@ test("a failed switch keeps the sheet open and the chip as it was", async ({ pag
   await rowOf(page, "Light").click();
   await expect(sheet.getByRole("alert")).not.toBeEmpty();
   await expect(sheet).toBeVisible();
-  await expect(rowOf(page, "Light")).toHaveAttribute("aria-checked", "false");
+  await expect(rowOf(page, "Light")).not.toHaveAttribute("aria-current", "true");
   await expect(rowOf(page, "Light")).not.toHaveAttribute("aria-busy", "true");
   await sheet.getByRole("button", { name: "Close" }).click();
   await expect(chipOf(page)).toHaveAccessibleName("Way to play: Balanced. Change.");
@@ -404,7 +404,7 @@ test("the long room notice lets evermind set it", async ({ page, request }) => {
       `${unsent.name} is sent no ceiling, and Evermind keeps it only 1,024 tokens: a long reply may not fit in what it reads.`,
     );
     await expect(notice).toBeVisible();
-    const list = (await sheet.getByRole("radiogroup").boundingBox())!;
+    const list = (await sheet.getByRole("list").boundingBox())!;
     expect((await notice.boundingBox())!.y, "the notice is not under the list").toBeGreaterThan(list.y + list.height - 1);
 
     await sheet.getByRole("button", { name: "Keep the room long replies need" }).click();
@@ -480,7 +480,7 @@ test("at very large text the four ways stay in reach", async ({ page, request })
         await page.reload();
         await statusRow(page).locator("[data-way-chip]").click();
         const dialog = page.getByRole("dialog");
-        await expect(dialog.getByRole("radio")).toHaveCount(4);
+        await expect(dialog.getByRole("listitem")).toHaveCount(4);
         const cut = await dialog.evaluate((sheet) => [...sheet.querySelectorAll("summary")]
           .filter((summary) => summary.scrollWidth > summary.clientWidth)
           .map((summary) => `"${summary.textContent}" ${summary.scrollWidth} wide in ${summary.clientWidth}`));

@@ -126,46 +126,47 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
 
         {outlook.ways.length === 0 ? waiting : (
           <div className="flex flex-col gap-2">
-            <div role="radiogroup" aria-label={t("ways.sheet.title")} className="flex flex-col gap-1.5">
+            {/* A button for each, that chooses and closes: the one in use is the current one, as a list says it. */}
+            <ul aria-label={t("ways.sheet.title")} className="flex flex-col gap-1.5">
               {outlook.ways.map((entry) => {
                 const chosen = entry.way.id === current.way.id;
                 const shown = shownOf(entry);
                 const estimate = priced(shown.way);
                 return (
-                  <button
-                    key={entry.way.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={chosen}
-                    aria-busy={pending === entry.way.id}
-                    onClick={() => pick(entry.way.id)}
-                    className={clsx(
-                      "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
-                      chosen ? "border-ember-500/50 bg-ember-glow" : "border-ink-700 hover:border-ink-500 hover:bg-ink-800/60",
-                    )}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-                        <span className="min-w-0 font-display text-sm font-medium text-parchment [overflow-wrap:anywhere]">
-                          {wayName(entry.way, t)}
-                        </span>
-                        {estimate && <span data-estimate className="text-xs text-mist">{estimate}</span>}
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-mist">
-                        {sheetRow(shown.messages_included, shown.messages_total, name !== null ? shown.used_tokens : null, t)}
-                      </span>
-                    </span>
-                    <span className="mt-0.5 size-[18px] shrink-0" aria-hidden>
-                      {pending === entry.way.id ? (
-                        <Loader2 className="size-[18px] animate-spin text-mist" />
-                      ) : (
-                        chosen && <Check className="size-[18px] text-ember-300" />
+                  <li key={entry.way.id}>
+                    <button
+                      type="button"
+                      aria-current={chosen ? "true" : undefined}
+                      aria-busy={pending === entry.way.id}
+                      onClick={() => pick(entry.way.id)}
+                      className={clsx(
+                        "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                        chosen ? "border-ember-500/50 bg-ember-glow" : "border-ink-700 hover:border-ink-500 hover:bg-ink-800/60",
                       )}
-                    </span>
-                  </button>
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <span className="min-w-0 font-display text-sm font-medium text-parchment [overflow-wrap:anywhere]">
+                            {wayName(entry.way, t)}
+                          </span>
+                          {estimate && <span data-estimate className="text-xs text-mist">{estimate}</span>}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-mist">
+                          {sheetRow(shown.messages_included, shown.messages_total, name !== null ? shown.used_tokens : null, t)}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 size-[18px] shrink-0" aria-hidden>
+                        {pending === entry.way.id ? (
+                          <Loader2 className="size-[18px] animate-spin text-mist" />
+                        ) : (
+                          chosen && <Check className="size-[18px] text-ember-300" />
+                        )}
+                      </span>
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
             {anyPriced && <p className="text-xs text-mist">{t("ways.card.reference")}</p>}
           </div>
         )}
