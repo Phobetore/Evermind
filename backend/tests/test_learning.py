@@ -920,6 +920,40 @@ async def test_a_too_long_refusal_with_both_figures_is_learned_and_asked_again_o
     assert (await last_reply(client, convo))["content"] == "*She nods.*"
 
 
+async def test_a_refusal_naming_a_limit_under_the_size_typed_forgets_that_size(client, monkeypatch):
+    # An AI from an update, its size typed larger than its server takes.
+    ai, convo = await a_long_story(client, context_own=32768)
+    refusal = (400, {"error": LMSTUDIO_TOO_LONG.replace("4096", "8000")})
+    model = Model(refusal, writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+
+    # Refused once, then answered, the story made shorter for what the server named.
+    assert [call["context_size"] for call in model.calls] == [32768, 8000]
+    assert len(json.dumps(model.bodies[1])) < len(json.dumps(model.bodies[0]))
+    assert (await last_reply(client, convo))["content"] == "*She nods.*"
+    row = await row_of(ai["id"])
+    assert (row["context_own"], row["context_read"], row["context_read_kind"]) == (
+        None, 8000, "observed")
+    listed = next(one for one in (await client.get("/api/models")).json()
+                  if one["id"] == ai["id"])["context"]
+    assert (listed["own"], listed["read"], listed["read_kind"], listed["used"]) == (
+        None, 8000, "observed", 8000)
+
+    # The next turn is asked once.
+    model.answers, model.bodies, model.calls = [writing("*She smiles.*")], [], []
+    assert await send(client, convo["id"]) is None
+    assert (len(model.bodies), model.calls[0]["context_size"]) == (1, 8000)
+
+
+def test_a_refusal_naming_a_limit_over_the_size_typed_keeps_it():
+    call = {"context_size": 6000, "max_tokens": 1024}
+    current = {"context_own": 6000, "context_read": None, "fit_margin": None}
+    taught = learning.lesson(call, current, message=LMSTUDIO_TOO_LONG.replace("4096", "8000"),
+                             estimate=5000)
+    assert "context_own" not in taught
+    assert (taught["context_read"], taught["context_read_kind"]) == (8000, "observed")
+
+
 async def set_row(ai_id: str, **columns) -> None:
     conn = await open_db()
     try:

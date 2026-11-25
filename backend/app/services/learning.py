@@ -356,6 +356,10 @@ def lesson(call: dict, current: dict, *, message: str, estimate: int,
         # What the server showed it takes, as a reply cut at its size shows it: a read of its
         # list made by itself, which may say more, does not undo it (models.store_read).
         sets.update(context_read=limit, context_read_kind="observed")
+        # As an observation does (models.observe): a size typed larger than what the server
+        # takes would go on being counted, and the story never be made shorter for it.
+        if current.get("context_own") is not None and current["context_own"] > limit:
+            sets["context_own"] = None
     if limit is not None and prompt is not None and prompt > 0 and estimate > 0:
         # A count of the whole prompt, as a reply's is: it moves the average, not replaces it.
         ratio, n = next_ratio(current, prompt / estimate)
@@ -369,7 +373,8 @@ def lesson(call: dict, current: dict, *, message: str, estimate: int,
 async def after_too_long(db: aiosqlite.Connection, call: dict, model: dict, *, message: str,
                          estimate: int, said: dict | None = None) -> None:
     """Writes the ``lesson`` of a refusal for a prompt too long, once the prompt it makes is
-    known to be shorter. What the person typed is never written."""
+    known to be shorter. A size the person typed is only ever cleared, when the server named a
+    smaller one."""
 
     def change(current: dict) -> dict:
         return lesson(call, current, message=message, estimate=estimate, said=said)
