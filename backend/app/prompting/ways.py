@@ -82,6 +82,17 @@ def level_of(fields: dict) -> Level | None:
     return None
 
 
+def _whole(value) -> int | None:
+    """A whole number, else None. 30.0 counts: the page's engine reads it from JSON as 30."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return None
+
+
 def applied(way: dict, overrides: dict | None) -> dict:
     """The way with a conversation's overrides: history_limit as is; reply_length with its room
     (REPLY_ROOM); reminders replaces the six REMINDER_FIELDS by LEVELS[level]. Adds "adjusted":
@@ -90,17 +101,17 @@ def applied(way: dict, overrides: dict | None) -> dict:
     result = dict(way)
     adjusted = False
     given = overrides or {}
-    limit = given.get("history_limit")
-    if isinstance(limit, int) and not isinstance(limit, bool) and limit != way["history_limit"]:
+    limit = _whole(given.get("history_limit"))
+    if limit is not None and limit != way["history_limit"]:
         result["history_limit"] = limit
         adjusted = True
     length = given.get("reply_length")
-    if length in REPLY_ROOM and length != way["reply_length"]:
+    if isinstance(length, str) and length in REPLY_ROOM and length != way["reply_length"]:
         result["reply_length"] = length
         result["reply_room"] = REPLY_ROOM[length]
         adjusted = True
     level = given.get("reminders")
-    if level in LEVELS and level != level_of(way):
+    if isinstance(level, str) and level in LEVELS and level != level_of(way):
         result.update(LEVELS[level])
         adjusted = True
     result["adjusted"] = adjusted

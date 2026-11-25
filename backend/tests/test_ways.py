@@ -125,6 +125,21 @@ def test_overrides_change_only_this_conversation_s_values():
     assert ways.applied(balanced, None)["adjusted"] is False
 
 
+def test_an_override_that_cannot_be_read_changes_nothing():
+    balanced = ways.way_of({}, "balanced", None)
+    for unread in ({"reply_length": ["long"]}, {"reminders": {"a": 1}},
+                   {"history_limit": 30.5}, {"history_limit": True}):
+        kept = ways.applied(balanced, unread)
+        assert kept == {**balanced, "adjusted": False}, unread
+
+
+def test_a_whole_float_limit_is_read_as_the_page_reads_it():
+    # JSON cannot tell 30.0 from 30 in the page's engine: both read it as 30.
+    played = ways.applied(ways.way_of({}, "balanced", None), {"history_limit": 30.0})
+    assert (played["history_limit"], played["adjusted"]) == (30, True)
+    assert isinstance(played["history_limit"], int)
+
+
 def test_a_built_in_with_stored_edits():
     styles = {"overrides": {"balanced": {"history_limit": 30}}, "custom": []}
     way = ways.way_of(styles, "balanced", "balanced")

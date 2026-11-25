@@ -2463,6 +2463,92 @@
     "allowance": 3072
    },
    "expected": 4096
+  },
+  {
+   "fn": "applied",
+   "name": "overrides of a shape that cannot be read change nothing",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "reply_length": [
+      "long"
+     ],
+     "reminders": {
+      "a": 1
+     },
+     "history_limit": 30.5
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 24,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": false
+   }
+  },
+  {
+   "fn": "applied",
+   "name": "a whole limit written with a point",
+   "input": {
+    "way": {
+     "id": "balanced",
+     "name": null,
+     "built_in": true,
+     "overridden": false,
+     "history_limit": 24,
+     "reply_length": "medium",
+     "reply_room": 1024,
+     "facts_cap": 2000,
+     "max_facts": 60,
+     "lore_cap": 800,
+     "lore_share": null,
+     "passage_cap": 1500,
+     "passage_share": null
+    },
+    "overrides": {
+     "history_limit": 30.0
+    }
+   },
+   "expected": {
+    "id": "balanced",
+    "name": null,
+    "built_in": true,
+    "overridden": false,
+    "history_limit": 30,
+    "reply_length": "medium",
+    "reply_room": 1024,
+    "facts_cap": 2000,
+    "max_facts": 60,
+    "lore_cap": 800,
+    "lore_share": null,
+    "passage_cap": 1500,
+    "passage_share": null,
+    "adjusted": true
+   }
   }
  ]
 }
