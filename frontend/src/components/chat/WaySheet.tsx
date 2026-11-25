@@ -3,7 +3,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { WayChoices, type WayChange } from "@/components/ways/WayChoices";
 import { data, type ConversationPatch } from "@/data";
 import { useI18n } from "@/i18n/I18nProvider";
-import { UNSENT_ROOM } from "@/lib/ai";
+import { UNSENT_ROOM, sizeTold } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
 import { estimateOf, estimateText, pages, readerOfAi } from "@/lib/estimate";
 import { wayName } from "@/lib/ways";
@@ -40,7 +40,8 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
   const { t, locale } = useI18n();
   const current = outlook.current;
   const ai = (data.connections && ais && ais.find((each) => each.id === current.model_id)) || null;
-  const name = ai?.name ?? null;
+  // A capacity nobody told is not said in pages: the AI's line says it is not given.
+  const name = ai && sizeTold(ai) ? ai.name : null;
   const [pending, setPending] = useState<string | null>(null);
   const [adjusting, setAdjusting] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);

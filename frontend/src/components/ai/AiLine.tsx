@@ -1,6 +1,6 @@
 import { Tag } from "@/components/ui/Tag";
 import { useT } from "@/i18n/useT";
-import { priceLine, readsLine, serviceLine, splitName } from "@/lib/ai";
+import { priceLine, readsLine, serviceLine, sizeTold, splitName } from "@/lib/ai";
 import type { Ai } from "@/types";
 
 /** One AI as Mes IA and the conversation's sheet draw it: its name, what marks it, then where its
@@ -9,8 +9,6 @@ import type { Ai } from "@/types";
 export function AiLine({ ai, extra }: { ai: Ai; extra?: React.ReactNode }) {
   const t = useT();
   const [head, tail] = splitName(ai.name);
-  // A size nobody told is a figure Evermind counts with, not one the model has: it is not shown as one.
-  const told = ai.context.source === "own" || ai.context.source === "read";
   return (
     <div className="min-w-0">
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -24,7 +22,7 @@ export function AiLine({ ai, extra }: { ai: Ai; extra?: React.ReactNode }) {
         {ai.reasons === true && <Tag tone="arcane" className="whitespace-normal">{t("ai.thinksBeforeWriting")}</Tag>}
       </div>
       <p className="mt-0.5 text-xs leading-relaxed text-mist [overflow-wrap:anywhere]">
-        {[serviceLine(ai, t), readsLine(told ? ai.context.used : null, t), priceLine(ai.price, ai.free, t)].join(" · ")}
+        {[serviceLine(ai, t), readsLine(sizeTold(ai) ? ai.context.used : null, t), priceLine(ai.price, ai.free, t)].join(" · ")}
       </p>
       {extra}
     </div>

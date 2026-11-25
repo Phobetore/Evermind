@@ -4,7 +4,7 @@ import { Bolded } from "@/components/ai/MigrationNotice";
 import { Sheet } from "@/components/ui/Sheet";
 import { data, DataError, type AiSaved } from "@/data";
 import { useT } from "@/i18n/useT";
-import { answering, cappedUnder, splitName } from "@/lib/ai";
+import { answering, cappedUnder, sizeTold, splitName } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
 import { pages, readerOfAi } from "@/lib/estimate";
 import type { Ai, Conversation, Outlook } from "@/types";
@@ -164,9 +164,12 @@ export function AiSheet({ conversation, ais, outlook, onPick, onGone, onAddOther
                     <>
                       {reading && (
                         <span className="mt-0.5 block text-xs leading-relaxed text-mist">
-                          {t("ways.sheet.row", {
-                            read: reading.messages_included, total: reading.messages_total, pages: pages(reading.used_tokens),
-                          })}
+                          {/* No pages for a capacity nobody told, as its line above says. */}
+                          {sizeTold(ai)
+                            ? t("ways.sheet.row", {
+                              read: reading.messages_included, total: reading.messages_total, pages: pages(reading.used_tokens),
+                            })
+                            : t("ways.sheet.rowNoSize", { read: reading.messages_included, total: reading.messages_total })}
                         </span>
                       )}
                       {/* Under the conversation's way as it plays it, as its row in the sheet of the ways. */}

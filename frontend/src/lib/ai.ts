@@ -259,6 +259,12 @@ export function serviceLine(ai: Ai, t: T): string {
   return t(loopback ? "ai.serviceOnThisPc" : local ? "ai.serviceOnYourNetwork" : "ai.serviceOnline", { name });
 }
 
+/** Whether the AI's reading capacity was typed or read. A size nobody told is a figure Evermind
+ *  counts with, not one the model has: no line says it as one, in pages or in tokens. */
+export function sizeTold(ai: Ai): boolean {
+  return ai.context.source === "own" || ai.context.source === "read";
+}
+
 export function readsLine(tokens: number | null, t: T): string {
   return tokens === null ? t("ai.readsUntold") : t("ai.reads", { count: pages(tokens) });
 }

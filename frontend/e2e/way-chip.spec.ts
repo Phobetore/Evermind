@@ -162,6 +162,39 @@ test("the current ai costs the same in both sheets", async ({ page, request }) =
   }
 });
 
+test("an ai whose capacity is not said is given no pages in either sheet", async ({ page, request }) => {
+  const untold = await anAi(request, `Open ${stamp()}`, { reply_cap: { mode: "unsent" } });
+  try {
+    const ais = await (await request.get(`${API}/api/models`)).json();
+    // Neither typed nor read: Evermind counts with a size of its own.
+    expect(["own", "read"]).not.toContain(ais.find((ai: { id: string }) => ai.id === untold.id).context.source);
+    const convo = await makeConversation(request);
+    await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: untold.id } });
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(aiChipOf(page)).toHaveAccessibleName(`AI: ${untold.name}. Change.`);
+
+    const sheet = await openSheet(page);
+    await expect(sheet).toContainText("Rereads 1 messages, all it was asked");
+    await expect(sheet).not.toContainText(`What ${untold.name} reads`);
+    await expect(sheet.locator("[data-reading-bar]")).toHaveCount(0);
+    await expect(sheet).not.toContainText("capacity");
+    for (const name of WAYS) {
+      await expect(rowOf(page, name)).toContainText("Rereads 1 of the 1 messages");
+      await expect(rowOf(page, name)).not.toContainText("pages");
+    }
+    await sheet.getByRole("button", { name: "Close" }).click();
+
+    await aiChipOf(page).click();
+    const aiRow = aiSheetOf(page).getByRole("radio", { checked: true });
+    await expect(aiRow).toContainText(untold.name);
+    await expect(aiRow).toContainText("reading capacity not given");
+    await expect(aiRow).toContainText("Rereads 1 of the 1 messages");
+    await expect(aiRow).not.toContainText("pages");
+  } finally {
+    await removeAi(request, untold.id);
+  }
+});
+
 test("no price under the input, whatever the way and the ai", async ({ page, request }) => {
   const priced = await anAi(request, `Priced ${stamp()}`, { price_own_in: 3, price_own_out: 15 });
   try {

@@ -18,6 +18,7 @@ import {
   search,
   searchable,
   serviceLine,
+  sizeTold,
   sortRows,
   splitName,
   successorOf,
@@ -366,6 +367,14 @@ describe("the lines of an ai", () => {
     expect(readsLine(16_384, fr)).toBe("lit ≈ 33 pages à la fois");
     expect(readsLine(1_048_576, fr)).toBe("lit ≈ 2 100 pages à la fois");
     expect(readsLine(null, fr)).toBe("capacité de lecture non dite");
+  });
+
+  test("a size is told when typed or read, not when Evermind counts with one of its own", () => {
+    const at = (source: Ai["context"]["source"]) => ai({ context: { ...ai().context, source } });
+    expect(sizeTold(at("own"))).toBe(true);
+    expect(sizeTold(at("read"))).toBe(true);
+    expect(sizeTold(at("size_untold"))).toBe(false);
+    expect(sizeTold(at("assumed"))).toBe(false);
   });
 
   test("a capacity under a page and a half says one page, not 1 pages", () => {
