@@ -77,6 +77,10 @@ test("a reply cut at the ceiling its ai keeps says the figure, and offers to con
   expect(describeCut(cutBy({ mode: "fixed", length: "medium", thought: false }, 1024), t)).toEqual({
     text: 'chat.message.cutAtCeiling {"tokens":1024}', actions: ["extend", "letEvermind"],
   });
+  // Its thinking counts toward that figure, which the line already says: lifting it is what helps.
+  expect(describeCut(cutBy({ mode: "fixed", length: "medium", thought: true }, 1024), t)).toEqual({
+    text: 'chat.message.cutAtCeiling {"tokens":1024}', actions: ["extend", "letEvermind"],
+  });
 });
 
 test.each(["short", "medium", "long"] as const)("a reply that filled the room kept for a %s reply says so", (length) => {
