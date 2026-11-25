@@ -404,12 +404,9 @@ for (const locale of ["en", "de"]) {
         truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
       },
     };
-    // With a keyboard, only the line over the input is looked at: there the message's own buttons
-    // wait for the pointer, which is no part of this.
-    const phone = test.info().project.name !== "desktop";
     await inLocale(page, locale);
     await page.addInitScript(rootAt, "32px");
-    for (const [cause, meta] of Object.entries(cases).filter(([cause]) => phone || cause === "room")) {
+    for (const [cause, meta] of Object.entries(cases)) {
       await page.unrouteAll();
       await withCause(page, convo.id, meta);
       for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
@@ -442,7 +439,6 @@ for (const locale of ["en", "de"]) {
           });
           expect(seen, `the button at ${size.width}`).toEqual({ between: true, reached: true });
         }
-        if (!phone) continue;
         await reply.locator("[data-ceiling]").scrollIntoViewIfNeeded();
         expect(await misfits(page), `${cause} at ${size.width}`).toEqual([]);
       }

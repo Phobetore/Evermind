@@ -181,12 +181,13 @@ export function ChatMessage({
             </span>
           )}
 
-          {/* Always shown on touch, each button 44px across and the row giving back the height it takes;
-              six that do not fit on a line break between the reply's two and the message's four, and
-              four that do not fit either (a page zoomed to 200 %) break among themselves. */}
-          <div className="hover-actions msg-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
+          {/* Always shown on touch, each button 44px across and the row giving back the height it takes.
+              With a pointer too, six that do not fit on a line (a narrow window with very large text)
+              break between the reply's two and the message's four, and four that do not fit either
+              (a page zoomed to 200 %) break among themselves. */}
+          <div className="hover-actions msg-actions ml-auto flex flex-wrap items-center justify-end gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:gap-0">
             {isLast && !busy && (
-              <div className="flex items-center justify-end gap-0.5 pointer-coarse:flex-wrap pointer-coarse:gap-0">
+              <div className="flex flex-wrap items-center justify-end gap-0.5 pointer-coarse:gap-0">
                 {/* On a message of the person's, the reply it is waiting for. Never on a greeting: it answers nothing. */}
                 {!message.meta?.greeting && (
                   <IconButton ref={replyRef} title={t("chat.message.regenerateTitle")} onClick={onRegenerate}>
@@ -200,7 +201,7 @@ export function ChatMessage({
                 )}
               </div>
             )}
-            <div className="flex items-center justify-end gap-0.5 pointer-coarse:flex-wrap pointer-coarse:gap-0">
+            <div className="flex flex-wrap items-center justify-end gap-0.5 pointer-coarse:gap-0">
               <IconButton
                 ref={editButton}
                 title={t("chat.message.editTitle")}
