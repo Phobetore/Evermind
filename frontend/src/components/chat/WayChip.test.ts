@@ -39,3 +39,21 @@ describe("an AI whose reading capacity nobody told", () => {
     expect(chip({ current: full }).aria).toBe("Way to play: Immersive. Its reading capacity is full: it rereads 33 messages of 60. Change.");
   });
 });
+
+describe("before the first outlook", () => {
+  test("the chip says adjusted from the conversation's own adjustments", () => {
+    expect(chip({ playStyle: "balanced", playOverrides: { reply_length: "long" } })).toEqual({
+      text: "Balanced · adjusted", aria: "Way to play: Balanced · adjusted. Change.",
+    });
+  });
+
+  test("with none, or none given, the way's name alone, as before", () => {
+    expect(chip({ playStyle: "balanced", playOverrides: null }).text).toBe("Balanced");
+    expect(chip({ playStyle: "balanced", playOverrides: {} }).text).toBe("Balanced");
+    expect(chip({ playStyle: "balanced" }).text).toBe("Balanced");
+  });
+
+  test("once the outlook has come, it says what the outlook says", () => {
+    expect(chip({ current: full, playOverrides: { reply_length: "long" } }).text).toBe("Immersive · rereads 33 of 60");
+  });
+});

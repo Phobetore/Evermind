@@ -1,6 +1,6 @@
 import { useT } from "@/i18n/useT";
 import { nameOfId, wayLabel } from "@/lib/ways";
-import type { Outlook } from "@/types";
+import type { Outlook, PlayOverrides } from "@/types";
 import { BookOpen, ChevronDown } from "lucide-react";
 
 /** The way the conversation plays, under its input beside the AI's chip: its name, adjusted when it
@@ -9,12 +9,14 @@ import { BookOpen, ChevronDown } from "lucide-react";
  *  `current` null: before the first outlook, the name the conversation's `playStyle` gives.
  *  `capacityTold` false: the AI answering does not say how much it reads at once (lib/ai.ts,
  *  sizeTold), and the chip read aloud says what it rereads with no word of a capacity; not given,
- *  it is told. */
-export function WayChip({ current, playStyle, onOpen, capacityTold = true }: {
+ *  it is told. `playOverrides`: the conversation's own adjustments, which say "adjusted" before the
+ *  first outlook does, so that the chip does not grow as it comes; not given, it waits for it. */
+export function WayChip({ current, playStyle, onOpen, capacityTold = true, playOverrides = null }: {
   current: Outlook["current"] | null;
   playStyle: string;
   onOpen(): void;
   capacityTold?: boolean;
+  playOverrides?: PlayOverrides | null;
 }) {
   const t = useT();
   let text: string;
@@ -23,7 +25,9 @@ export function WayChip({ current, playStyle, onOpen, capacityTold = true }: {
     ({ text, aria } = wayLabel(current, t, capacityTold));
   } else {
     // A way a person made is named by the server only: until it says, the chip says what it is.
-    text = nameOfId(playStyle, t) ?? t("ways.sheet.title");
+    const name = nameOfId(playStyle, t) ?? t("ways.sheet.title");
+    // The server keeps no adjustment equal to the way's own: one kept is one made.
+    text = playOverrides && Object.keys(playOverrides).length > 0 ? t("ways.chip.adjusted", { name }) : name;
     aria = t("ways.chip.aria", { label: text });
   }
   return (
