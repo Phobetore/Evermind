@@ -995,9 +995,9 @@
     "defaultTag": "Default",
     "count": "{count} conversations",
     "count_one": "1 conversation",
-    "usage": "{count} conversations play in {name}. What you change here changes for all of them.",
-    "usage_one": "1 conversation plays in {name}. What you change here changes for it.",
-    "usageNone": "No conversation plays in {name} yet.",
+    "usage": "{count} conversations play this way. What you change here changes for all of them.",
+    "usage_one": "1 conversation plays this way. What you change here changes for it.",
+    "usageNone": "No conversation plays this way yet.",
     "history": {
       "label": "Messages reread before each reply",
       "hint": "The AI rereads this many recent messages word for word; anything older reaches it through the summary and the remembered facts.",

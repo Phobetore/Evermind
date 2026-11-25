@@ -199,8 +199,8 @@ function WayView({ id }: { id: string }) {
         )}
         <p className="mt-3 text-sm leading-relaxed text-parchment-dim">
           {way.conversations === 0
-            ? t("ways.usageNone", { name })
-            : t("ways.usage", { count: way.conversations, name })}
+            ? t("ways.usageNone")
+            : t("ways.usage", { count: way.conversations })}
         </p>
       </header>
 

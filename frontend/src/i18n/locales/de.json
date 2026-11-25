@@ -995,9 +995,9 @@
     "defaultTag": "Standard",
     "count": "{count} Unterhaltungen",
     "count_one": "1 Unterhaltung",
-    "usage": "{count} Unterhaltungen nutzen {name}. Was Sie hier ändern, ändert sich für alle.",
-    "usage_one": "1 Unterhaltung nutzt {name}. Was Sie hier ändern, ändert sich für sie.",
-    "usageNone": "Noch keine Unterhaltung nutzt {name}.",
+    "usage": "{count} Unterhaltungen nutzen diese Spielweise. Was Sie hier ändern, ändert sich für alle.",
+    "usage_one": "1 Unterhaltung nutzt diese Spielweise. Was Sie hier ändern, ändert sich für sie.",
+    "usageNone": "Noch keine Unterhaltung nutzt diese Spielweise.",
     "history": {
       "label": "Vor jeder Antwort erneut gelesene Nachrichten",
       "hint": "Die KI liest so viele der letzten Nachrichten Wort für Wort; Älteres erreicht sie über die Zusammenfassung und die gemerkten Fakten.",

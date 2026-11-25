@@ -981,7 +981,7 @@
       "light": "Léger",
       "balanced": "Équilibré",
       "immersive": "Immersif",
-      "maximum": "Au maximum",
+      "maximum": "Maximum",
       "mine": "Mes réglages"
     },
     "title": "Façons de jouer",
@@ -995,9 +995,9 @@
     "defaultTag": "Par défaut",
     "count": "{count} conversations",
     "count_one": "{count} conversation",
-    "usage": "{count} conversations jouent en {name}. Ce que vous changez ici change pour toutes.",
-    "usage_one": "1 conversation joue en {name}. Ce que vous changez ici change pour elle.",
-    "usageNone": "Aucune conversation ne joue en {name} pour l'instant.",
+    "usage": "{count} conversations jouent de cette façon. Ce que vous changez ici change pour toutes.",
+    "usage_one": "1 conversation joue de cette façon. Ce que vous changez ici change pour elle.",
+    "usageNone": "Aucune conversation ne joue de cette façon pour l'instant.",
     "history": {
       "label": "Messages relus avant chaque réponse",
       "hint": "L'IA relit mot pour mot ce nombre de messages récents\u00a0; ce qui est plus ancien lui arrive par le résumé et les faits retenus.",
@@ -1081,7 +1081,7 @@
       "rowNone": "Aucun message à relire pour l'instant",
       "rowOnly": "Relit le seul message",
       "adjust": "Ajuster pour cette conversation",
-      "backTo": "Revenir à {name} tel quel",
+      "backTo": "Revenir à {name} sans ajustement",
       "editAll": "Modifier {name} pour toutes les conversations…"
     },
     "reading": {
