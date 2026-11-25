@@ -327,6 +327,9 @@ async def test_a_custom_way_is_renamed_and_changed(client):
                                                              "reply_room": None})
     assert resp.status_code == 200, resp.text
     assert resp.json()["name"] == "Nights" and resp.json()["reply_room"] is None
+    resp = await client.put(f"/api/ways/{mine['id']}", json={"name": None})
+    assert resp.status_code == 422
+    assert way_in(await listing(client), mine["id"])["name"] == "Nights"
     assert (await client.put("/api/ways/gone", json={"history_limit": 3})).status_code == 404
     assert (await client.post("/api/ways", json={"from": "gone", "name": "X"})).status_code == 404
     assert (await client.post("/api/ways", json={"from": "light", "name": "  "})).status_code == 422
@@ -336,10 +339,13 @@ async def test_no_upper_bound_only_floors(client):
     assert (await client.put("/api/ways/balanced", json={"history_limit": 5000})).status_code == 200
     for refused in ({"history_limit": -1}, {"reply_room": 0}, {"lore_share": 1.5},
                     {"max_facts": 0}, {"facts_cap": -1}, {"passage_share": -0.1},
-                    {"reply_length": "endless"}, {"history_limit": 2**53}):
+                    {"reply_length": "endless"}, {"history_limit": 2**53},
+                    # A null here would be kept and handed to the next turn as its value.
+                    {"history_limit": None}, {"reply_length": None}):
         resp = await client.put("/api/ways/balanced", json=refused)
         assert resp.status_code == 422, refused
-    assert way_in(await listing(client), "balanced")["history_limit"] == 5000
+    listed = way_in(await listing(client), "balanced")
+    assert listed["history_limit"] == 5000 and listed["reply_length"] == "medium"
 
 
 async def test_a_page_from_before_cannot_set_the_three_old_settings(client):

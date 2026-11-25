@@ -336,7 +336,7 @@ class WayIn(Input):
 
     @model_validator(mode="after")
     def _no_empty_value(self):
-        # These two have no "none": a null sent for them is a mistake, not a choice.
+        # These three have no "none": a null sent for them is a mistake, not a choice.
         for key in ("history_limit", "reply_length", "name"):
             if key in self.model_fields_set and getattr(self, key) is None:
                 raise ValueError(f"{key} cannot be null")
