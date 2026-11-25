@@ -172,6 +172,61 @@ describe("what an ai reads of the reference story, and what 100 messages cost", 
     expect(estimateText(estimate, "en", en)).toBe("less than $0.01 per 100 messages");
   });
 
+  test("at least under a cent, with its thinking above", () => {
+    const cheap = brume({ reasons: true, price: { read_in: 0.001, read_out: 0.1, own_in: null, own_out: null, varies: false } });
+    const estimate = estimateOf(readerOfAi(cheap), balanced);
+    if (estimate.kind !== "amount") throw new Error(estimate.kind);
+    // 12,720 at 0.001 and 450 at 0.1: 57.72 a message, 0.005772 for 100; its 3,072 of thinking
+    // at 0.1 add 0.03072, so 0.036492 with them: over a cent, both figures are said.
+    expect(estimate.per100).toBeCloseTo(0.005772, 10);
+    expect(estimate.fuller).toBeCloseTo(0.036492, 10);
+    expect(estimateText(estimate, "en", en)).toBe("at least $0.0058 per 100 messages (≈ $0.036 with its thinking)");
+  });
+
+  test("an anthropic ai keeps what anthropic is sent", () => {
+    const anthropic = (over: Partial<Ai>) => brume({
+      service: { ...brume().service, family: "anthropic", provider: "anthropic" },
+      anthropic: true,
+      ...over,
+    });
+    // Balanced's 1,024 is raised to Anthropic's floor: 32,768 - 4,096 - 1,966.
+    const balancedRead = readingOf(readerOfAi(anthropic({})), balanced);
+    expect(balancedRead.budget).toBe(26_706);
+    expect(balancedRead.parts.room).toBe(4_096);
+    // A room left open: 4,096 is sent and kept, where another AI of 8,192 would keep a quarter,
+    // 2,048. 8,192 - 4,096 - 491 = 3,605.
+    const small = { context: { own: null, read: 8_192, read_kind: "served" as const, used: 8_192, source: "read" as const }, margin: 491 };
+    const open = { ...balanced, reply_room: null };
+    expect(readingOf(readerOfAi(anthropic(small)), open).budget).toBe(3_605);
+    expect(readingOf(readerOfAi(brume(small)), open).budget).toBe(5_653);
+  });
+
+  test("a measured thinking keeps its own room", () => {
+    const ai = brume({ reasons: true, thinking_measured: true, thinking_allowance: 1_500, margin: 983 });
+    const reading = readingOf(readerOfAi(ai), balanced);
+    // 1,024 for the reply and the 1,500 it was measured to think: 32,768 - 2,524 - 983.
+    expect(reading.parts.room).toBe(2_524);
+    expect(reading.budget).toBe(29_261);
+  });
+
+  test("a window under what the card and the reminders take rereads nothing", () => {
+    const window = (used: number) => brume({ context: { own: null, read: used, read_kind: "served", used, source: "read" }, margin: 200 });
+    const reading = readingOf(readerOfAi(window(2_048)), BUILT_IN.immersive);
+    // Immersive's room, at most half the window: 1,024. 2,048 - 1,024 - 200 = 824; the reminders
+    // at 824: facts 700, lorebook 6 % = 49, passages 10 % = 82, 831 in all, over what is left.
+    expect(reading.budget).toBe(824);
+    expect(reading.reread).toBe(0);
+    expect(reading.used).toBe(824);
+    // The card takes all there is; the reminders and the story, nothing.
+    expect(reading.parts).toEqual({ card: 824, reminders: 0, history: 0, room: 1_024 });
+    expect(reading.full).toBe(true);
+    expect(reading.pages).toBe(2);
+    // 1,024 - 512 - 200 = 312: the engine still gives a prompt its floor.
+    const tiny = readingOf(readerOfAi(window(1_024)), BUILT_IN.immersive);
+    expect(tiny.budget).toBe(512);
+    expect(tiny.parts).toEqual({ card: 512, reminders: 0, history: 0, room: 512 });
+  });
+
   test("the price shown is the price used", () => {
     const typed = brume({ price: { read_in: 0.2, read_out: 0.6, own_in: 1, own_out: 2, varies: false } });
     const estimate = estimateOf(readerOfAi(typed), balanced);
@@ -190,6 +245,32 @@ describe("a model not added yet", () => {
     expect(readingOf(readerOfRow(untold, "openrouter"), balanced).budget).toBe(16_384 - 1_024 - 983);
     const most = row({ context: { served: null, configured: null, max: 8_192 } });
     expect(readingOf(readerOfRow(most, "openrouter"), balanced).budget).toBe(8_192 - 1_024 - 491);
+    // A size set on the server comes before the most the model can read: 12,000, a margin of 720.
+    const configured = row({ context: { served: null, configured: 12_000, max: 32_768 } });
+    expect(readingOf(readerOfRow(configured, "openrouter"), balanced).budget).toBe(12_000 - 1_024 - 720);
+  });
+
+  test("a row keeps no more than it writes, and anthropic's floor", () => {
+    // It writes 600 at most: 600 kept of balanced's 1,024. 32,768 - 600 - 1,966.
+    const short = readingOf(readerOfRow(row({ max_output: 600 }), "openrouter"), balanced);
+    expect(short.parts.room).toBe(600);
+    expect(short.budget).toBe(30_202);
+    // On Anthropic, 4,096: 32,768 - 4,096 - 1,966.
+    const anthropic = readingOf(readerOfRow(row(), "anthropic"), balanced);
+    expect(anthropic.parts.room).toBe(4_096);
+    expect(anthropic.budget).toBe(26_706);
+  });
+
+  test("cheapest weighs each row under the way it is given", () => {
+    // Under balanced, both read the same 12,720: the cheaper to read comes first.
+    const wide = row({ id: "wide", context: { served: 131_072, configured: null, max: null } });
+    const dear = row({ id: "dear", price: { input: 0.3, output: 0.6, varies: false, cache_read: null, cache_write: null } });
+    expect(cheapestKey(wide, "openrouter", balanced)).toBeCloseTo(0.2814, 10);
+    expect(cheapestKey(dear, "openrouter", balanced)).toBeCloseTo(0.4086, 10);
+    // Under maximum, each fills its budget: 131,072 - 2,048 - 7,864 = 121,160 at 0.20 and 1,100
+    // at 0.60 is 2.4892; 32,768 - 2,048 - 1,966 = 28,754 at 0.30 and 1,100 at 0.60 is 0.92862.
+    expect(cheapestKey(wide, "openrouter", BUILT_IN.maximum)).toBeCloseTo(2.4892, 10);
+    expect(cheapestKey(dear, "openrouter", BUILT_IN.maximum)).toBeCloseTo(0.92862, 10);
   });
 
   test("cheapest ranks a thinking row on its fuller figure", () => {
