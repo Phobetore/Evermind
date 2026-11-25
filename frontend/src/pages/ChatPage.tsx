@@ -962,11 +962,12 @@ function ChatView({ id }: { id: string }) {
           }}
         />
       )}
-      {waySheet && (whole || glance) && (
+      {waySheet && (
         <WaySheet
           conversation={conversation}
-          // Until the whole outlook comes, the reading the chip holds, the rows on their way.
-          outlook={whole ?? { current: glance!, models: [], ways: [] }}
+          // Until the whole outlook comes, the reading the chip holds, the rows on their way; with
+          // neither, the sheet opens all the same, as the touch asked.
+          outlook={whole ?? (glance && { current: glance, models: [], ways: [] })}
           ais={data.connections ? ais : null}
           onPicked={playing}
           onClose={closeWaySheet}

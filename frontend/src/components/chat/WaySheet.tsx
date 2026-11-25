@@ -28,26 +28,37 @@ const FOLD_GUTTER = "px-[min(0.75rem,12px)]";
  *  an adjustment is sent at once too and the sheet stays. `onPicked`: the conversation as the
  *  server saved it, after either. `onLetEvermind`: the ceiling of the AI answering lifted, a
  *  setting of the AI's that the page saves and says. `ais` null: an edition with no AIs of its own,
- *  where nothing is priced and no capacity is said. `outlook.ways` empty: still on its way. */
+ *  where nothing is priced and no capacity is said. `outlook` null: nothing read yet, and the sheet
+ *  answers the touch with its title while it comes; `outlook.ways` empty: the rows on their way. */
 export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetEvermind }: {
   conversation: Conversation;
-  outlook: Outlook;
+  outlook: Outlook | null;
   ais: Ai[] | null;
   onPicked(conversation: Conversation): void;
   onClose(): void;
   onLetEvermind(ai: Ai): void;
 }) {
   const { t, locale } = useI18n();
-  const current = outlook.current;
-  const ai = (data.connections && ais && ais.find((each) => each.id === current.model_id)) || null;
-  // A capacity nobody told is not said in pages: the AI's line says it is not given.
-  const name = ai && sizeTold(ai) ? ai.name : null;
   const [pending, setPending] = useState<string | null>(null);
   const [adjusting, setAdjusting] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   // The touch made last is the one whose answer counts.
   const asked = useRef(0);
   const [huge] = useState(() => parseFloat(getComputedStyle(document.documentElement).fontSize) >= HUGE_ROOT_PX);
+
+  const waiting = (
+    <div className="flex justify-center py-6" aria-busy="true">
+      <Loader2 className="size-[20px] animate-spin text-mist" aria-hidden />
+    </div>
+  );
+  // The same sheet as the one with its figures, so that it stays open as they come.
+  if (!outlook) {
+    return <Sheet title={t("ways.sheet.title")} hint={t("ways.sheet.hint")} onClose={onClose}>{waiting}</Sheet>;
+  }
+  const current = outlook.current;
+  const ai = (data.connections && ais && ais.find((each) => each.id === current.model_id)) || null;
+  // A capacity nobody told is not said in pages: the AI's line says it is not given.
+  const name = ai && sizeTold(ai) ? ai.name : null;
 
   async function send(changes: ConversationPatch) {
     const sent = ++asked.current;
@@ -100,11 +111,7 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
       <div className="flex flex-col gap-4">
         <ReadingBlock entry={current} name={name} outlook={outlook} compact={huge} part={huge ? "top" : "whole"} />
 
-        {outlook.ways.length === 0 ? (
-          <div className="flex justify-center py-6" aria-busy="true">
-            <Loader2 className="size-[20px] animate-spin text-mist" aria-hidden />
-          </div>
-        ) : (
+        {outlook.ways.length === 0 ? waiting : (
           <div role="radiogroup" aria-label={t("ways.sheet.title")} className="flex flex-col gap-1.5">
             {outlook.ways.map((entry) => {
               const chosen = entry.way.id === current.way.id;

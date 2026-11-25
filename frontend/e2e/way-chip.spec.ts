@@ -321,6 +321,28 @@ test("a turn that ends with the ais' sheet open leaves its rows their figures, c
   await expect(row).toContainText("Rereads 5 of the 5 messages");
 });
 
+test("the sheet answers the touch before anything it shows has come", async ({ page, request }) => {
+  const convo = await makeConversation(request);
+  let release: () => void = () => {};
+  const released = new Promise<void>((resolve) => (release = resolve));
+  // The chip's short read never comes; the whole one waits until the test lets it.
+  await page.route(`**/api/conversations/${convo.id}/outlook**`, async (route) => {
+    if (new URL(route.request().url()).searchParams.get("only") === "current") return;
+    await released;
+    await route.continue();
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+  await chipOf(page).click();
+  const sheet = sheetOf(page);
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText("For this conversation only.");
+  await expect(sheet.locator("[aria-busy=true]")).toHaveCount(1);
+  expect(await misfits(page, "dialog")).toEqual([]);
+  release();
+  await expect(sheet.getByRole("radio")).toHaveCount(4);
+  await expect(rowOf(page, "Balanced")).toHaveAttribute("aria-checked", "true");
+});
+
 test("a failed switch keeps the sheet open and the chip as it was", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await page.route(`**/api/conversations/${convo.id}`, (route) =>
