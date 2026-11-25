@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { addModel, chat, conversationWithReply, inLocale, makeConversation, misfits, MOCK, replyEnds, rootAt } from "./fixtures";
+import { addModel, chat, conversationWithReply, inLocale, makeConversation, misfits, MOCK, replyEnds, rootAt, stopTurn } from "./fixtures";
 
 /**
  * A reply that ends without what was asked for says why, as a person on a phone reads it
@@ -285,6 +285,16 @@ test("a story read only from its end says so and shrinks", { tag: "@desktop" }, 
   expect(await line.evaluate((el) => el.closest("[data-story]") === null)).toBe(true);
   await noSidewaysScroll(page);
 
+  // Said of the AI it was counted for: another answering would be given that AI's figure.
+  const other = (await (await request.get(`${API}/api/models`)).json()).find((one: { id: string }) => one.id !== ai.id);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: other.id } });
+  await page.reload();
+  await expect(page.locator("[data-message-id]").last()).toBeVisible();
+  await expect(line).toHaveCount(0);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: ai.id } });
+  await page.reload();
+  await expect(line).toBeVisible();
+
   const ends = replyEnds(page, convo.id);
   await line.getByRole("button", { name: "Shrink and try again" }).click();
   await ends;
@@ -336,6 +346,44 @@ function withCause(page: Page, id: string, meta: Record<string, unknown>) {
     await route.fulfill({ response, json: body });
   });
 }
+
+test("neither line stays while the reply is written again", async ({ page, request }) => {
+  const convo = await conversationWithReply(request, { slowly: true });
+  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  await withCause(page, convo.id, {
+    ceiling: { "0": null }, cut: { "0": { mode: "auto", length: "medium", thought: false } },
+    truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
+  });
+  await page.goto(`/#/chat/${convo.id}`);
+  const reply = page.locator("[data-message-id]").last();
+  await expect(reply.locator("[data-cut-actions]")).toBeVisible();
+  await expect(page.locator("[data-truncated]")).toBeVisible();
+
+  // Until the server says which reply is being written, the old version stays on screen: held
+  // there, its line must already be without its buttons.
+  let release = () => {};
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(`**/api/conversations/${convo.id}/turn`, async (route) => {
+    if (route.request().method() === "GET") await held;
+    await route.fallback();
+  });
+  await reply.locator('button[title="Regenerate"]').click({ force: true });
+  try {
+    // What they say is of the version being replaced, and their buttons would ask for a second turn.
+    await expect(reply.locator("[data-ceiling]")).toBeVisible();
+    await expect(reply.locator("[data-cut-actions]")).toHaveCount(0);
+    await expect(page.locator("[data-truncated]")).toHaveCount(0);
+    release();
+    await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
+    await expect(page.locator("[data-truncated]")).toHaveCount(0);
+    await expect(page.locator("[data-cut-actions]")).toHaveCount(0);
+  } finally {
+    release();
+    // A read still on its way when the test ends is no failure of the page.
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await stopTurn(request, convo.id);
+  }
+});
 
 // German has the longest of these lines.
 for (const locale of ["en", "de"]) {
