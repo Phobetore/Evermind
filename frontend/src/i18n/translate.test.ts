@@ -17,6 +17,14 @@ describe("a count", () => {
     expect(translate("en", "chatList.messageCount", { count: 0 })).toBe("0 messages");
   });
 
+  it("of a way's conversations says none as none, never as one", () => {
+    expect(translate("fr", "ways.count", { count: 0 })).toBe("0 conversation");
+    expect(translate("fr", "ways.count", { count: 1 })).toBe("1 conversation");
+    expect(translate("en", "ways.count", { count: 0 })).toBe("0 conversations");
+    expect(translate("de", "ways.count", { count: 0 })).toBe("0 Unterhaltungen");
+    expect(translate("es", "ways.count", { count: 0 })).toBe("0 conversaciones");
+  });
+
   it("with no form of its own keeps the sentence there is", () => {
     expect(translate("en", "time.minutesAgo", { count: 1 })).toBe("1 min ago");
   });

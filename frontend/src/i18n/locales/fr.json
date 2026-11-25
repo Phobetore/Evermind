@@ -987,7 +987,7 @@
     },
     "defaultTag": "Par défaut",
     "count": "{count} conversations",
-    "count_one": "1 conversation",
+    "count_one": "{count} conversation",
     "usage": "{count} conversations jouent en {name}. Ce que vous changez ici change pour toutes.",
     "usage_one": "1 conversation joue en {name}. Ce que vous changez ici change pour elle.",
     "usageNone": "Aucune conversation ne joue en {name} pour l'instant.",
