@@ -1062,6 +1062,7 @@
       "fullAll_one": "Su capacidad de lectura está llena: relee {count} mensaje, todo lo que cabe. Es el límite del modelo, no el de Evermind.",
       "reference": "En una historia larga.",
       "noAi": "Añada una IA para ver lo que leería.",
+      "untold": "{name} no dice cuánto lee de una vez: no se puede mostrar lo que releería.",
       "askedOnly": "Relee hasta {count} mensajes.",
       "askedOnly_one": "Relee hasta {count} mensaje.",
       "askedAll": "Relee toda la historia."
@@ -1071,6 +1072,8 @@
       "adjusted": "{name} · ajustado",
       "full": "{label} · relee {read} de {asked}",
       "fullAria": "Forma de jugar: {label}. Su capacidad de lectura está llena: relee {read} mensajes de {asked}. Cambiar.",
+      "untoldAria": "Forma de jugar: {label}. Relee {read} mensajes de {asked}. Cambiar.",
+      "untoldAria_one": "Forma de jugar: {label}. Relee {count} mensaje de {asked}. Cambiar.",
       "fullAria_one": "Forma de jugar: {label}. Su capacidad de lectura está llena: relee {count} mensaje de {asked}. Cambiar."
     },
     "sheet": {

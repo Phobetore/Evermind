@@ -44,6 +44,25 @@ describe("the way's chip", () => {
     expect(wayLabel(full, (key, vars) => translate("de", key, vars)).text).toBe("Immersiv · liest 33 von 60 erneut");
   });
 
+  test("for an AI whose capacity nobody told, the chip read aloud says what is counted, no more", () => {
+    const full = outlook({
+      play_style: "immersive", way: { ...way("immersive"), adjusted: false },
+      history_limit: 60, messages_included: 33,
+    }).current;
+    expect(wayLabel(full, en, false).aria).toBe("Way to play: Immersive. It rereads 33 messages of 60. Change.");
+    expect(wayLabel({ ...full, messages_included: 1 }, en, false).aria).toBe("Way to play: Immersive. It rereads 1 message of 60. Change.");
+    expect(wayLabel(full, fr, false).aria).toBe("Façon de jouer : Immersif. Elle relit 33 messages sur 60. Changer.");
+    expect(wayLabel({ ...full, messages_included: 1 }, fr, false).aria).toBe("Façon de jouer : Immersif. Elle relit 1 message sur 60. Changer.");
+    expect(wayLabel(full, (key, vars) => translate("de", key, vars), false).aria)
+      .toBe("Spielweise: Immersiv. Die KI liest 33 von 60 Nachrichten erneut. Ändern.");
+    expect(wayLabel(full, (key, vars) => translate("es", key, vars), false).aria).toBe("Forma de jugar: Inmersivo. Relee 33 mensajes de 60. Cambiar.");
+    expect(wayLabel({ ...full, messages_included: 1 }, (key, vars) => translate("es", key, vars), false).aria)
+      .toBe("Forma de jugar: Inmersivo. Relee 1 mensaje de 60. Cambiar.");
+    // What it shows stays; a way it rereads all of says nothing of a capacity anyway.
+    expect(wayLabel(full, en, false).text).toBe("Immersive · rereads 33 of 60");
+    expect(wayLabel(outlook().current, en, false).aria).toBe("Way to play: Balanced. Change.");
+  });
+
   test("a built-in and my settings are named in the interface's language", () => {
     expect(wayName(way("light"), fr)).toBe("Léger");
     expect(wayName(way("maximum"), en)).toBe("Maximum");

@@ -1062,6 +1062,7 @@
       "fullAll_one": "Ihr Leseumfang ist voll: Die KI liest {count} Nachricht erneut, alles, was hineinpasst. Das ist die Grenze des Modells, nicht die von Evermind.",
       "reference": "Bei einer langen Geschichte.",
       "noAi": "Fügen Sie eine KI hinzu, um zu sehen, was sie lesen würde.",
+      "untold": "{name} sagt nicht, wie viel sie auf einmal liest: Was sie erneut lesen würde, lässt sich nicht zeigen.",
       "askedOnly": "Liest bis zu {count} Nachrichten erneut.",
       "askedOnly_one": "Liest bis zu {count} Nachricht erneut.",
       "askedAll": "Liest die ganze Geschichte erneut."
@@ -1071,6 +1072,8 @@
       "adjusted": "{name} · angepasst",
       "full": "{label} · liest {read} von {asked} erneut",
       "fullAria": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {read} von {asked} Nachrichten erneut. Ändern.",
+      "untoldAria": "Spielweise: {label}. Die KI liest {read} von {asked} Nachrichten erneut. Ändern.",
+      "untoldAria_one": "Spielweise: {label}. Die KI liest {count} von {asked} Nachrichten erneut. Ändern.",
       "fullAria_one": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {count} von {asked} Nachrichten erneut. Ändern."
     },
     "sheet": {

@@ -46,14 +46,16 @@ export function overflows(entry: OutlookEntry): boolean {
 }
 
 /** The chip of a conversation's way: its name, adjusted when it is, and how much it rereads when
- *  its reading capacity is full. */
-export function wayLabel(entry: Outlook["current"], t: T): { text: string; aria: string; full: boolean } {
+ *  its reading capacity is full. `told` false: an AI whose capacity nobody told, read aloud as what
+ *  is counted, with nothing said of a capacity. */
+export function wayLabel(entry: Outlook["current"], t: T, told = true): { text: string; aria: string; full: boolean } {
   const name = wayName(entry.way, t);
   const label = entry.way.adjusted ? t("ways.chip.adjusted", { name }) : name;
   const full = isFull(entry);
   if (!full) return { text: label, aria: t("ways.chip.aria", { label }), full };
   const counts = { label, read: entry.messages_included, asked: asked(entry) };
-  return { text: t("ways.chip.full", counts), aria: t("ways.chip.fullAria", { ...counts, count: counts.read }), full };
+  const aria = t(told ? "ways.chip.fullAria" : "ways.chip.untoldAria", { ...counts, count: counts.read });
+  return { text: t("ways.chip.full", counts), aria, full };
 }
 
 /** The pages a prompt takes, "sent" for a row that says what goes with each message. */

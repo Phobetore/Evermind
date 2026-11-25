@@ -6,17 +6,21 @@ import { BookOpen, ChevronDown } from "lucide-react";
 /** The way the conversation plays, under its input beside the AI's chip: its name, adjusted when it
  *  is, and what it rereads once the AI's reading capacity is full. Never a price. Its words wrap
  *  rather than being cut, at 32px high or more; the row goes to a second line before that.
- *  `current` null: before the first outlook, the name the conversation's `playStyle` gives. */
-export function WayChip({ current, playStyle, onOpen }: {
+ *  `current` null: before the first outlook, the name the conversation's `playStyle` gives.
+ *  `capacityTold` false: the AI answering does not say how much it reads at once (lib/ai.ts,
+ *  sizeTold), and the chip read aloud says what it rereads with no word of a capacity; not given,
+ *  it is told. */
+export function WayChip({ current, playStyle, onOpen, capacityTold = true }: {
   current: Outlook["current"] | null;
   playStyle: string;
   onOpen(): void;
+  capacityTold?: boolean;
 }) {
   const t = useT();
   let text: string;
   let aria: string;
   if (current) {
-    ({ text, aria } = wayLabel(current, t));
+    ({ text, aria } = wayLabel(current, t, capacityTold));
   } else {
     // A way a person made is named by the server only: until it says, the chip says what it is.
     text = nameOfId(playStyle, t) ?? t("ways.sheet.title");

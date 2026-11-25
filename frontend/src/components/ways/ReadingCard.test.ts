@@ -67,3 +67,31 @@ describe("what is sent past what the AI reads at once", () => {
     expect(said).not.toContain("What is sent");
   });
 });
+
+describe("an AI whose reading capacity nobody told", () => {
+  const untold = ai({ name: "evermind-demo", context: { own: null, read: null, read_kind: null, used: 16_384, source: "size_untold" } });
+
+  test("is shown no pages, no bar and no capacity: that it does not say, then what the way asks", () => {
+    const said = shown(maximum, [untold]);
+    expect(said).toContain("evermind-demo does not say how much it reads at once: what it would reread cannot be shown.");
+    expect(said).toContain("Rereads the whole story.");
+    expect(said).not.toMatch(/pages sent|can read|capacity|limit/);
+    expect(renderToStaticMarkup(createElement(I18nProvider, {
+      initialLocale: "en",
+      children: createElement(ReadingCard, { way: maximum, light: BUILT_IN.light as WayFields, ais: [untold], hostWindow: null }),
+    }))).not.toContain("rounded-full bg-ink-700");
+    expect(shown(BUILT_IN.balanced as WayFields, [untold])).toContain("Rereads up to 24 messages.");
+  });
+
+  test.each([
+    ["fr", "evermind-demo ne dit pas combien elle lit à la fois\u00a0: ce qu'elle relirait ne peut pas être montré."],
+    ["de", "evermind-demo sagt nicht, wie viel sie auf einmal liest: Was sie erneut lesen würde, lässt sich nicht zeigen."],
+    ["es", "evermind-demo no dice cuánto lee de una vez: no se puede mostrar lo que releería."],
+  ] as const)("in %s", (locale, sentence) => {
+    const html = renderToStaticMarkup(createElement(I18nProvider, {
+      initialLocale: locale,
+      children: createElement(ReadingCard, { way: maximum, light: BUILT_IN.light as WayFields, ais: [untold], hostWindow: null }),
+    })).replace(/&#x27;/g, "'");
+    expect(html).toContain(sentence);
+  });
+});

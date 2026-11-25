@@ -1062,6 +1062,7 @@
       "fullAll_one": "Sa capacité de lecture est pleine\u00a0: elle relit {count} message, tout ce qui tient. C'est la limite du modèle, pas celle d'Evermind.",
       "reference": "Sur une longue histoire.",
       "noAi": "Ajoutez une IA pour voir ce qu'elle lirait.",
+      "untold": "{name} ne dit pas combien elle lit à la fois\u00a0: ce qu'elle relirait ne peut pas être montré.",
       "askedOnly": "Relit jusqu'à {count} messages.",
       "askedOnly_one": "Relit jusqu'à {count} message.",
       "askedAll": "Relit toute l'histoire."
@@ -1071,6 +1072,8 @@
       "adjusted": "{name} · ajusté",
       "full": "{label} · relit {read} sur {asked}",
       "fullAria": "Façon de jouer\u00a0: {label}. Sa capacité de lecture est pleine\u00a0: elle relit {read} messages sur {asked}. Changer.",
+      "untoldAria": "Façon de jouer\u00a0: {label}. Elle relit {read} messages sur {asked}. Changer.",
+      "untoldAria_one": "Façon de jouer\u00a0: {label}. Elle relit {count} message sur {asked}. Changer.",
       "fullAria_one": "Façon de jouer\u00a0: {label}. Sa capacité de lecture est pleine\u00a0: elle relit {count} message sur {asked}. Changer."
     },
     "sheet": {

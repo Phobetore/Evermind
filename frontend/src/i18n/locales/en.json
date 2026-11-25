@@ -1062,6 +1062,7 @@
       "fullAll_one": "Its reading capacity is full: it rereads {count} message, all that fits. That is the model's limit, not Evermind's.",
       "reference": "On a long story.",
       "noAi": "Add an AI to see what it would read.",
+      "untold": "{name} does not say how much it reads at once: what it would reread cannot be shown.",
       "askedOnly": "Rereads up to {count} messages.",
       "askedOnly_one": "Rereads up to {count} message.",
       "askedAll": "Rereads the whole story."
@@ -1071,6 +1072,8 @@
       "adjusted": "{name} · adjusted",
       "full": "{label} · rereads {read} of {asked}",
       "fullAria": "Way to play: {label}. Its reading capacity is full: it rereads {read} messages of {asked}. Change.",
+      "untoldAria": "Way to play: {label}. It rereads {read} messages of {asked}. Change.",
+      "untoldAria_one": "Way to play: {label}. It rereads {count} message of {asked}. Change.",
       "fullAria_one": "Way to play: {label}. Its reading capacity is full: it rereads {count} message of {asked}. Change."
     },
     "sheet": {
