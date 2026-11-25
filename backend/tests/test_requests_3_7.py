@@ -32,6 +32,7 @@ import numpy as np
 from app import db
 from app.config import db_path
 from app.prompting import embeddings
+from app.services.ai_call import margin_for
 
 from .test_requests_before import (
     CALLS,
@@ -158,9 +159,47 @@ def test_the_first_exception_is_include_usage_alone():
     assert not same_request(anthropic, {**anthropic, **asked})
 
 
-def same_context(recorded: dict, sent: dict) -> bool:
-    """Whether a turn's meta.context is the one 3.7.0 wrote."""
-    return json.dumps(recorded, sort_keys=True) == json.dumps(sent, sort_keys=True)
+# What 3.7.0 left under the window, whatever the AI.
+MARGIN_BEFORE = 200
+# The history a variant's way rereads: the old setting it had, kept by the update.
+HISTORY = {"untouched": 24, "touched": 4, "recalling": 4}
+
+
+def same_context(recorded: dict, sent: dict, history_limit: int) -> bool:
+    """Whether a turn's meta.context is the one 3.7.0 wrote, but for what the plan lets change:
+    the budget under the wider margin of an AI that has measured nothing (the seed's AIs), and
+    the three keys 3.8.0 adds, each checked here: the room kept for the reply, the same as 3.7.0
+    kept; the history the way rereads; and what the card, the reminders and the story take of
+    what is used."""
+    window = recorded["context_size"]
+    # Over the engine's floor of 512, the budget says the room 3.7.0 kept.
+    assert recorded["budget"] > 512, recorded
+    room = window - MARGIN_BEFORE - recorded["budget"]
+    expected = {**recorded, "budget": max(512, window - room - margin_for({}, window)),
+                "reply_room": room, "history_limit": history_limit}
+    parts = sent.get("parts")
+    if not isinstance(parts, dict) or set(parts) != {"card", "reminders", "history"}:
+        return False
+    if sum(parts.values()) != sent["used_tokens"] or min(parts.values()) < 0:
+        return False
+    rest = {key: value for key, value in sent.items() if key != "parts"}
+    return json.dumps(expected, sort_keys=True) == json.dumps(rest, sort_keys=True)
+
+
+def test_the_second_exception_is_the_margin_alone():
+    recorded = {"used_tokens": 300, "budget": 15160, "context_size": 16384,
+                "messages_included": 7, "messages_total": 7, "lore_matched": 0}
+    parts = {"card": 100, "reminders": 0, "history": 200}
+    sent = {**recorded, "budget": 16384 - 1024 - 983, "reply_room": 1024, "history_limit": 24,
+            "parts": parts}
+    assert same_context(recorded, sent, 24)
+    assert not same_context(recorded, {**sent, "budget": 15160}, 24)
+    assert not same_context(recorded, {**sent, "reply_room": 2048}, 24)
+    assert not same_context(recorded, {**sent, "history_limit": 4}, 24)
+    assert not same_context(recorded, {**sent, "messages_included": 6}, 24)
+    assert not same_context(recorded, {k: v for k, v in sent.items() if k != "parts"}, 24)
+    assert not same_context(recorded, {**sent, "parts": {**parts, "card": 99}}, 24)
+    assert not same_context(recorded, {**sent, "extra": 1}, 24)
 
 
 async def record() -> dict:
@@ -185,8 +224,8 @@ async def test_what_3_7_0_sent_is_sent_again(tmp_path):
         for conn_id, calls in recorded[variant].items():
             for call in CALLS:
                 assert same_request(calls[call], sent[conn_id][call]), (variant, conn_id, call)
-            assert same_context(calls["turn_context"], sent[conn_id]["turn_context"]), (
-                variant, conn_id)
+            assert same_context(calls["turn_context"], sent[conn_id]["turn_context"],
+                                HISTORY[variant]), (variant, conn_id)
 
 
 def test_the_recording_is_whole():

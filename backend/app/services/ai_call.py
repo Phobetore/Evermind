@@ -7,9 +7,10 @@ so that what a prompt keeps for the reply and what the server is told never drif
 from dataclasses import dataclass
 from typing import Literal
 
+from ..prompting import ways
 from ..providers.catalog import LOCAL_FAMILIES, Family, family_of
 
-REPLY_ROOM = {"short": 512, "medium": 1024, "long": 2048}
+REPLY_ROOM = ways.REPLY_ROOM
 # A connection with no ceiling has always kept 1024 for the reply, whatever length was asked;
 # taking the asked length's room would change what an update reads of an installed AI.
 UNSENT_RESERVE = 1024
@@ -31,16 +32,25 @@ _TOLD = ("served", "configured", "observed")
 _LONG_ROOM = REPLY_ROOM["long"]
 
 
-def reply_room(conversation: dict | None, settings: dict) -> int:
-    """The room a reply needs, for `auto`. This is the seam: until the ways of playing exist it
-    follows the reply length alone. `None` is passed by the uses that have no conversation (the
-    card assistant, the speed test)."""
-    return REPLY_ROOM.get(settings.get("reply_length") or "medium", REPLY_ROOM["medium"])
+def reply_room(conversation: dict | None, settings: dict) -> int | None:
+    """The room a reply needs, for `auto`: that of the way the conversation plays, its own
+    overrides applied. `None` is passed by the uses that have no conversation (the card
+    assistant, the speed test): the way offered to new conversations. A way that leaves the room
+    to the AI gives None."""
+    return ways.way_for(conversation, settings)["reply_room"]
 
 
 def thinking_allowance(model: dict) -> int:
     """What a model that reasons is given on top of the reply, until it is measured."""
     return THINKING_ALLOWANCE
+
+
+def margin_for(model: dict, window: int) -> int:
+    """What the prompt leaves unused under the window: the engine's estimate may count fewer
+    tokens than the server does, so it is wider until the AI's own count has been measured, and
+    wider again by what a reply cut for want of room taught (fit_margin, a share of the window)."""
+    share = 0.03 if model.get("token_ratio_n") else 0.06
+    return max(200, int(window * share)) + int((model.get("fit_margin") or 0) * window)
 
 
 @dataclass(frozen=True)
@@ -130,7 +140,7 @@ def _auto(model: dict, *, anthropic: bool, family: Family, room: int | None,
     return Ceiling(sent, sent)
 
 
-def call_for(model: dict, service: dict, *, room: int) -> dict:
+def call_for(model: dict, service: dict, *, room: int | None) -> dict:
     """What a provider and the services take for one use of an AI."""
     provider = service["provider"]
     base_url = service["base_url"]
@@ -151,6 +161,9 @@ def call_for(model: dict, service: dict, *, room: int) -> dict:
         "max_tokens": cap.sent,
         "context_size": counted.tokens,
         "reserve": cap.reserve,
+        "margin": margin_for(model, counted.tokens),
+        # The server's count over the engine's estimate, once a reply has measured it.
+        "token_ratio": model.get("token_ratio") if model.get("token_ratio_n") else None,
         "model_id": model["id"],
         "model_name": model["name"],
         # Whose server it is: what a server refused is kept per service, not per address alone.
@@ -160,15 +173,17 @@ def call_for(model: dict, service: dict, *, room: int) -> dict:
 
 
 def for_engine(call: dict) -> dict:
-    """The engine reads max_tokens as the room it keeps, not as what is sent."""
+    """The engine reads max_tokens as the room it keeps, not as what is sent; margin and
+    token_ratio reach it as they are."""
     return {**call, "max_tokens": call["reserve"]}
 
 
-Notice = Literal["follow_server", "let_evermind"]
+Notice = Literal["follow_server", "let_evermind", "long_room"]
 
 
-def notices(model: dict) -> list[Notice]:
-    """What the person may want to change after an update, or after typing a figure."""
+def notices(model: dict, room: int | None = None) -> list[Notice]:
+    """What the person may want to change after an update, or after typing a figure. ``room`` is
+    the reply room of the way offered to new conversations."""
     if model.get("notices_kept"):
         return []
     found: list[Notice] = []
@@ -178,4 +193,7 @@ def notices(model: dict) -> list[Notice]:
         found.append("follow_server")
     if model.get("reply_cap_mode") == "fixed" and model["reply_cap_tokens"] < _LONG_ROOM:
         found.append("let_evermind")
+    # An AI sent no ceiling keeps 1024 whatever the way: a way asking more is not given it.
+    if model.get("reply_cap_mode") == "unsent" and room is not None and room > UNSENT_RESERVE:
+        found.append("long_room")
     return found

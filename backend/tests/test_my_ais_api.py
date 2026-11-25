@@ -23,6 +23,7 @@ from .conftest import FakeProvider, assist, messages_of, send, setup_conversatio
 from .helpers import add_model, cap
 from .test_memory import EXTRACTION_JSON
 from .test_memory_room import chunk, finish, thinking, writing
+from .test_requests_3_7 import same_context
 from .test_requests_before import (
     CALLS,
     RECORDED,
@@ -188,7 +189,8 @@ async def test_an_update_sends_each_model_the_request_it_sent_before(tmp_path, m
             body = without_usage_asked(calls[call], sent[conn_id][call])
             assert (json.dumps(body, sort_keys=True)
                     == json.dumps(calls[call], sort_keys=True)), (conn_id, call)
-        assert sent[conn_id]["turn_context"] == calls["turn_context"], conn_id
+        # The second: the wider margin of an AI that has measured nothing, and what 3.8.0 adds.
+        assert same_context(calls["turn_context"], sent[conn_id]["turn_context"], 24), conn_id
     assert sent["c-openrouter"]["memory_pass"]["reasoning"] == {"effort": "none"}
 
 

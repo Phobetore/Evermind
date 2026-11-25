@@ -95,10 +95,12 @@ describe("pages and room", () => {
     expect(pages(0)).toBe(1);
   });
 
-  test("the room a reply needs follows the length asked", () => {
-    expect(roomFor({ reply_length: "short" })).toBe(512);
-    expect(roomFor({ reply_length: "medium" })).toBe(1024);
-    expect(roomFor({ reply_length: "long" })).toBe(2048);
+  test("the room a reply needs follows the length a conversation adjusted, else balanced's", () => {
+    expect(roomFor({ play_overrides: { reply_length: "short" } })).toBe(512);
+    expect(roomFor({ play_overrides: { reply_length: "medium" } })).toBe(1024);
+    expect(roomFor({ play_overrides: { reply_length: "long" } })).toBe(2048);
+    expect(roomFor({ play_overrides: { history_limit: 4 } })).toBe(1024);
+    expect(roomFor({ play_overrides: null })).toBe(1024);
   });
 });
 

@@ -155,61 +155,6 @@ export function SettingsPage() {
         </section>
       )}
 
-      {settings && (
-        <section className="mb-10 grid gap-4 sm:grid-cols-2">
-          <Field
-            label={t("settings.replyLengthLabel")}
-            hint={t("settings.replyLengthHint")}
-          >
-            <select
-              className="field"
-              value={settings.reply_length}
-              onChange={(e) => saveSettings({ reply_length: e.target.value as Settings["reply_length"] })}
-            >
-              <option value="short">{t("settings.replyLengthOptions.short")}</option>
-              <option value="medium">{t("settings.replyLengthOptions.medium")}</option>
-              <option value="long">{t("settings.replyLengthOptions.long")}</option>
-            </select>
-          </Field>
-          <Field
-            label={t("settings.historyLimitLabel")}
-            hint={t("settings.historyLimitHint")}
-          >
-            <input
-              type="number"
-              className="field"
-              min={4}
-              max={200}
-              key={settings.history_limit}
-              defaultValue={settings.history_limit}
-              onBlur={(e) => {
-                const v = Math.max(4, Math.min(200, Math.round(Number(e.target.value)) || 24));
-                e.target.value = String(v);
-                if (v !== settings.history_limit) saveSettings({ history_limit: v });
-              }}
-            />
-          </Field>
-          <Field
-            label={t("settings.passageBudgetLabel")}
-            hint={t("settings.passageBudgetHint")}
-          >
-            <input
-              type="number"
-              className="field"
-              min={0}
-              max={4000}
-              key={settings.passage_budget}
-              defaultValue={settings.passage_budget}
-              onBlur={(e) => {
-                const v = Math.max(0, Math.min(4000, Math.round(Number(e.target.value)) || 0));
-                e.target.value = String(v);
-                if (v !== settings.passage_budget) saveSettings({ passage_budget: v });
-              }}
-            />
-          </Field>
-        </section>
-      )}
-
       {/* Kept on this device, not on the server: shown even when the server's settings could not be read. */}
       <section className="mb-10 max-w-xl" aria-labelledby={displayTitle}>
         <h2 id={displayTitle} className="ui-label mb-3">{t("display.settingsTitle")}</h2>

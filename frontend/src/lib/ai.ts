@@ -1,17 +1,18 @@
 import type { Translate as T } from "@/i18n/I18nProvider";
 import { translate } from "@/i18n/translate";
-import type { Ai, ProbeModel, Settings } from "@/types";
+import type { Ai, Conversation, ProbeModel } from "@/types";
 import { timeAgo } from "./utils";
 
 /** About 1 750 characters at the engine's 3.5 per token. */
 export const PAGE_TOKENS = 500;
 
-/** The room a reply needs, as the server's ai_call.reply_room counts it until the ways of playing
- *  exist: plan 3 replaces this one function, as it replaces the server's. */
+/** The room a reply needs by its length, as the server's ways count it. */
 export const REPLY_ROOM = { short: 512, medium: 1024, long: 2048 } as const;
 
-export function roomFor(settings: Pick<Settings, "reply_length">): number {
-  return REPLY_ROOM[settings.reply_length];
+/** The room a conversation's reply needs, until the page reads its way: right under Balanced and
+ *  under a length the conversation adjusted, which is all a sheet's warning weighs for now. */
+export function roomFor(conversation: Pick<Conversation, "play_overrides">): number {
+  return REPLY_ROOM[conversation.play_overrides?.reply_length ?? "medium"];
 }
 
 /** Tokens as pages: from 100 pages up to the nearest 10, which is all the figure is worth there;

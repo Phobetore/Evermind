@@ -330,8 +330,8 @@ async def test_a_stop_before_any_word_is_no_reply_gone_missing(client, lingering
 async def test_a_stop_is_heard_while_the_past_is_being_prepared(client, monkeypatch):
     """Vectors are filled in one request at a time for what has left the window, which
     can be hundreds of them, before the model is even asked."""
-    await client.put("/api/settings", json={
-        "auto_memory": False, "passage_budget": 500, "history_limit": 4})
+    await client.put("/api/settings", json={"auto_memory": False})
+    await client.put("/api/ways/balanced", json={"passage_cap": 500, "history_limit": 4})
     convo = await setup_conversation(client)
     for i in range(6):
         await _answered(client, monkeypatch, convo["id"], content=f"Message {i}")

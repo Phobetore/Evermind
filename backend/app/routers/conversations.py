@@ -13,6 +13,7 @@ from ..repositories import characters as characters_repo
 from ..repositories import conversations as repo
 from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
+from ..repositories import ways as ways_repo
 from ..services import media, memory_service, turns
 
 router = APIRouter(prefix="/api", tags=["conversations"])
@@ -60,6 +61,8 @@ async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn
         raise NotFoundError("Character not found.", "character")
 
     fields = payload.model_dump()
+    # Kept for good: a way offered later does not change how this one plays.
+    fields["play_style"] = await ways_repo.offered(db, payload.play_style)
     # A persona or an AI gone since the page listed it counts as none asked for, rather than
     # failing the insert on its foreign key.
     persona = await personas_repo.for_conversation(db, fields)

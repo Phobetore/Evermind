@@ -159,15 +159,11 @@ function ChatView({ id }: { id: string }) {
     aisAsked.current += 1;
     setAis(change);
   }, []);
-  // The room a reply needs, from the settings read once with the page: 0 until then, warning of nothing.
-  // Only where the edition keeps AIs of its own: nothing else here reads it.
-  const [room, setRoom] = useState(0);
   const [aiSheet, setAiSheet] = useState(false);
   const [addingAi, setAddingAi] = useState(false);
   useEffect(() => {
     if (!data.connections) return;
     readAis();
-    data.settings.get().then((settings) => setRoom(roomFor(settings)), () => {});
   }, [readAis]);
   function openAiSheet() {
     // What the page holds at once, and the list as it is now once it comes.
@@ -884,7 +880,7 @@ function ChatView({ id }: { id: string }) {
         <AiSheet
           conversation={conversation}
           ais={ais}
-          room={room}
+          room={roomFor(conversation)}
           onPick={switched}
           onGone={aiGone}
           onAddOther={() => {

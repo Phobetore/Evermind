@@ -35,14 +35,13 @@ const capped = (request: APIRequestContext, name: string) => addModel(request, {
   changes: { reply_cap: { mode: "fixed", tokens: 1024 } },
 });
 
-/** The page reads the settings as asking long replies, whose 2,048 tokens a ceiling of 1,024 would cut:
- *  the suite's settings are shared between tests, so they are changed for this page alone. */
-async function longReplies(page: Page) {
-  await page.route("**/api/settings", async (route) => {
-    if (route.request().method() !== "GET") return route.continue();
-    const read = await route.fetch();
-    await route.fulfill({ response: read, json: { ...(await read.json()), reply_length: "long" } });
+/** The conversation asks for long replies, whose 2,048 tokens a ceiling of 1,024 would cut: adjusted
+ *  for it alone, as the suite's ways are shared between tests. */
+async function longReplies(request: APIRequestContext, conversationId: string) {
+  const resp = await request.patch(`${API}/api/conversations/${conversationId}`, {
+    data: { play_overrides: { reply_length: "long" } },
   });
+  expect(resp.ok()).toBe(true);
 }
 
 /** Counted at once, once the toast's words are in: drawn with its words, a button would be there
@@ -250,7 +249,7 @@ test("a capped ai is said in the sheet, and letting Evermind set it is confirmed
   const mine = await capped(request, `Ardoise ${Math.random().toString(36).slice(2, 6)}`);
   const other = await capped(request, `Basalte ${Math.random().toString(36).slice(2, 6)}`);
   await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: mine.id } });
-  await longReplies(page);
+  await longReplies(request, convo.id);
   await page.goto(`/#/chat/${convo.id}`);
 
   const sheet = await openSheet(page);
@@ -613,7 +612,7 @@ test("a read of the ais that answers after the ceiling was lifted in the sheet d
   const convo = await makeConversation(request);
   const mine = await capped(request, `Ardoise ${shortTag()}`);
   await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: mine.id } });
-  await longReplies(page);
+  await longReplies(request, convo.id);
   // The read as the sheet opens, and the one as it opens again, held.
   const reads = await holdAiReads(page, [2, 3]);
   await page.goto(`/#/chat/${convo.id}`);

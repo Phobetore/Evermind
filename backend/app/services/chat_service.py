@@ -22,7 +22,7 @@ import aiosqlite
 
 from ..errors import MODEL_EMPTY, MODEL_ERROR, NO_AI_MESSAGE, NO_CONNECTION, AppError, NotFoundError
 from ..models.schemas import ChatRequest
-from ..prompting import embeddings, retrieval
+from ..prompting import embeddings, retrieval, ways
 from ..prompting.engine import (
     active_content,
     build_chat_payload,
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 _FLUSH_SECONDS = 1.0
 # What the context bar above the conversation shows of the last reply's prompt.
 _CONTEXT_SHOWN = ("used_tokens", "budget", "context_size", "messages_included", "messages_total",
-                  "lore_matched")
+                  "lore_matched", "parts")
 _CONTINUE_INSTRUCTION = (
     "[Continue your previous reply exactly where it stopped. Do not repeat anything, "
     "do not start over — just keep going seamlessly.]"
@@ -117,6 +117,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     """Writes one reply, and says how it ended if it failed or added nothing. A request it cannot
     run raises before anything is saved."""
     convo, character, persona, call, settings, ai = await _resolve(db, request.conversation_id)
+    # Read with the turn: a way changed on another device plays from the next one.
+    way = ways.way_for(convo, settings)
+    reminders = {key: way[key] for key in ways.REMINDER_FIELDS}
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo["id"])
@@ -194,17 +197,18 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             messages=history, connection=for_engine(call),
             global_instructions=settings.get("global_instructions") or "",
             memories=memories, lore_entries=lore_entries,
-            reply_length=settings.get("reply_length") or "medium",
-            history_limit=int(settings.get("history_limit") or 0),
+            reply_length=way["reply_length"],
+            history_limit=way["history_limit"],
             relevance_scores=relevance_scores,
             retrieved_passages=passages,
             fold_leading_assistant=fold_leading_assistant,
+            reminders=reminders,
         )
 
     payload = _build()  # pass 1 — exposes oldest_visible / fact_positions
 
     passages = None
-    passage_budget = int(settings.get("passage_budget") or 0)
+    passage_budget = ways.passage_budget(reminders, payload.stats["budget"])
     if passage_budget and scene:
         candidates = [m for m in history if m["position"] < payload.stats["oldest_visible"]
                       and not is_out_of_character(m)]
@@ -370,8 +374,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         "first_token_seconds": round((first_token_at or now) - started_at, 2),
         "tokens_per_s": round(completion_tokens / gen_seconds, 1) if gen_seconds > 0.2 else None,
     }
-    await save({"perf": perf, "context": {key: payload.stats[key] for key in _CONTEXT_SHOWN}},
-               at_ceiling=stop == STOPPED_FOR_LENGTH)
+    context = {key: payload.stats[key] for key in _CONTEXT_SHOWN}
+    context.update(reply_room=call["reserve"], history_limit=way["history_limit"])
+    await save({"perf": perf, "context": context}, at_ceiling=stop == STOPPED_FOR_LENGTH)
     await convo_repo.touch(db, convo["id"])
     memory_service.schedule_if_due(convo["id"])
     return None
@@ -386,8 +391,9 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if not messages:
         raise AppError("Nothing to write: the conversation is empty.", kind="conversation_empty")
 
-    payload = build_impersonate_payload(character, persona, convo, messages, for_engine(call),
-                                        history_limit=int(settings.get("history_limit") or 0))
+    payload = build_impersonate_payload(
+        character, persona, convo, messages, for_engine(call),
+        history_limit=ways.way_for(convo, settings)["history_limit"])
     answer = await complete_answer(get_provider(call), payload)
     if answer.thought > 0:
         await learned_it_reasons(db, call)

@@ -5,6 +5,7 @@ import aiosqlite
 
 from ..db import write_transaction
 from ..errors import NotFoundError
+from ..prompting import ways
 from ..providers.catalog import (
     LOCAL_FAMILIES,
     Listed,
@@ -16,6 +17,7 @@ from ..providers.catalog import (
 )
 from ..services import ai_call
 from . import connections as services_repo
+from . import settings as settings_repo
 from .base import new_id, now_iso
 
 # The one that answers when none is named: the marked default, else the oldest.
@@ -53,8 +55,10 @@ def is_free(model: dict, service: dict) -> bool:
             and _price(model, "price_out", "price_own_out") == 0)
 
 
-def to_out(model_row, service_row, conversation_count: int = 0) -> dict:
-    """Public shape: the key never leaves, only its end."""
+def to_out(model_row, service_row, conversation_count: int = 0,
+           room: int | None = None) -> dict:
+    """Public shape: the key never leaves, only its end. ``room`` is the reply room of the way
+    offered to new conversations, which its notices weigh."""
     model, service = dict(model_row), dict(service_row)
     family = _family(service)
     counted = ai_call.window(model, family=family)
@@ -82,7 +86,7 @@ def to_out(model_row, service_row, conversation_count: int = 0) -> dict:
         "reply_cap": {"mode": model["reply_cap_mode"], "tokens": model["reply_cap_tokens"]},
         **{key: model[key] for key in SAMPLING},
         "migrated": bool(model["migrated"]),
-        "notices": ai_call.notices(model),
+        "notices": ai_call.notices(model, room),
         "conversation_count": conversation_count,
         "created_at": model["created_at"], "updated_at": model["updated_at"],
     }
@@ -101,7 +105,8 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
     """In the order `resolve` picks them; with none marked, the first is the default."""
     rows = await (await db.execute(f"{_JOINED} ORDER BY {_DEFAULT_FIRST}")).fetchall()
     services = await _services(db)
-    out = [to_out(r, services[r["connection_id"]], r["conversation_count"]) for r in rows]
+    room = ways.way_for(None, await settings_repo.get_all(db))["reply_room"]
+    out = [to_out(r, services[r["connection_id"]], r["conversation_count"], room) for r in rows]
     if out:
         out[0]["is_default"] = True
     return out

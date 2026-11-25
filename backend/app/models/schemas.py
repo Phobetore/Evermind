@@ -1,8 +1,16 @@
 """Pydantic input schemas. Responses are plain dicts shaped by repositories."""
 
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from ..prompting.text import is_writable
 
@@ -249,10 +257,25 @@ class RefreshIn(Input):
     fresh: bool = False
 
 
+Length = Literal["short", "medium", "long"]
+Reminders = Literal["essential", "normal", "rich", "all"]
+# A whole number JSON and JavaScript both hold exactly, never negative.
+Count = Annotated[int, Field(ge=0, le=WHOLE)]
+Share = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
+
+
+class PlayOverrides(Input):
+    """What one conversation changes of its way, for itself."""
+    history_limit: Count | None = None  # 0: the whole story
+    reply_length: Length | None = None
+    reminders: Reminders | None = None
+
+
 class ConversationIn(Input):
     character_id: str
     persona_id: str | None = None
     model_id: str | None = Field(default=None, validation_alias=_AI)
+    play_style: str | None = None  # left out: the way offered to new conversations
     # Chosen by the page, as a message's: asked for again under it, it is the conversation made.
     client_id: str | None = Field(default=None, min_length=1, max_length=64)
 
@@ -272,6 +295,8 @@ class ConversationPatch(Input):
     backdrop_strength: float | None = Field(default=None, ge=0, le=1)  # null: the device's
     # The strength of the chosen picture. A page opened before backdrops still sends it.
     wallpaper_opacity: float | None = Field(default=None, ge=0, le=1)
+    play_style: str | None = None  # another way chosen: what was adjusted of the last one goes
+    play_overrides: PlayOverrides | None = None  # null: nothing adjusted
 
 
 class MessagePatch(Input):
@@ -282,10 +307,49 @@ class MessagePatch(Input):
 class SettingsIn(Input):
     global_instructions: str | None = None
     auto_memory: bool | None = None
-    reply_length: Literal["short", "medium", "long"] | None = None
-    history_limit: int | None = Field(default=None, ge=4, le=200)
-    passage_budget: int | None = Field(default=None, ge=0, le=4000)
     update_check: bool | None = None
+    # The way of playing before ways existed, which only a page from before sends: declared to be
+    # refused (410), whatever their value, even one out of the bounds they had.
+    reply_length: Any = None
+    history_limit: Any = None
+    passage_budget: Any = None
+
+
+class WayIn(Input):
+    """A way's fields, each left out when unchanged. Floors only, no maximum: a person may
+    reread the whole of a long story, or give a model with a vast window all it holds."""
+    # 0: the whole story. 2^53 - 1: what JSON and JavaScript both hold exactly.
+    history_limit: Count | None = None
+    reply_length: Length | None = None
+    # None: the room is left to the AI. A reply needs at least one token.
+    reply_room: int | None = Field(default=None, ge=1, le=WHOLE)
+    # None: no cap. 0 leaves the reminder out.
+    facts_cap: Count | None = None
+    # None: as many as the room holds. 0 facts would be no facts: the cap of 0 says that.
+    max_facts: int | None = Field(default=None, ge=1, le=WHOLE)
+    lore_cap: Count | None = None
+    lore_share: Share | None = None  # of the prompt's budget; None: no share
+    passage_cap: Count | None = None
+    passage_share: Share | None = None
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1,
+                                           max_length=60)] | None = None
+
+    @model_validator(mode="after")
+    def _no_empty_value(self):
+        # These two have no "none": a null sent for them is a mistake, not a choice.
+        for key in ("history_limit", "reply_length", "name"):
+            if key in self.model_fields_set and getattr(self, key) is None:
+                raise ValueError(f"{key} cannot be null")
+        return self
+
+
+class WayCopyIn(Input):
+    from_id: str = Field(validation_alias="from")
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+
+
+class WayDefaultIn(Input):
+    id: str
 
 
 class MemoryIn(Input):

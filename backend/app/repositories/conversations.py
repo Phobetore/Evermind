@@ -2,8 +2,10 @@ import aiosqlite
 
 from ..db import write_transaction
 from ..errors import AppError
+from ..prompting import ways
 from ..prompting.memory_changes import MAX_TURNS_PER_RUN
 from . import characters as characters_repo
+from . import ways as ways_repo
 from .base import dumps, loads, new_id, now_iso
 
 
@@ -26,17 +28,32 @@ def convo_to_out(row) -> dict:
     out.pop("connection_id", None)
     wallpaper = out.pop("wallpaper_path", None)
     out["wallpaper_url"] = f"api/media/{wallpaper}" if wallpaper else None
+    if "play_overrides" in out:
+        overrides = loads(out["play_overrides"], None)
+        out["play_overrides"] = overrides if isinstance(overrides, dict) and overrides else None
     return out
 
 
+def _overrides_kept(overrides: dict | None, way: dict) -> str | None:
+    """What a conversation adjusted of its way, without what equals the way's own value: NULL
+    when nothing is left, so that the way changed later is followed whole."""
+    if not overrides:
+        return None
+    same = {"history_limit": way["history_limit"], "reply_length": way["reply_length"],
+            "reminders": ways.level_of(way)}
+    kept = {k: v for k, v in overrides.items() if v is not None and v != same.get(k)}
+    return dumps(kept) if kept else None
+
+
 async def create(db: aiosqlite.Connection, fields: dict) -> dict | None:
+    """``play_style`` is the id of a way that exists: the router's ways_repo.offered."""
     convo_id = new_id()
     now = now_iso()
     await db.execute(
         "INSERT INTO conversations (id, character_id, persona_id, model_id, title, summary,"
-        " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        " play_style, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (convo_id, fields["character_id"], fields.get("persona_id"),
-         fields.get("model_id"), fields.get("title") or "", "", now, now),
+         fields.get("model_id"), fields.get("title") or "", "", fields["play_style"], now, now),
     )
     await db.commit()
     return await get(db, convo_id)
@@ -74,7 +91,7 @@ async def list_all(db: aiosqlite.Connection, character_id: str | None = None) ->
     return out
 
 
-_BACKDROP = ("SELECT backdrop, backdrop_strength, wallpaper_path, wallpaper_opacity"
+_BACKDROP = ("SELECT backdrop, backdrop_strength, wallpaper_path, wallpaper_opacity, play_style"
              " FROM conversations WHERE id = ?")
 
 
@@ -133,6 +150,17 @@ async def update(db: aiosqlite.Connection, convo_id: str, fields: dict) -> dict 
         for key, value in _backdrop_writes(row, fields).items():
             sets.append(f"{key} = ?")
             params.append(value)
+        # Read where it is written, so that a way removed meanwhile is not chosen.
+        play_style = row["play_style"]
+        if fields.get("play_style") is not None:
+            play_style = (await ways_repo.known(db, fields["play_style"]))["id"]
+            sets.append("play_style = ?")
+            params.append(play_style)
+        if "play_overrides" in fields or fields.get("play_style") is not None:
+            # Another way chosen starts from it whole; overrides sent with it apply to it.
+            way = await ways_repo.plays(db, play_style)
+            sets.append("play_overrides = ?")
+            params.append(_overrides_kept(fields.get("play_overrides"), way))
         sets.append("updated_at = ?")
         params.append(now_iso())
         params.append(convo_id)
@@ -258,17 +286,20 @@ async def branch_from_message(db: aiosqlite.Connection, message_id: str) -> dict
 
         branch_id = new_id()
         now = now_iso()
-        # A branch is the same scene carried on differently: its directive and backdrop follow.
+        # A branch is the same scene carried on differently: its directive, its backdrop and its
+        # way of playing (what it adjusted of it too) follow.
         await db.execute(
             "INSERT INTO conversations (id, character_id, persona_id, model_id, title,"
             " summary, author_note, memory_position, forked_from, wallpaper_path,"
-            " wallpaper_opacity, backdrop, backdrop_strength, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " wallpaper_opacity, backdrop, backdrop_strength, play_style, play_overrides,"
+            " created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (branch_id, source["character_id"], source["persona_id"],
              source["model_id"], source["title"], source["summary"],
              source["author_note"] or "", source["memory_position"],
              source["id"], source["wallpaper_path"],
-             source["wallpaper_opacity"], source["backdrop"], source["backdrop_strength"], now, now),
+             source["wallpaper_opacity"], source["backdrop"], source["backdrop_strength"],
+             source["play_style"], source["play_overrides"], now, now),
         )
 
         messages = await (await db.execute(

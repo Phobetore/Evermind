@@ -248,11 +248,11 @@ async def test_impersonate_gives_no_share_of_the_chat_to_the_facts(client, fake_
 
 
 async def test_impersonate_reads_the_recent_messages_a_reply_reads(client, fake_provider):
-    """The setting "Recent messages sent to the model" holds for the pen as for a reply."""
+    """The messages a way rereads are those the pen reads too."""
     convo = await setup_conversation(client)
     for i in range(6):
         await send(client, convo["id"], content=f"Message {i}.")
-    await client.put("/api/settings", json={"history_limit": 4})
+    await client.put("/api/ways/balanced", json={"history_limit": 4})
 
     await send(client, convo["id"], content="One more.")
     replied = [m["content"] for m in fake_provider.captured["payload"].messages]

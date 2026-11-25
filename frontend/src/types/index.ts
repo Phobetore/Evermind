@@ -155,6 +155,15 @@ export interface Message {
   created_at: string;
 }
 
+export type Length = "short" | "medium" | "long";
+export type Reminders = "essential" | "normal" | "rich" | "all";
+/** What one conversation changes of its way of playing, for itself alone. */
+export interface PlayOverrides {
+  history_limit?: number;
+  reply_length?: Length;
+  reminders?: Reminders;
+}
+
 export interface Conversation {
   id: string;
   character_id: string;
@@ -178,6 +187,11 @@ export interface Conversation {
   backdrop: Backdrop;
   /** Its own strength, 0 to 1; null follows the device's. */
   backdrop_strength: number | null;
+  /** The way of playing it was made with, or chosen since; an id no longer known plays the way
+   *  offered to new conversations. */
+  play_style: string;
+  /** What it adjusted of its way for itself; null when nothing. */
+  play_overrides: PlayOverrides | null;
   forked_from?: string | null;
   /** Counts the changes to its messages. */
   revision?: number;
@@ -244,9 +258,6 @@ export interface LibraryItem {
 export interface Settings {
   global_instructions: string;
   auto_memory: boolean;
-  reply_length: "short" | "medium" | "long";
-  history_limit: number;
-  passage_budget: number;
   update_check: boolean;
 }
 

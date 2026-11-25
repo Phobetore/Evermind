@@ -179,14 +179,21 @@ def test_the_window_counted():
     assert (got.tokens, got.source) == (6000, "read")
 
 
-def test_reply_room_follows_the_reply_length_until_the_ways_exist():
-    for length, room in REPLY_ROOM.items():
-        assert reply_room({"id": "c"}, {"reply_length": length}) == room
+def test_reply_room_is_the_way_s_of_the_conversation():
     assert [REPLY_ROOM[k] for k in ("short", "medium", "long")] == [512, 1024, 2048]
     assert reply_room({"id": "c"}, {}) == 1024
-    assert reply_room({"id": "c"}, {"reply_length": None}) == 1024
-    for settings in ({"reply_length": "long"}, {}):
-        assert reply_room(None, settings) == reply_room({"id": "c"}, settings)
+    # The old setting no longer counts: the way does.
+    assert reply_room({"id": "c"}, {"reply_length": "long"}) == 1024
+    assert reply_room({"id": "c", "play_style": "light"}, {}) == 512
+    assert reply_room({"id": "c", "play_style": "immersive"}, {}) == 2048
+    assert reply_room({"id": "c", "play_style": "light",
+                       "play_overrides": {"reply_length": "long"}}, {}) == 2048
+    offered = {"default_play_style": "immersive"}
+    assert reply_room(None, offered) == 2048
+    assert reply_room({"id": "c", "play_style": "gone"}, offered) == 2048
+    # A way of the person's own that leaves the room to the AI.
+    open_room = {"play_styles": {"overrides": {}, "custom": [{"id": "w", "reply_room": None}]}}
+    assert reply_room({"id": "c", "play_style": "w"}, open_room) is None
 
 
 def test_the_engine_is_given_the_room_kept_not_the_ceiling_sent():
@@ -215,7 +222,7 @@ def test_call_for_carries_what_a_provider_and_the_services_take():
         "api_key": "secret", "model": "claude-x", "temperature": 0.7, "top_p": 0.9,
         "frequency_penalty": 0.1, "presence_penalty": None, "max_tokens": 700,
         "context_size": 20000, "reserve": 700, "model_id": "m1", "model_name": "Mine",
-        "service_id": "s1", "reasons": 1,
+        "service_id": "s1", "reasons": 1, "margin": 1200, "token_ratio": None,
     }
 
 
