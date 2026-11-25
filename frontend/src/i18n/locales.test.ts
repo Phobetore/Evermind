@@ -62,6 +62,10 @@ describe("a sentence reads right where it is shown", () => {
     ["es", "settings.about.updateHint", "Detenga Evermind y luego ejecute esto en la carpeta donde lo instaló."],
     // One action, one name: "Continuar la respuesta" everywhere else.
     ["es", "chat.message.extend", "Continuar"],
+    // What an AI reads at once is said in pages, in every language.
+    ["en", "ways.card.reads", "{name} can read ≈ {pages:grouped} pages at once"],
+    ["de", "ways.card.reads", "{name} kann ≈ {pages:grouped} Seiten auf einmal lesen"],
+    ["es", "ways.card.reads", "{name} puede leer ≈ {pages:grouped} páginas de una vez"],
   ] as const)("in %s, %s", (locale, key, said) => {
     expect(new Map(flatten({ en, fr, de, es }[locale])).get(key)).toBe(said);
   });

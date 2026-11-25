@@ -1055,7 +1055,7 @@
       "title": "Lo que la IA lee",
       "with": "Con",
       "sent": "≈ {pages:grouped} páginas enviadas con cada mensaje",
-      "reads": "{name} puede leer ≈ {pages:grouped} de una vez",
+      "reads": "{name} puede leer ≈ {pages:grouped} páginas de una vez",
       "full": "Su capacidad de lectura está llena: relee {read} de los {asked} mensajes pedidos. Es el límite del modelo, no el de Evermind.",
       "full_one": "Su capacidad de lectura está llena: relee {count} de los {asked} mensajes pedidos. Es el límite del modelo, no el de Evermind.",
       "fullAll": "Su capacidad de lectura está llena: relee {read} mensajes, todo lo que cabe. Es el límite del modelo, no el de Evermind.",

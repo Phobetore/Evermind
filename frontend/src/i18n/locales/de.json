@@ -1055,7 +1055,7 @@
       "title": "Was die KI liest",
       "with": "Mit",
       "sent": "≈ {pages:grouped} Seiten mit jeder Nachricht gesendet",
-      "reads": "{name} kann ≈ {pages:grouped} auf einmal lesen",
+      "reads": "{name} kann ≈ {pages:grouped} Seiten auf einmal lesen",
       "full": "Ihr Leseumfang ist voll: Die KI liest {read} der {asked} verlangten Nachrichten erneut. Das ist die Grenze des Modells, nicht die von Evermind.",
       "full_one": "Ihr Leseumfang ist voll: Die KI liest {count} der {asked} verlangten Nachrichten erneut. Das ist die Grenze des Modells, nicht die von Evermind.",
       "fullAll": "Ihr Leseumfang ist voll: Die KI liest {read} Nachrichten erneut, alles, was hineinpasst. Das ist die Grenze des Modells, nicht die von Evermind.",

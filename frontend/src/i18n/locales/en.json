@@ -1055,7 +1055,7 @@
       "title": "What the AI reads",
       "with": "With",
       "sent": "≈ {pages:grouped} pages sent with each message",
-      "reads": "{name} can read ≈ {pages:grouped} at once",
+      "reads": "{name} can read ≈ {pages:grouped} pages at once",
       "full": "Its reading capacity is full: it rereads {read} of the {asked} messages asked. That is the model's limit, not Evermind's.",
       "full_one": "Its reading capacity is full: it rereads {count} of the {asked} messages asked. That is the model's limit, not Evermind's.",
       "fullAll": "Its reading capacity is full: it rereads {read} messages, all that fits. That is the model's limit, not Evermind's.",
