@@ -15,8 +15,14 @@ interface Way {
   overridden: boolean;
   conversations: number;
   history_limit: number;
+  reply_length: string;
+  reply_room: number | null;
+  facts_cap: number | null;
+  max_facts: number | null;
   lore_cap: number | null;
   lore_share: number | null;
+  passage_cap: number | null;
+  passage_share: number | null;
 }
 interface Ways { default: string; passages_available: boolean; ways: Way[] }
 
@@ -118,6 +124,7 @@ test("a copy opens, is renamed, offered to new conversations, then deleted, its 
 
   await name.fill("Night shift");
   await name.press("Enter");
+  await expect(page.locator("header").getByText("Saved.")).toBeVisible();
   await expect.poll(async () => (await wayOf(request, id))?.name).toBe("Night shift");
 
   await page.getByRole("button", { name: "Offer Night shift to new conversations" }).click();
@@ -135,6 +142,83 @@ test("a copy opens, is renamed, offered to new conversations, then deleted, its 
   expect(left.ways.map((way) => way.id)).not.toContain(id);
   expect(left.default).toBe("balanced");
   expect((await conversation(request, convo.id)).play_style).toBe("balanced");
+});
+
+test("a length keeps the room it needs, and reminders bring their whole level, each saved under its own choice", async ({ page, request }) => {
+  await openWay(page, "balanced");
+  const reread = page.getByRole("group", { name: "Messages reread before each reply" });
+  const length = page.getByRole("group", { name: "Reply length to aim for" });
+  const reminders = page.getByRole("group", { name: "Reminders of the world and of what happened" });
+
+  await length.getByRole("button", { name: "Long", exact: true }).click();
+  await expect(length.getByText("Saved.")).toBeVisible();
+  await expect(reread.getByText("Saved.")).toHaveCount(0);
+  await expect(reminders.getByText("Saved.")).toHaveCount(0);
+  await expect.poll(async () => {
+    const way = await wayOf(request, "balanced");
+    return [way?.reply_length, way?.reply_room];
+  }).toEqual(["long", 2048]);
+
+  await reminders.getByRole("button", { name: "Rich", exact: true }).click();
+  await expect(reminders.getByText("Saved.")).toBeVisible();
+  await expect(reminders.getByRole("button", { name: "Rich", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () => {
+    const way = await wayOf(request, "balanced");
+    return [way?.facts_cap, way?.max_facts, way?.lore_cap, way?.lore_share, way?.passage_cap, way?.passage_share];
+  }).toEqual([4000, 120, 1600, 0.06, 3000, 0.1]);
+});
+
+test("reminders of no level show custom, pressed and not to be chosen", async ({ page, request }) => {
+  await request.put(`${API}/api/ways/balanced`, { data: { max_facts: 7 } });
+  await openWay(page, "balanced");
+  const custom = choice(page, "Reminders of the world and of what happened", "Custom");
+  await expect(custom).toHaveAttribute("aria-pressed", "true");
+  await expect(custom).toBeDisabled();
+  for (const level of ["Essentials", "Normal", "Rich", "No cap"]) {
+    await expect(choice(page, "Reminders of the world and of what happened", level)).toHaveAttribute("aria-pressed", "false");
+  }
+});
+
+test("a figure the server refuses is said under its field, which shows what is kept", async ({ page }) => {
+  await openWay(page, "balanced");
+  await page.getByText("Advanced: the exact values").click();
+  const most = page.getByRole("textbox", { name: "Remembered facts: how many at most" });
+  await expect(most).toHaveValue("60");
+  await most.fill("0");
+  await most.press("Tab");
+  await expect(most.locator("..").getByRole("alert")).toBeVisible();
+  await expect(most).toHaveValue("60");
+});
+
+test("a share is shown in whole per cent", async ({ page, request }) => {
+  const copy = await (await request.post(`${API}/api/ways`, { data: { from: "balanced", name: "Seven" } })).json() as Way;
+  await request.put(`${API}/api/ways/${copy.id}`, { data: { lore_share: 0.07 } });
+  await openWay(page, copy.id);
+  await page.getByText("Advanced: the exact values").click();
+  const lore = page.getByRole("group", { name: "Pages of the world: at most (tokens)" });
+  await expect(lore.getByRole("textbox", { name: "or share of what it reads (%)" })).toHaveValue("7");
+});
+
+test("with a priced default ai, each way says what 100 messages cost, and the card names that ai first", async ({ page, request }) => {
+  const stamp = Date.now();
+  const priced = await addModel(request, {
+    base_url: MOCK, model: `priced-${stamp}`, name: `Priced ${stamp}`,
+    changes: { context_own: 32768, price_own_in: 0.2, price_own_out: 0.6, is_default: true },
+  });
+  try {
+    await page.goto("/#/settings");
+    for (const id of BUILT_IN) {
+      await expect(page.locator(`main a[href="#/settings/way/${id}"]`)).toContainText("per 100 messages");
+    }
+    await openWay(page, "balanced");
+    await expect(page.getByLabel("With", { exact: true }).locator("option").first()).toHaveText(priced.name);
+    await expect(page.getByLabel("With", { exact: true })).toHaveValue(priced.id);
+  } finally {
+    await request.delete(`${API}/api/models/${priced.id}`);
+    const e2e = ((await (await request.get(`${API}/api/models`)).json()) as { id: string; name: string }[])
+      .find((ai) => ai.name === "e2e");
+    if (e2e) await request.put(`${API}/api/models/${e2e.id}`, { data: { is_default: true } });
+  }
 });
 
 test("the reading card says when the capacity is full and what light would do", async ({ page, request }) => {
