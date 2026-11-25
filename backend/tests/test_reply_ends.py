@@ -352,6 +352,35 @@ async def test_a_long_reply_after_a_thought_is_not_said_to_be_the_thought_s(clie
         "0": {"mode": "unsent", "length": "medium", "thought": False}}
 
 
+async def test_a_cut_keeps_the_length_its_conversation_played(client, model):
+    """The line under it offers long replies only where they were not already asked for."""
+    model.scripts = [ends("She opens", stop="length"), ends("She nods", stop="length")]
+    convo = await setup_conversation(client)
+    await set_ai(client, reply_cap={"mode": "auto"})
+    await client.patch(f"/api/conversations/{convo['id']}",
+                       json={"play_overrides": {"reply_length": "short"}})
+    await send(client, convo["id"])
+    assert (await last_reply(client, convo))["meta"]["cut"]["0"]["length"] == "short"
+
+    await client.patch(f"/api/conversations/{convo['id']}",
+                       json={"play_overrides": {"reply_length": "long"}})
+    await send(client, convo["id"], content=None, mode="regenerate")
+    assert (await last_reply(client, convo))["meta"]["cut"]["1"]["length"] == "long"
+
+
+async def test_a_continuation_that_thought_is_judged_on_all_the_reply_holds(client, model):
+    """Two hundred characters were already there: the thinking of the pass that added a few did
+    not keep the reply from being written."""
+    model.scripts = [ends("x" * 200, stop="length"), ends("and", thought=3000, stop="length")]
+    convo = await setup_conversation(client)
+    await set_ai(client, reply_cap={"mode": "auto"})
+    await send(client, convo["id"])
+    await send(client, convo["id"], content=None, mode="continue")
+    reply = await last_reply(client, convo)
+    assert len(reply["content"]) > 200
+    assert reply["meta"]["cut"]["0"]["thought"] is False
+
+
 async def test_a_reply_that_ends_on_its_own_says_no_cause(client, model):
     convo = await setup_conversation(client)
     await send(client, convo["id"])
