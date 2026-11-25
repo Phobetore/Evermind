@@ -339,9 +339,11 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         if not body:
             return
         marks = sorted(others if ending is not None else others | {index})
-        # What the server counted of a version, and whether it read it whole, are that version's.
+        # What the server counted of a version is that version's. Whether it read it whole names
+        # its version: it goes once another is written whole, and holds until then.
         meta = {k: v for k, v in (target["meta"] if target else {}).items()
-                if k not in ("interrupted", "ceiling", "cut", "usage", "truncated")}
+                if k not in ("interrupted", "ceiling", "cut", "usage")
+                and (k != "truncated" or ending is None)}
         meta.update(ending or {})
         if marks:
             meta["interrupted"] = marks
@@ -360,7 +362,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             stored = (existing + body) if continue_mode else body
             cuts[str(index)] = {"mode": ai[0].get("reply_cap_mode") or "auto",
                                 "length": way["reply_length"],
-                                "thought": thought > 0 and len(stored) < _THOUGHT_TOOK_THE_ROOM}
+                                "thought": thought > 0 and len(stored) < _THOUGHT_TOOK_THE_ROOM,
+                                # The AI that wrote it, which another may have replaced since.
+                                "model_id": call["model_id"]}
         if cuts:
             meta["cut"] = cuts
         if target:
@@ -510,7 +514,9 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         ending["usage"] = {"prompt": counts[0], "completion": counts[1],
                            "model_id": call["model_id"], "model": call["model"]}
     if cut is not None:
-        ending["truncated"] = cut
+        # The version it was read for, and the AI and the model that read it.
+        ending["truncated"] = {**cut, "version": index, "model_id": call["model_id"],
+                               "model": call["model"]}
     await save(ending, at_ceiling=at_ceiling)
     await convo_repo.touch(db, convo["id"])
     memory_service.schedule_if_due(convo["id"])

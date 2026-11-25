@@ -191,6 +191,10 @@ async def patch_message(message_id: str, payload: MessagePatch,
                 mark.pop(str(index), None)
                 if mark:
                     meta[key] = mark
+        # Nor what the server read of the words it was sent, for the version it names.
+        truncated = (message["meta"] or {}).get("truncated")
+        if isinstance(truncated, dict) and truncated.get("version") == index:
+            meta = {k: v for k, v in (meta or message["meta"]).items() if k != "truncated"}
     # A swipe shows other words; not an edit, where a typo put right would undo every pass since.
     return await repo.update_message(db, message_id, variants=variants,
                                      active_index=payload.active_index, meta=meta,

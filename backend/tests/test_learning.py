@@ -568,7 +568,8 @@ async def test_a_truncated_reply_says_so_and_feeds_nothing(client, monkeypatch):
 
     reply = await last_reply(client, convo)
     assert reply["meta"]["context"]["used_tokens"] > 4090 / 0.7
-    assert reply["meta"]["truncated"] == {"read": 4090, "window": 16384}
+    assert reply["meta"]["truncated"] == {"read": 4090, "window": 16384, "version": 0,
+                                          "model_id": ai["id"], "model": ai["model"]}
     assert reply["meta"]["usage"]["prompt"] == 4090
     row = await row_of(ai["id"])
     assert (row["token_ratio"], row["token_ratio_n"], row["usage_seen"]) == (None, 0, 1)
@@ -591,7 +592,8 @@ async def test_a_story_read_only_from_its_end_is_seen_on_the_third_turn(client, 
 
     first, last = reading.seen[0][1], reading.seen[-1][1]
     assert last > first * 1.05 and all(p < 0.7 * e for p, e in reading.seen)
-    assert meta["truncated"] == {"read": 3015, "window": 16384}
+    assert meta["truncated"] == {"read": 3015, "window": 16384, "version": 0,
+                                 "model_id": ai["id"], "model": ai["model"]}
 
 
 def test_a_count_that_did_not_follow_the_story_stood_still():
@@ -664,7 +666,8 @@ async def test_a_server_capped_under_a_growing_story_is_caught_before_it_teaches
         over += whole > cap
         assert meta["context"]["budget"] <= 16384, (turn, meta["context"])
         if "truncated" in meta:
-            assert meta["truncated"] == {"read": cap, "window": 16384}
+            assert meta["truncated"] == {"read": cap, "window": 16384, "version": 0,
+                                         "model_id": ai["id"], "model": ai["model"]}
             flagged = over
             break
         # Until it is caught, the ratio stays near the rate the server counts at.
@@ -812,6 +815,50 @@ async def test_a_new_version_does_not_keep_the_truncation_of_the_one_before(clie
     assert await send(client, convo["id"], mode="regenerate") is None
     meta = (await last_reply(client, convo))["meta"]
     assert "truncated" not in meta and "usage" not in meta
+
+
+async def test_a_truncation_names_its_version_until_another_is_written_whole(
+        client, monkeypatch):
+    ai, convo = await a_story(client)
+    await long_story(convo["id"], 22, 1300)
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    model.answers = [answer("*She shrugs.*", usage={"prompt_tokens": 4090})]
+    assert await send(client, convo["id"], mode="regenerate") is None
+    reply = await last_reply(client, convo)
+    read = {"read": 4090, "window": 16384, "version": 1, "model_id": ai["id"],
+            "model": ai["model"]}
+    assert reply["meta"]["truncated"] == read
+
+    # Back to the version before: the line is the other version's, and says so.
+    resp = await client.patch(f"/api/messages/{reply['id']}", json={"active_index": 0})
+    assert resp.json()["meta"]["truncated"] == read
+    # A version that broke off is not whole: the one read from its end still says it.
+    model.answers = [[chunk(content="She"), json.dumps({"error": {"message": "boom"}})]]
+    assert (await send(client, convo["id"], mode="regenerate"))["kind"] == "model_error"
+    reply = await last_reply(client, convo)
+    assert len(reply["variants"]) == 3 and reply["meta"]["truncated"] == read
+    # One written whole, and read whole, is the end of it.
+    model.answers = [answer("*She waits.*", usage={"prompt_tokens": 9000})]
+    assert await send(client, convo["id"], mode="regenerate") is None
+    assert "truncated" not in (await last_reply(client, convo))["meta"]
+
+
+async def test_a_truncation_goes_when_its_version_is_rewritten_by_hand(client, monkeypatch):
+    _, convo = await a_story(client)
+    await long_story(convo["id"], 22, 1300)
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    model.answers = [answer("*She shrugs.*", usage={"prompt_tokens": 4090})]
+    assert await send(client, convo["id"], mode="regenerate") is None
+    reply = await last_reply(client, convo)
+
+    edited = (await client.patch(f"/api/messages/{reply['id']}",
+                                 json={"content": "She smiles.", "active_index": 0})).json()
+    assert edited["meta"]["truncated"]["version"] == 1
+    edited = (await client.patch(f"/api/messages/{reply['id']}",
+                                 json={"content": "She shrugs, slowly.", "active_index": 1})).json()
+    assert "truncated" not in edited["meta"]
 
 
 async def test_reduce_and_try_again_records_what_was_observed(client, monkeypatch):

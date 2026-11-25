@@ -397,7 +397,11 @@ Balanced is the engine as it was, figure for figure.
   count and the AI's two counts before it stand within 1% of each other while
   the estimate grew by more than 5% (a server that drops the beginning of a
   story that grows), or when its count is far under the estimate and just
-  under a round size or the size the server is set to load.
+  under a round size or the size the server is set to load. The mark names the
+  version it was read for (`version`), the AI (`model_id`) and its model then
+  (`model`); it holds until another version is written whole, or that version is
+  rewritten by hand. `meta.cut`, why each version was cut at its ceiling, names
+  the AI that wrote it (`model_id`).
 - **A refusal for a prompt too long** (`learning.is_too_long`: its words, or the
   `code` and `type` its error body keeps, `ProviderError.said`) teaches the size
   and the count it names (in its words, or llama.cpp's `n_ctx` and

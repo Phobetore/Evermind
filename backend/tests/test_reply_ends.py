@@ -323,33 +323,51 @@ async def test_rewriting_a_cut_version_by_hand_clears_its_mark_and_a_swipe_does_
 async def test_a_cut_says_its_cause(client, model):
     model.scripts = [ends("She opens her mouth to", stop="length")]
     convo = await setup_conversation(client)
-    await set_ai(client, reply_cap={"mode": "auto"})
+    ai = await set_ai(client, reply_cap={"mode": "auto"})
     await send(client, convo["id"])
     assert (await last_reply(client, convo))["meta"]["cut"] == {
-        "0": {"mode": "auto", "length": "medium", "thought": False}}
+        "0": {"mode": "auto", "length": "medium", "thought": False, "model_id": ai["id"]}}
 
     model.scripts, model.asked = [ends("She nods and", stop="length")], 0
     await set_ai(client, max_tokens=1024)
     await send(client, convo["id"], content=None, mode="regenerate")
     assert (await last_reply(client, convo))["meta"]["cut"] == {
-        "0": {"mode": "auto", "length": "medium", "thought": False},
-        "1": {"mode": "fixed", "length": "medium", "thought": False}}
+        "0": {"mode": "auto", "length": "medium", "thought": False, "model_id": ai["id"]},
+        "1": {"mode": "fixed", "length": "medium", "thought": False, "model_id": ai["id"]}}
 
     # Fifty characters after a long thought: the thinking took the room, not the reply.
     model.scripts, model.asked = [ends("x" * 50, thought=3000, stop="length")], 0
     await set_ai(client, reply_cap={"mode": "auto"})
     await send(client, convo["id"], content=None, mode="regenerate")
     assert (await last_reply(client, convo))["meta"]["cut"]["2"] == {
-        "mode": "auto", "length": "medium", "thought": True}
+        "mode": "auto", "length": "medium", "thought": True, "model_id": ai["id"]}
+
+
+async def test_a_cut_names_the_ai_that_wrote_each_version(client, model):
+    model.scripts = [ends("She opens her mouth to", stop="length")]
+    convo = await setup_conversation(client)
+    first = await set_ai(client, reply_cap={"mode": "fixed", "tokens": 300})
+    await send(client, convo["id"])
+    other = await add_model(client, base_url="http://localhost:1235/v1", model="other",
+                            name="Other", reply_cap={"mode": "fixed", "tokens": 400})
+    resp = await client.patch(f"/api/conversations/{convo['id']}", json={"model_id": other["id"]})
+    assert resp.status_code == 200, resp.text
+    model.scripts, model.asked = [ends("She nods and", stop="length")], 0
+    await send(client, convo["id"], content=None, mode="regenerate")
+
+    cut = (await last_reply(client, convo))["meta"]["cut"]
+    # "Let Evermind set it" under the first version lifts the ceiling of the AI that wrote it,
+    # not of the one that answers now.
+    assert (cut["0"]["model_id"], cut["1"]["model_id"]) == (first["id"], other["id"])
 
 
 async def test_a_long_reply_after_a_thought_is_not_said_to_be_the_thought_s(client, model):
     model.scripts = [ends("x" * 200, thought=3000, stop="length")]
     convo = await setup_conversation(client)
-    await set_ai(client, reply_cap={"mode": "unsent"})
+    ai = await set_ai(client, reply_cap={"mode": "unsent"})
     await send(client, convo["id"])
     assert (await last_reply(client, convo))["meta"]["cut"] == {
-        "0": {"mode": "unsent", "length": "medium", "thought": False}}
+        "0": {"mode": "unsent", "length": "medium", "thought": False, "model_id": ai["id"]}}
 
 
 async def test_a_cut_keeps_the_length_its_conversation_played(client, model):
