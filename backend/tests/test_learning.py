@@ -25,7 +25,7 @@ OPENAI_TOO_LONG_BARE = ("This model's maximum context length is 8192 tokens. How
                         "requested 9500 tokens. Please reduce the length of the messages.")
 # shape unverified: OpenRouter's, as it is remembered.
 OPENROUTER_TOO_LONG = ("This endpoint's maximum context length is 163840 tokens. However, you "
-                       "requested about 170000 tokens (168000 of text input, 2000 in the output). "
+                       "requested about 170000 tokens (168500 of text input, 2000 in the output). "
                        "Please reduce the length of either one, or use the \"middle-out\" "
                        "transform to compress your prompt automatically.")
 ANTHROPIC_TOO_LONG = "prompt is too long: 205000 tokens > 200000 maximum"
@@ -228,7 +228,10 @@ def test_the_three_refusal_forms_are_read():
     assert learning.too_long_figures(OPENAI_TOO_LONG) == (8192, 8476)
     assert learning.too_long_figures(OPENAI_TOO_LONG_BARE, sent=1024) == (8192, 8476)
     assert learning.too_long_figures(OPENAI_TOO_LONG_BARE) == (8192, 9500)
-    assert learning.too_long_figures(OPENROUTER_TOO_LONG, sent=2000) == (163840, 168000)
+    # Its parts need not add up to the whole: the text input is read, not what is left.
+    assert learning.too_long_figures(OPENROUTER_TOO_LONG, sent=2000) == (163840, 168500)
+    # A request no larger than the room it asked for the reply leaves no prompt to count.
+    assert learning.too_long_figures(OPENAI_TOO_LONG_BARE, sent=9500) == (8192, 0)
     assert learning.too_long_figures(ANTHROPIC_TOO_LONG, sent=4096) == (200000, 205000)
     assert learning.too_long_figures(LLAMA_TOO_LONG, sent=1024) == (4096, None)
     assert learning.too_long_figures(NO_FIGURES) == (None, None)
@@ -589,6 +592,28 @@ async def test_a_refusal_naming_the_size_counted_widens_the_margin(client, monke
     row = await row_of(ai["id"])
     assert (row["fit_margin"], row["context_read"], row["token_ratio"]) == (
         pytest.approx(0.10), None, None)
+
+
+async def test_a_refusal_that_leaves_no_prompt_widens_the_margin(client, monkeypatch):
+    ai, convo = await a_story(client, reply_cap={"mode": "auto"})
+    # What was requested is no more than the room sent for the reply.
+    bare = "This model's maximum context length is 16384 tokens. However, you requested 500 tokens."
+    model = Model((400, {"error": {"message": bare}}), writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert model.bodies[0]["max_tokens"] >= 500
+    row = await row_of(ai["id"])
+    assert (row["fit_margin"], row["token_ratio"], row["token_ratio_n"], row["context_read"]) == (
+        pytest.approx(0.10), None, 0, None)
+
+    # A size apart from the one counted is all such a refusal teaches.
+    other, story = await a_story(client, context_own=None, model="second",
+                                 reply_cap={"mode": "auto"})
+    model.answers, model.bodies = [(400, {"error": {"message": bare.replace("16384", "8192")}}),
+                                   writing("*She nods.*")], []
+    assert await send(client, story["id"]) is None
+    row = await row_of(other["id"])
+    assert (row["fit_margin"], row["token_ratio"], row["context_read"],
+            row["context_read_kind"]) == (None, None, 8192, "served")
 
 
 async def test_a_refusal_on_a_story_opening_on_the_greeting_does_not_fold_it(client, monkeypatch):
