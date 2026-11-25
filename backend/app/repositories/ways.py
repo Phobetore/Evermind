@@ -44,12 +44,11 @@ def _default_of(styles: dict, default_id: str | None) -> str:
 
 async def offered(db: aiosqlite.Connection, way_id: str | None) -> str:
     """The way a conversation made now plays: the one asked for, or the one offered when none
-    is. One that does not exist is not found."""
+    is, or when the one asked for no longer exists (removed on another device since the page
+    read it), as the engine plays a conversation whose way is gone."""
     styles, default_id = await _read(db)
-    if way_id is None:
+    if way_id is None or not _known(styles, way_id):
         return _default_of(styles, default_id)
-    if not _known(styles, way_id):
-        raise _missing()
     return way_id
 
 

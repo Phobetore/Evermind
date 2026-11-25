@@ -160,13 +160,21 @@ async def test_a_conversation_keeps_the_way_it_was_made_with(client, monkeypatch
     assert LONG in (await turn(client, after["id"], model))["messages"][0]["content"]
 
 
-async def test_a_conversation_made_with_an_unknown_way_is_not_found(client):
+async def test_a_conversation_made_with_a_way_removed_meanwhile_plays_the_way_offered(client):
+    # The dialog that starts it read a way another device has removed since.
+    mine = await copy_of(client, "light")
+    resp = await client.put("/api/ways/default", json={"id": "immersive"})
+    assert resp.status_code == 200, resp.text
+    resp = await client.delete(f"/api/ways/{mine['id']}")
+    assert resp.status_code == 200, resp.text
     character = (await client.post("/api/characters", json={"name": "Serana"})).json()
+
     resp = await client.post("/api/conversations", json={"character_id": character["id"],
-                                                         "play_style": "gone"})
-    assert resp.status_code == 404
-    assert resp.json()["resource"] == "way"
-    assert (await client.get("/api/conversations")).json() == []
+                                                         "play_style": mine["id"]})
+
+    assert resp.status_code == 201, resp.text
+    assert (resp.json()["play_style"], resp.json()["play_overrides"]) == ("immersive", None)
+    assert [c["id"] for c in (await client.get("/api/conversations")).json()] == [resp.json()["id"]]
 
 
 async def test_picking_another_way_clears_the_overrides(client):
