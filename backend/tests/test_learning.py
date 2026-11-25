@@ -14,7 +14,7 @@ from app.services import ai_call, learning, limits, turns
 from .conftest import messages_of, send
 from .helpers import add_model
 from .test_memory_room import chunk, finish, writing
-from .test_my_ais_api import HOSTED, Model, conversation_on, lists, model_of, open_db  # noqa: F401
+from .test_my_ais_api import HOSTED, Lists, Model, conversation_on, model_of, open_db
 
 # The refusals of a prompt too long as servers word them (their figures changed): OpenAI's, which
 # DeepSeek and vLLM's 0.6 also send.
@@ -1262,6 +1262,13 @@ async def test_what_was_observed_dates_the_ai(client):
     resp = await client.post(f"/api/models/{ai['id']}/observed", json={"tokens": 4096})
     assert resp.json()["updated_at"] > "2026-11-01T10:00:00+00:00"
     assert (await row_of(ai["id"]))["updated_at"] == resp.json()["updated_at"]
+
+
+@pytest.fixture()
+def lists(monkeypatch) -> Lists:
+    served = Lists()
+    monkeypatch.setattr("app.providers.catalog.client_factory", served.factory)
+    return served
 
 
 async def test_a_size_taught_by_a_refusal_holds_against_a_read_made_by_itself(
