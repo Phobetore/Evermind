@@ -128,6 +128,49 @@ test("a reply cut at a ceiling of its ai's offers to let Evermind set it", { tag
   await expect(reply.locator("[data-ceiling]")).toHaveCount(0);
 });
 
+test("letting Evermind set it lifts the ceiling of the ai that cut the reply, only while it answers", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 300 } });
+  const first = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  await sendFromTheBox(page, convo.id);
+  const reply = page.locator("[data-message-id]").last();
+  const lift = reply.getByRole("button", { name: "Let Evermind set it" });
+  await expect(reply.locator("[data-ceiling]")).toContainText("reply ceiling of 300 tokens");
+  await expect(lift).toBeVisible();
+
+  // Another AI answers now, with a ceiling of its own: the reply was not cut at it.
+  const second = await aiOfItsOwn(request, `Roomier ${Date.now()}`, { reply_cap: { mode: "fixed", tokens: 800 } });
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: second.id } });
+  await page.reload();
+  await expect(reply.locator("[data-ceiling]")).toContainText("reply ceiling of 300 tokens");
+  await expect(reply.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
+  await expect(lift).toHaveCount(0);
+
+  // The AI that cut it answers again: its ceiling can be lifted, and only its own.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: first } });
+  await page.reload();
+  await expect(lift).toBeVisible();
+  await lift.click();
+  await expect(page.locator("[data-chat-toast]")).toContainText("no longer has a ceiling of its own");
+  const ais = await (await request.get(`${API}/api/models`)).json();
+  const capOf = (id: string) => ais.find((ai: { id: string }) => ai.id === id).reply_cap;
+  expect(capOf(first).mode).toBe("auto");
+  expect(capOf(second.id)).toEqual({ mode: "fixed", tokens: 800 });
+});
+
+test("a reply cut at a ceiling its ai no longer keeps offers nothing to lift", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 300 } });
+  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  await sendFromTheBox(page, convo.id);
+  const reply = page.locator("[data-message-id]").last();
+  await expect(reply.getByRole("button", { name: "Let Evermind set it" })).toBeVisible();
+  // Its ceiling changed since: lifting the new one would not have saved this reply.
+  expect((await request.put(`${API}/api/models/${aiId}`, { data: { reply_cap: { mode: "fixed", tokens: 600 } } })).ok()).toBe(true);
+  await page.reload();
+  await expect(reply.locator("[data-ceiling]")).toContainText("reply ceiling of 300 tokens");
+  await expect(reply.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
+  await expect(reply.getByRole("button", { name: "Let Evermind set it" })).toHaveCount(0);
+});
+
 test("a reply cut where its ai sends no ceiling offers nothing to lift", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "unsent" } });
   await sendFromTheBox(page, convo.id);

@@ -21,7 +21,7 @@ import { useT } from "@/i18n/useT";
 import { answering } from "@/lib/ai";
 import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
-import { describeCut } from "@/lib/cutShort";
+import { cutAtCeilingOf, describeCut } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
 import { holdSizes, wantSizes } from "@/lib/portraitSizes";
@@ -938,7 +938,8 @@ function ChatView({ id }: { id: string }) {
                     if (!now.some((m) => m.id === message.id)) cut();
                   })}
                   onBranch={() => write(() => branchFrom(message))}
-                  onLetEvermind={message.id === last?.id && answeringAi?.reply_cap.mode === "fixed"
+                  // Only the ceiling that cut this version: of the AI that wrote it, as it was then.
+                  onLetEvermind={message.id === last?.id && answeringAi && cutAtCeilingOf(message, answeringAi)
                     ? () => letEvermind(answeringAi)
                     : undefined}
                   // Not once this conversation already asks for long replies.

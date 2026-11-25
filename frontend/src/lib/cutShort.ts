@@ -33,6 +33,28 @@ export function ceilingTokens(message: Pick<Message, "meta" | "active_index">): 
   return typeof tokens === "number" && tokens > 0 ? tokens : null;
 }
 
+/** The AI (its row id) that wrote the version on screen when the connection's max tokens cut it,
+ *  as the server stored it beside the mark; null for a version cut before it stored one. */
+export function cutAiId(message: Pick<Message, "meta" | "active_index">): string | null {
+  const causes = message.meta?.cut;
+  if (!causes || typeof causes !== "object" || Array.isArray(causes)) return null;
+  const cause = (causes as Record<string, unknown>)[String(message.active_index)];
+  const id = cause && typeof cause === "object" ? (cause as Record<string, unknown>).model_id : null;
+  return typeof id === "string" ? id : null;
+}
+
+/** Whether the ceiling `ai` keeps is the one that cut the version on screen, and so lifting it would
+ *  have saved it: the AI that wrote it (where the server said which), a ceiling of its own still,
+ *  at the figure the reply was cut at. */
+export function cutAtCeilingOf(
+  message: Pick<Message, "meta" | "active_index">,
+  ai: { id: string; reply_cap: { mode: string; tokens: number | null } },
+): boolean {
+  const by = cutAiId(message);
+  return (by === null || by === ai.id) && ai.reply_cap.mode === "fixed"
+    && ceilingTokens(message) !== null && ceilingTokens(message) === ai.reply_cap.tokens;
+}
+
 /** What can be done about a cut reply from the line under it. */
 export type CutAction = "extend" | "letEvermind" | "longHere" | "retry";
 

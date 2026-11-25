@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { ceilingTokens, describeCeiling, describeCut, isCutAtCeiling, isCutShort } from "./cutShort";
+import { ceilingTokens, cutAiId, cutAtCeilingOf, describeCeiling, describeCut, isCutAtCeiling, isCutShort } from "./cutShort";
 import { translate } from "@/i18n/translate";
 
 test("the version on screen is one the server says was cut short", () => {
@@ -136,4 +136,21 @@ test.each(["en", "fr", "de", "es"] as const)("in %s, each cause has its words", 
   for (const key of ["extend", "retry", "longHere", "longHereDone"]) {
     expect(tr(`chat.message.${key}`)).not.toContain("chat.message");
   }
+});
+
+test("the ceiling that can be lifted is the one that cut the version on screen", () => {
+  const fixed = (id: string, tokens: number) => ({ id, reply_cap: { mode: "fixed", tokens } });
+  const cut = { ceiling: { "0": 300, "1": 300 }, cut: { "0": { mode: "fixed", length: "medium", thought: false, model_id: "a" } } };
+  expect(cutAiId({ meta: cut, active_index: 0 })).toBe("a");
+  expect(cutAtCeilingOf({ meta: cut, active_index: 0 }, fixed("a", 300))).toBe(true);
+  // Another AI answers now, with a ceiling of its own.
+  expect(cutAtCeilingOf({ meta: cut, active_index: 0 }, fixed("b", 300))).toBe(false);
+  // The same AI, whose ceiling changed since, or was lifted.
+  expect(cutAtCeilingOf({ meta: cut, active_index: 0 }, fixed("a", 800))).toBe(false);
+  expect(cutAtCeilingOf({ meta: cut, active_index: 0 }, { id: "a", reply_cap: { mode: "auto", tokens: null } })).toBe(false);
+  // A cut stored before it named its AI: judged on the ceiling alone.
+  expect(cutAiId({ meta: cut, active_index: 1 })).toBe(null);
+  expect(cutAtCeilingOf({ meta: cut, active_index: 1 }, fixed("b", 300))).toBe(true);
+  // Cut where no ceiling was sent: nothing of the AI's to lift.
+  expect(cutAtCeilingOf({ meta: { ceiling: { "0": null } }, active_index: 0 }, fixed("a", 300))).toBe(false);
 });
