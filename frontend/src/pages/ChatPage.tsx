@@ -536,7 +536,8 @@ function ChatView({ id }: { id: string }) {
   // undo each other. Decided before the frame is painted.
   const [sentenceNode, setSentenceNode] = useState<HTMLParagraphElement | null>(null);
   const [hintAside, setHintAside] = useState(false);
-  useEffect(() => {
+  // Watched from before the line's first frame: the observer's first word comes before it is painted.
+  useLayoutEffect(() => {
     if (!storyNode || !sentenceNode || !hasKeyboard()) return;
     const check = () => {
       const hint = document.querySelector<HTMLElement>("[data-status-row] [data-keyboard-hint]");
