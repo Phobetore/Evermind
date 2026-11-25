@@ -516,6 +516,14 @@ textarea.field { resize: vertical; min-height: 5.5rem; }
 .over-backdrop .chat-surface { background: var(--color-ink-900); border-radius: 0.75rem; }
 .chat-banner { background: rgba(217, 106, 95, 0.1); }
 .over-backdrop .chat-banner { background: var(--color-ink-900); }
+/* A box that scrolls says so where no scrollbar does (a phone): a shade at its foot while more is
+   below, covered by a band that scrolls with the text once its end is reached. */
+.scroll-cue {
+  background:
+    linear-gradient(var(--color-ink-900), var(--color-ink-900)) bottom / 100% 1rem no-repeat local,
+    linear-gradient(to top, rgb(201 191 178 / 0.22), transparent) bottom / 100% 0.75rem no-repeat scroll,
+    var(--color-ink-900);
+}
 
 /* The home page's tiles (CharacterCard) and their grid. Out of every layer, so that below sm they win
    over the utilities the computer's tile keeps from sm up. */

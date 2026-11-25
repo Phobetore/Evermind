@@ -385,9 +385,12 @@ test("neither line stays while the reply is written again", async ({ page, reque
   }
 });
 
-// German has the longest of these lines.
+const SHRINK: Record<string, string> = { en: "Shrink and try again", de: "Verkleinern und erneut versuchen" };
+
+// German has the longest of these lines. Also in a window with a keyboard, whose sentence under the
+// input takes room a phone does not give it.
 for (const locale of ["en", "de"]) {
-  test(`the lines of a cut reply and of a story read from its end fit a phone, whatever the size of its text, in ${locale}`, async ({ page, request }) => {
+  test(`the lines of a cut reply and of a story read from its end fit a phone, whatever the size of its text, in ${locale}`, { tag: "@desktop" }, async ({ page, request }) => {
     const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
     await chat(request, { conversation_id: convo.id, mode: "send", content: "What now?" });
     const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
@@ -401,9 +404,12 @@ for (const locale of ["en", "de"]) {
         truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
       },
     };
+    // With a keyboard, only the line over the input is looked at: there the message's own buttons
+    // wait for the pointer, which is no part of this.
+    const phone = test.info().project.name !== "desktop";
     await inLocale(page, locale);
     await page.addInitScript(rootAt, "32px");
-    for (const [cause, meta] of Object.entries(cases)) {
+    for (const [cause, meta] of Object.entries(cases).filter(([cause]) => phone || cause === "room")) {
       await page.unrouteAll();
       await withCause(page, convo.id, meta);
       for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
@@ -421,7 +427,22 @@ for (const locale of ["en", "de"]) {
           const under = await page.locator("[data-story] > div").evaluate((inner) => parseFloat(getComputedStyle(inner).paddingBottom));
           const line = await reply.locator(".min-w-0 > .mt-1").evaluate((text) => parseFloat(getComputedStyle(text).lineHeight));
           expect(room, `the story's room at ${size.width}`).toBeGreaterThanOrEqual(line + under);
+          // Its sentence may scroll in its own part, but its button is whole and seen without
+          // scrolling anything: a phone shows no scrollbar to say it is there.
+          const shrink = page.locator("[data-truncated]").getByRole("button", { name: SHRINK[locale] });
+          const seen = await shrink.evaluate((button) => {
+            const box = button.getBoundingClientRect();
+            const input = document.querySelector("textarea")!.closest(".border-t")!.getBoundingClientRect();
+            const sentence = button.closest("[data-truncated]")!.querySelector("[data-truncated-text]")!.getBoundingClientRect();
+            const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+            return {
+              between: box.top >= sentence.bottom - 0.5 && box.bottom <= input.top + 0.5,
+              reached: hit !== null && button.contains(hit),
+            };
+          });
+          expect(seen, `the button at ${size.width}`).toEqual({ between: true, reached: true });
         }
+        if (!phone) continue;
         await reply.locator("[data-ceiling]").scrollIntoViewIfNeeded();
         expect(await misfits(page), `${cause} at ${size.width}`).toEqual([]);
       }

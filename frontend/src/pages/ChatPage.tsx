@@ -740,17 +740,23 @@ function ChatView({ id }: { id: string }) {
   );
   // The last reply was read by an AI that saw only the end of the story: said over the input, where
   // it is seen, until the next reply. Only for the AI that answers now, the one it was counted for.
-  // On a short screen with large text it gives way first and scrolls in its own box, so the story
-  // keeps a line of its own (see the story's box).
+  // On a short screen with large text its sentence gives way first and scrolls in its own part, so
+  // the story keeps a line of its own (see the story's box); its button never gives way, the only
+  // thing to do about it. Both parts sit in the column itself, so the story yields before the button.
   const truncated = !busy && last?.role === "assistant" ? readOnlyTheEnd(last) : null;
   const truncatedAi = truncated && answeringAi
     && (truncated.modelId === null || truncated.modelId === answeringAi.id) ? answeringAi : null;
   const truncatedLine = truncated && truncatedAi && data.connections && (
-    <div data-truncated className="min-h-0 shrink-[1000] overflow-y-auto border-t border-ink-700 bg-ink-900 px-4 py-2">
-      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-parchment-dim">
-        <span className="min-w-0 [overflow-wrap:anywhere]">
+    <div data-truncated className="contents">
+      <p
+        data-truncated-text
+        className="scroll-cue min-h-0 shrink-[1000] overflow-y-auto border-t border-ink-700 px-4 pt-2 text-center text-xs text-parchment-dim [overflow-wrap:anywhere]"
+      >
+        <span className="mx-auto block max-w-3xl">
           {t("chat.truncated.text", { name: truncatedAi.name, read: truncated.read, window: truncated.window })}
         </span>
+      </p>
+      <div className="flex shrink-0 justify-center bg-ink-900 px-4 pb-2 pt-1">
         <button
           type="button"
           className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs"
@@ -963,7 +969,9 @@ function ChatView({ id }: { id: string }) {
           above={<>{toastNode}{lostLine}</>}
           status={
             // On a touch screen the chips take the place of the keyboard's sentence.
-            <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null}>
+            // The keyboard's sentence steps aside while the line over the input is said, until the next
+            // reply: in a narrow window with large text there is no room for both and a line of the story.
+            <ChatStatusRow keyboardHint={hasKeyboard() && !truncatedLine ? t("chat.input.hintDefault") : null}>
               {data.connections && (chipShown
                 ? <AiChip ai={answeringAi} onOpen={() => (answeringAi ? openAiSheet() : setAddingAi(true))} />
                 : aisUnread && <AiUnread onRetry={readAis} />)}
