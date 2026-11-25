@@ -559,6 +559,45 @@ test("the keyboard's sentence stays beside the line over the input where there i
   expect(await shadeAtFoot(page), "a shade under a whole sentence").toBe(false);
 });
 
+// The narrowest column there is: a wide window with the side panel open, at the largest text.
+for (const locale of ["fr", "de"]) {
+  test(`the buttons of a cut reply stay in a narrow column, in ${locale}`, { tag: "@desktop" }, async ({ page, request }) => {
+    const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "What now?" });
+    const ceiling = { "0": 1024 };
+    const cases = {
+      fixed: { ceiling, cut: { "0": { mode: "fixed", length: "medium", thought: false } } },
+      room: { ceiling, cut: { "0": { mode: "auto", length: "short", thought: false } } },
+    };
+    await inLocale(page, locale);
+    await page.addInitScript(rootAt, "32px");
+    await page.setViewportSize({ width: 1280, height: 800 });
+    for (const [cause, meta] of Object.entries(cases)) {
+      await page.unrouteAll();
+      await withCause(page, convo.id, meta);
+      await page.goto("about:blank");
+      await page.goto(`/#/chat/${convo.id}`);
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+      const reply = page.locator("[data-message-id]").last();
+      await expect(reply.locator("[data-cut-actions] button")).toHaveCount(2);
+      // Opened once, the panel stays open.
+      const panel = page.locator("header button:has(svg.lucide-sliders-horizontal)");
+      if (await panel.count()) await panel.click();
+      await expect(panel).toHaveCount(0);
+      const column = await page.locator("[data-story]").evaluate((story) => story.getBoundingClientRect().width);
+      expect(column, "the column beside the panel").toBeLessThan(240);
+      // Each button within the column, its words broken only where one is wider than the button.
+      const story = (await page.locator("[data-story]").boundingBox())!;
+      for (const button of await reply.locator("[data-cut-actions] button").all()) {
+        const box = (await button.boundingBox())!;
+        expect(box.x, `${cause}: ${await button.innerText()}`).toBeGreaterThanOrEqual(story.x - 0.5);
+        expect(box.x + box.width, `${cause}: ${await button.innerText()}`).toBeLessThanOrEqual(story.x + story.width + 0.5);
+      }
+      expect(await misfits(page, "[data-cut-actions]"), cause).toEqual([]);
+    }
+  });
+}
+
 // German has the longest of these lines. Also in a window with a keyboard, whose sentence under the
 // input takes room a phone does not give it.
 for (const locale of ["en", "de"]) {

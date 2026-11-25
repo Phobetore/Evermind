@@ -280,8 +280,11 @@ export function ChatMessage({
 
         {/* Not live: the page says it once, as the reply comes in, and a screen reader finds it here.
             The buttons go under one another when they do not fit side by side. */}
+        {/* In a column narrower than any phone's (beside the side panel, at the largest text), the
+            line and its buttons take the room under the avatar too, and the buttons a thinner side:
+            their words then stand whole where they can. */}
         {cut && editing === null && (
-          <div className="mt-1.5 flex flex-col items-start gap-1.5">
+          <div className="mt-1.5 flex flex-col items-start gap-1.5 @max-[240px]/column:-ml-[calc(40px+0.875rem)]">
             <p data-ceiling className="text-xs leading-snug text-mist-dim">{cut.text}</p>
             {offered.length > 0 && (
               <div data-cut-actions className="flex max-w-full flex-wrap gap-1.5">
@@ -289,7 +292,8 @@ export function ChatMessage({
                   <button
                     key={action}
                     type="button"
-                    className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-xs"
+                    // There too, a word wider than the whole button is broken rather than run out of it.
+                    className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-xs @max-[240px]/column:!px-[8px] @max-[240px]/column:[overflow-wrap:anywhere]"
                     disabled={helping !== null}
                     onClick={() => void help(action)}
                   >
