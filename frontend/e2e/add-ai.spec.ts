@@ -2,9 +2,10 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from "@
 import { API } from "../playwright.config";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { BUILT_IN } from "../src/engine";
 import { cheapestKey } from "../src/lib/estimate";
 import { offeredWay } from "../src/lib/ways";
-import type { ProbeModel, Ways } from "../src/types";
+import type { ProbeModel, WayFields, Ways } from "../src/types";
 import { MOCK_ROOT, forgetServices, inLocale, makeConversation, misfits, rootAt, routeServiceTo } from "./fixtures";
 
 /**
@@ -119,142 +120,155 @@ test.describe("adding AIs", () => {
     const eclair = rows.find((r) => r.name === "Eclair Mini")!;
     const free = rows.filter((r) => r.price.input === 0 && r.price.output === 0);
     // The page's own rule (lib/estimate.ts): 100 messages of the reference story under the way
-    // offered, then what it reads.
-    const way = offeredWay(await (await request.get(`${API}/api/ways`)).json() as Ways);
-    const weight = (r: Row) => cheapestKey(r as ProbeModel, "openrouter", way) ?? Infinity;
+    // offered, then what it reads. The free ones come first under any way; the two after them are
+    // maximum's own, offered here: under balanced, the second would be another.
+    const was = (await (await request.get(`${API}/api/ways`)).json() as Ways).default;
     const reads = (r: Row) => r.context.served ?? r.context.configured ?? r.context.max ?? -Infinity;
-    const cheapest = [...rows].sort((a, b) => weight(a) - weight(b) || reads(b) - reads(a))[0];
-    await routeServiceTo(page, OPENROUTER, MANY);
-    let adds = 0;
-    page.on("request", (sent) => {
-      if (sent.method() === "POST" && new URL(sent.url()).pathname === "/api/models") adds += 1;
-    });
-
-    await openAdd(page);
-    const box = dialog(page);
-    // As high as the screen allows at every step, whatever each one holds.
-    const panel = box.locator(".panel");
-    const high = (await panel.boundingBox())!.height;
-    await chip(page, "OpenRouter");
-    await withKey(page, "sk-e2e-any");
-    await expect(box.getByText('384 models · 87 "batch" copies not listed')).toBeVisible();
-    expect(Math.abs((await panel.boundingBox())!.height - high)).toBeLessThan(1);
-    const search = box.getByRole("searchbox");
-    await expect(search).not.toBeFocused();
-
-    // The foot stays on the dialog's own edge as the list goes by under it: no row shows below it.
-    const foot = box.getByRole("button", { name: "Back", exact: true }).locator("xpath=../..");
-    const bottom = async (of: typeof panel) => {
-      const edge = (await of.boundingBox())!;
-      return edge.y + edge.height;
+    const cheapestPricedUnder = (under: WayFields) => {
+      const weight = (r: Row) => cheapestKey(r as ProbeModel, "openrouter", under) ?? Infinity;
+      return [...rows].sort((a, b) => weight(a) - weight(b) || reads(b) - reads(a)).slice(free.length, free.length + 2);
     };
-    expect(Math.abs(await bottom(panel) - 1 - await bottom(foot))).toBeLessThan(1);
+    expect((await request.put(`${API}/api/ways/default`, { data: { id: "maximum" } })).ok()).toBe(true);
+    try {
+      const cheapest = cheapestPricedUnder(offeredWay(await (await request.get(`${API}/api/ways`)).json() as Ways));
+      expect(cheapest.map((r) => r.id)).not.toEqual(cheapestPricedUnder(BUILT_IN.balanced as WayFields).map((r) => r.id));
+      await routeServiceTo(page, OPENROUTER, MANY);
+      let adds = 0;
+      page.on("request", (sent) => {
+        if (sent.method() === "POST" && new URL(sent.url()).pathname === "/api/models") adds += 1;
+      });
 
-    // Drawn a slice at a time as the list nears the bottom: down to the last one.
-    const boxes = box.getByRole("checkbox");
-    await expect(boxes).toHaveCount(30);
-    for (let drawn = await boxes.count(); drawn < rows.length; drawn = await boxes.count()) {
+      await openAdd(page);
+      const box = dialog(page);
+      // As high as the screen allows at every step, whatever each one holds.
+      const panel = box.locator(".panel");
+      const high = (await panel.boundingBox())!.height;
+      await chip(page, "OpenRouter");
+      await withKey(page, "sk-e2e-any");
+      await expect(box.getByText('384 models · 87 "batch" copies not listed')).toBeVisible();
+      expect(Math.abs((await panel.boundingBox())!.height - high)).toBeLessThan(1);
+      const search = box.getByRole("searchbox");
+      await expect(search).not.toBeFocused();
+
+      // The foot stays on the dialog's own edge as the list goes by under it: no row shows below it.
+      const foot = box.getByRole("button", { name: "Back", exact: true }).locator("xpath=../..");
+      const bottom = async (of: typeof panel) => {
+        const edge = (await of.boundingBox())!;
+        return edge.y + edge.height;
+      };
+      expect(Math.abs(await bottom(panel) - 1 - await bottom(foot))).toBeLessThan(1);
+
+      // Drawn a slice at a time as the list nears the bottom: down to the last one.
+      const boxes = box.getByRole("checkbox");
+      await expect(boxes).toHaveCount(30);
+      for (let drawn = await boxes.count(); drawn < rows.length; drawn = await boxes.count()) {
+        await boxes.last().scrollIntoViewIfNeeded();
+        await expect.poll(() => boxes.count()).toBeGreaterThan(drawn);
+      }
+      await row(page, last.id).getByRole("checkbox").check();
+      // The block stuck on top keeps to the dialog's edge too: no row shows above it.
+      const stuck = (await search.locator("xpath=../..").boundingBox())!;
+      expect(Math.abs(stuck.y - (await panel.boundingBox())!.y - 1)).toBeLessThan(1);
+
+      // A new order, or a filter, shows the results from their first.
+      const first = box.locator("li").first();
+      await expect(first).not.toBeInViewport();
+      await box.getByRole("combobox").selectOption({ label: "By name" });
+      await expect(first).toBeInViewport();
       await boxes.last().scrollIntoViewIfNeeded();
-      await expect.poll(() => boxes.count()).toBeGreaterThan(drawn);
+      await expect(first).not.toBeInViewport();
+      await box.getByRole("button", { name: "Free", exact: true }).click();
+      await expect(first).toBeInViewport();
+      await box.getByRole("button", { name: "Free", exact: true }).click();
+      await box.getByRole("combobox").selectOption({ label: "Service's order" });
+
+      // The newest ones are marked.
+      await box.getByRole("combobox").selectOption({ label: "Newest" });
+      await expect(first.getByText("new", { exact: true })).toBeVisible();
+      await box.getByRole("combobox").selectOption({ label: "Service's order" });
+
+      // While the field is typed in, the sort and the count give it their room, and the field stays
+      // where it is: the dialog keeps its height whatever the results, and the rows typing takes away
+      // do not take the field with them.
+      await panel.evaluate((scrolled) => scrolled.scrollBy(0, 900));
+      await search.click();
+      await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+      const at = (await search.boundingBox())!.y;
+      await search.press("a");
+      // A keystroke draws the first slice again, never the whole list.
+      await expect(boxes).toHaveCount(30);
+      for (const key of "ur") await search.press(key);
+      await expect(boxes).toHaveCount(1);
+      expect((await search.boundingBox())!.y).toBe(at);
+      await search.fill("eclair");
+      await expect(boxes).toHaveCount(1);
+      expect((await search.boundingBox())!.y).toBe(at);
+      await expect(box.getByRole("combobox")).toBeHidden();
+      await search.press("Enter");
+      await expect(box.getByText("1 of 384", { exact: true })).toBeVisible();
+      await expect(box.getByRole("combobox")).toBeVisible();
+      await row(page, eclair.id).getByRole("checkbox").check();
+
+      await search.fill("osbidienne");
+      await expect(box.getByText("Obsidienne", { exact: true })).toBeVisible();
+      await search.fill("large");
+      await expect(box.getByText("Aurore Large", { exact: true })).toBeVisible();
+      await expect(box.getByText("Sillage 7B", { exact: true })).toHaveCount(0);
+      await search.fill("");
+      await search.press("Enter");
+
+      await box.getByRole("button", { name: "Free", exact: true }).click();
+      await expect(box.getByText(`${free.length} of 384 · free only`)).toBeVisible();
+      await box.getByRole("button", { name: "Free", exact: true }).click();
+
+      await box.getByRole("combobox").selectOption({ label: "Cheapest" });
+      await expect(boxes.first()).toBeVisible();
+      for (const [at, priced] of cheapest.entries()) {
+        await expect(box.locator("li").nth(free.length + at)).toContainText(priced.id);
+      }
+      await box.getByRole("combobox").selectOption({ label: "Service's order" });
+
+      // The ticked rows, and no other, can be untouched there.
+      await search.fill("aurore");
+      await search.press("Enter");
+      await box.getByRole("button", { name: "Ticked · 2" }).click();
+      await expect(boxes).toHaveCount(2);
+      await row(page, eclair.id).getByRole("checkbox").uncheck();
+      await expect(box.getByRole("button", { name: "Ticked · 1" })).toBeVisible();
+      await row(page, eclair.id).getByRole("checkbox").check();
+      await expect(box.getByRole("button", { name: "Ticked · 2" })).toHaveAttribute("aria-pressed", "true");
+      await search.press("a");
+      await search.press("Enter");
+      await expect(box.getByRole("button", { name: "Ticked · 2" })).toHaveAttribute("aria-pressed", "false");
+
+      // A word of three letters has no typo allowed: nothing, and the name it was near.
+      await search.fill("aurore lrg");
+      await expect(box.getByText('No model matches "aurore lrg".')).toBeVisible();
+      await box.getByRole("button", { name: "Did you mean Aurore Large?" }).click();
+      await expect(search).toHaveValue("Aurore Large");
+
+      await search.fill("zz-absent");
+      await expect(box.getByText('No model matches "zz-absent".')).toBeVisible();
+      await box.getByRole("button", { name: 'Use "zz-absent" as it is' }).click();
+      await expect(row(page, "zz-absent").getByText("typed by hand")).toBeVisible();
+      await expect(row(page, "zz-absent").getByRole("checkbox")).toBeChecked();
+
+      // The copies at batch price are not offered at all.
+      await search.fill("batch");
+      await expect(box.getByText('No model matches "batch".')).toBeVisible();
+
+      // Two touches in one frame, before the button is drawn disabled, send one request.
+      await box.getByRole("button", { name: "Add 3 AIs" }).evaluate((button: HTMLElement) => {
+        button.click();
+        button.click();
+      });
+      await expect(box.getByText("3 AIs added")).toBeVisible();
+      expect(adds).toBe(1);
+      expect((await aisOn(request, "/many/")).map((ai) => ai.model).sort()).toEqual([eclair.id, last.id, "zz-absent"].sort());
+    } finally {
+      // The suite's ways are shared between tests.
+      await request.put(`${API}/api/ways/default`, { data: { id: was } });
     }
-    await row(page, last.id).getByRole("checkbox").check();
-    // The block stuck on top keeps to the dialog's edge too: no row shows above it.
-    const stuck = (await search.locator("xpath=../..").boundingBox())!;
-    expect(Math.abs(stuck.y - (await panel.boundingBox())!.y - 1)).toBeLessThan(1);
-
-    // A new order, or a filter, shows the results from their first.
-    const first = box.locator("li").first();
-    await expect(first).not.toBeInViewport();
-    await box.getByRole("combobox").selectOption({ label: "By name" });
-    await expect(first).toBeInViewport();
-    await boxes.last().scrollIntoViewIfNeeded();
-    await expect(first).not.toBeInViewport();
-    await box.getByRole("button", { name: "Free", exact: true }).click();
-    await expect(first).toBeInViewport();
-    await box.getByRole("button", { name: "Free", exact: true }).click();
-    await box.getByRole("combobox").selectOption({ label: "Service's order" });
-
-    // The newest ones are marked.
-    await box.getByRole("combobox").selectOption({ label: "Newest" });
-    await expect(first.getByText("new", { exact: true })).toBeVisible();
-    await box.getByRole("combobox").selectOption({ label: "Service's order" });
-
-    // While the field is typed in, the sort and the count give it their room, and the field stays
-    // where it is: the dialog keeps its height whatever the results, and the rows typing takes away
-    // do not take the field with them.
-    await panel.evaluate((scrolled) => scrolled.scrollBy(0, 900));
-    await search.click();
-    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
-    const at = (await search.boundingBox())!.y;
-    await search.press("a");
-    // A keystroke draws the first slice again, never the whole list.
-    await expect(boxes).toHaveCount(30);
-    for (const key of "ur") await search.press(key);
-    await expect(boxes).toHaveCount(1);
-    expect((await search.boundingBox())!.y).toBe(at);
-    await search.fill("eclair");
-    await expect(boxes).toHaveCount(1);
-    expect((await search.boundingBox())!.y).toBe(at);
-    await expect(box.getByRole("combobox")).toBeHidden();
-    await search.press("Enter");
-    await expect(box.getByText("1 of 384", { exact: true })).toBeVisible();
-    await expect(box.getByRole("combobox")).toBeVisible();
-    await row(page, eclair.id).getByRole("checkbox").check();
-
-    await search.fill("osbidienne");
-    await expect(box.getByText("Obsidienne", { exact: true })).toBeVisible();
-    await search.fill("large");
-    await expect(box.getByText("Aurore Large", { exact: true })).toBeVisible();
-    await expect(box.getByText("Sillage 7B", { exact: true })).toHaveCount(0);
-    await search.fill("");
-    await search.press("Enter");
-
-    await box.getByRole("button", { name: "Free", exact: true }).click();
-    await expect(box.getByText(`${free.length} of 384 · free only`)).toBeVisible();
-    await box.getByRole("button", { name: "Free", exact: true }).click();
-
-    await box.getByRole("combobox").selectOption({ label: "Cheapest" });
-    await expect(boxes.first()).toBeVisible();
-    await expect(box.locator("li").first()).toContainText(cheapest.id);
-    await box.getByRole("combobox").selectOption({ label: "Service's order" });
-
-    // The ticked rows, and no other, can be untouched there.
-    await search.fill("aurore");
-    await search.press("Enter");
-    await box.getByRole("button", { name: "Ticked · 2" }).click();
-    await expect(boxes).toHaveCount(2);
-    await row(page, eclair.id).getByRole("checkbox").uncheck();
-    await expect(box.getByRole("button", { name: "Ticked · 1" })).toBeVisible();
-    await row(page, eclair.id).getByRole("checkbox").check();
-    await expect(box.getByRole("button", { name: "Ticked · 2" })).toHaveAttribute("aria-pressed", "true");
-    await search.press("a");
-    await search.press("Enter");
-    await expect(box.getByRole("button", { name: "Ticked · 2" })).toHaveAttribute("aria-pressed", "false");
-
-    // A word of three letters has no typo allowed: nothing, and the name it was near.
-    await search.fill("aurore lrg");
-    await expect(box.getByText('No model matches "aurore lrg".')).toBeVisible();
-    await box.getByRole("button", { name: "Did you mean Aurore Large?" }).click();
-    await expect(search).toHaveValue("Aurore Large");
-
-    await search.fill("zz-absent");
-    await expect(box.getByText('No model matches "zz-absent".')).toBeVisible();
-    await box.getByRole("button", { name: 'Use "zz-absent" as it is' }).click();
-    await expect(row(page, "zz-absent").getByText("typed by hand")).toBeVisible();
-    await expect(row(page, "zz-absent").getByRole("checkbox")).toBeChecked();
-
-    // The copies at batch price are not offered at all.
-    await search.fill("batch");
-    await expect(box.getByText('No model matches "batch".')).toBeVisible();
-
-    // Two touches in one frame, before the button is drawn disabled, send one request.
-    await box.getByRole("button", { name: "Add 3 AIs" }).evaluate((button: HTMLElement) => {
-      button.click();
-      button.click();
-    });
-    await expect(box.getByText("3 AIs added")).toBeVisible();
-    expect(adds).toBe(1);
-    expect((await aisOn(request, "/many/")).map((ai) => ai.model).sort()).toEqual([eclair.id, last.id, "zz-absent"].sort());
   });
 
   /** The list of the mock's many models, its search field focused and the box scrolled to it. */
