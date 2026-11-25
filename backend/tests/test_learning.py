@@ -21,6 +21,13 @@ from .test_my_ais_api import HOSTED, Model, conversation_on, open_db
 OPENAI_TOO_LONG = ("This model's maximum context length is 8192 tokens. However, you requested "
                    "9500 tokens (8476 in the messages, 1024 in the completion). Please reduce the "
                    "length of the messages or completion.")
+OPENAI_TOO_LONG_BARE = ("This model's maximum context length is 8192 tokens. However, you "
+                        "requested 9500 tokens. Please reduce the length of the messages.")
+# shape unverified: OpenRouter's, as it is remembered.
+OPENROUTER_TOO_LONG = ("This endpoint's maximum context length is 163840 tokens. However, you "
+                       "requested about 170000 tokens (168000 of text input, 2000 in the output). "
+                       "Please reduce the length of either one, or use the \"middle-out\" "
+                       "transform to compress your prompt automatically.")
 ANTHROPIC_TOO_LONG = "prompt is too long: 205000 tokens > 200000 maximum"
 LLAMA_TOO_LONG = "the request exceeds the available context size (4096 tokens), try increasing it"
 NO_FIGURES = "The input is too long for this model's context window."
@@ -202,11 +209,18 @@ def test_the_average_is_over_the_last_eight():
 
 
 def test_the_three_refusal_forms_are_read():
-    assert learning.too_long_figures(OPENAI_TOO_LONG) == (8192, 9500)
-    assert learning.too_long_figures(ANTHROPIC_TOO_LONG) == (200000, 205000)
-    assert learning.too_long_figures(LLAMA_TOO_LONG) == (4096, None)
+    # What was requested holds the reply's room: the prompt is the messages' part of it, or what
+    # is left once the max_tokens sent is taken away.
+    assert learning.too_long_figures(OPENAI_TOO_LONG, sent=1024) == (8192, 8476)
+    assert learning.too_long_figures(OPENAI_TOO_LONG) == (8192, 8476)
+    assert learning.too_long_figures(OPENAI_TOO_LONG_BARE, sent=1024) == (8192, 8476)
+    assert learning.too_long_figures(OPENAI_TOO_LONG_BARE) == (8192, 9500)
+    assert learning.too_long_figures(OPENROUTER_TOO_LONG, sent=2000) == (163840, 168000)
+    assert learning.too_long_figures(ANTHROPIC_TOO_LONG, sent=4096) == (200000, 205000)
+    assert learning.too_long_figures(LLAMA_TOO_LONG, sent=1024) == (4096, None)
     assert learning.too_long_figures(NO_FIGURES) == (None, None)
-    for message in (OPENAI_TOO_LONG, ANTHROPIC_TOO_LONG, LLAMA_TOO_LONG, NO_FIGURES):
+    for message in (OPENAI_TOO_LONG, OPENAI_TOO_LONG_BARE, OPENROUTER_TOO_LONG,
+                    ANTHROPIC_TOO_LONG, LLAMA_TOO_LONG, NO_FIGURES):
         assert learning.is_too_long(ProviderError(message, status=400)), message
         assert not learning.is_too_long(ProviderError(message, status=500)), message
     assert learning.is_too_long(ProviderError(ANTHROPIC_TOO_LONG, status=413))
@@ -408,10 +422,111 @@ async def test_a_too_long_refusal_with_both_figures_is_learned_and_asked_again_o
     row = await row_of(ai["id"])
     assert (row["context_read"], row["context_read_kind"], row["context_own"]) == (
         8192, "served", None)
-    assert 0.5 < 9500 / estimates[0] < 2.0
-    assert row["token_ratio"] == pytest.approx(9500 / estimates[0])
+    # The messages' part of what was requested, the reply's room left out.
+    assert 0.5 < 8476 / estimates[0] < 2.0
+    assert row["token_ratio"] == pytest.approx(8476 / estimates[0])
     assert row["token_ratio_n"] == 1
     assert (await last_reply(client, convo))["content"] == "*She nods.*"
+
+
+async def set_row(ai_id: str, **columns) -> None:
+    conn = await open_db()
+    try:
+        await conn.execute(f"UPDATE models SET {', '.join(f'{k} = ?' for k in columns)}"
+                           " WHERE id = ?", (*columns.values(), ai_id))
+        await conn.commit()
+    finally:
+        await conn.close()
+
+
+def spy_on_refusals(monkeypatch) -> list[int]:
+    """The estimate of each prompt refused as too long."""
+    estimates = []
+    learn = learning.after_too_long
+
+    async def spied(db, call, model, *, message, estimate):
+        estimates.append(estimate)
+        await learn(db, call, model, message=message, estimate=estimate)
+
+    monkeypatch.setattr(learning, "after_too_long", spied)
+    return estimates
+
+
+async def test_a_refusal_without_the_messages_part_leaves_out_what_was_sent_for_the_reply(
+        client, monkeypatch):
+    ai, convo = await a_story(client, context_own=None, reply_cap={"mode": "auto"})
+    await long_story(convo["id"], 22, 1000)
+    estimates = spy_on_refusals(monkeypatch)
+    model = Model((400, {"error": {"message": OPENAI_TOO_LONG_BARE}}), writing("*She nods.*")
+                  ).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+
+    sent = model.bodies[0]["max_tokens"]
+    assert sent == model.calls[0]["max_tokens"] > 0
+    row = await row_of(ai["id"])
+    assert row["token_ratio"] == pytest.approx((9500 - sent) / estimates[0])
+
+
+async def test_a_refusal_moves_the_ratio_measured_and_is_kept_between_half_and_double(
+        client, monkeypatch):
+    ai, convo = await a_story(client, context_own=None)
+    await long_story(convo["id"], 22, 1000)
+    await set_row(ai["id"], token_ratio=1.2, token_ratio_n=3)
+    estimates = spy_on_refusals(monkeypatch)
+    model = Model((400, {"error": {"message": OPENAI_TOO_LONG}}), writing("*She nods.*")
+                  ).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    row = await row_of(ai["id"])
+    sample = 8476 / estimates[0]
+    assert 0.5 < sample < 2.0
+    assert (row["token_ratio"], row["token_ratio_n"]) == (
+        pytest.approx(1.2 + (sample - 1.2) / 4), 4)
+
+    # A count ten times the estimate is kept at double.
+    other, story = await a_story(client, context_own=None, model="second")
+    estimates.clear()
+    model.answers, model.bodies = [(400, {"error": {"message": (
+        "This model's maximum context length is 8192 tokens. However, you requested 900000 "
+        "tokens (899000 in the messages, 1000 in the completion).")}}), writing("*She nods.*")], []
+    assert await send(client, story["id"]) is None
+    assert 899000 / estimates[0] > 10
+    row = await row_of(other["id"])
+    assert (row["token_ratio"], row["token_ratio_n"]) == (2.0, 1)
+
+
+async def test_a_refusal_with_both_figures_replaces_the_margin_it_widened(client, monkeypatch):
+    ai, convo = await a_story(client, context_own=None)
+    model = Model((400, {"error": {"message": NO_FIGURES}}), writing("*She nods.*")
+                  ).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert (await row_of(ai["id"]))["fit_margin"] == pytest.approx(0.10)
+
+    model.answers, model.bodies = [(400, {"error": {"message": OPENAI_TOO_LONG}}),
+                                   writing("*She nods.*")], []
+    assert await send(client, convo["id"]) is None
+    row = await row_of(ai["id"])
+    assert (row["fit_margin"], row["token_ratio_n"]) == (None, 1)
+
+
+async def test_a_refusal_naming_the_size_counted_widens_the_margin(client, monkeypatch):
+    ai, convo = await a_story(client)
+    same = LLAMA_TOO_LONG.replace("4096", "16384")
+    model = Model((400, {"error": {"message": same}}), writing("*She nods.*")).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert model.calls[0]["context_size"] == 16384
+    row = await row_of(ai["id"])
+    assert (row["fit_margin"], row["context_read"], row["token_ratio"]) == (
+        pytest.approx(0.10), None, None)
+
+
+async def test_a_refusal_on_a_story_opening_on_the_greeting_does_not_fold_it(client, monkeypatch):
+    _, convo = await a_story(client)
+    model = Model((400, {"error": {"message": NO_FIGURES}}), writing("*She nods.*")
+                  ).serve(monkeypatch)
+    assert await send(client, convo["id"]) is None
+    first, again = (body["messages"] for body in model.bodies)
+    assert first[1]["role"] == "assistant" and "She stirs" in first[1]["content"]
+    assert again == first
 
 
 async def test_a_too_long_refusal_without_figures_widens_the_margin(client, monkeypatch):

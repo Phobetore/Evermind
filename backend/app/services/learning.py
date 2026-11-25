@@ -41,9 +41,12 @@ _TOO_LONG_STATUSES = (400, 413, 422)
 # A refusal that names the context, or a count of tokens.
 _TOO_LONG = re.compile(r"\bcontext\b|\bprompt is too long\b|\d[\d,]*\s+tokens\b", re.IGNORECASE)
 _NUMBER = r"(\d[\d,]*)"
+# OpenAI's says what was requested, its reply's room counted in, and OpenRouter's "about" it.
 _LIMIT_THEN_ASKED = re.compile(
-    rf"maximum context length is {_NUMBER} tokens.*?requested {_NUMBER} tokens",
+    rf"maximum context length is {_NUMBER} tokens.*?requested (?:[a-z]+ )?{_NUMBER} tokens",
     re.IGNORECASE | re.DOTALL)
+# The messages' part of it, when the refusal goes on to give it.
+_PROMPT_PART = re.compile(rf"\(\s*{_NUMBER} (?:in the messages|of text input)", re.IGNORECASE)
 _ASKED_OVER_LIMIT = re.compile(rf"{_NUMBER} tokens\s*>\s*{_NUMBER}", re.IGNORECASE)
 _CONTEXT_SIZE = re.compile(rf"context size \({_NUMBER} tokens\)", re.IGNORECASE)
 
@@ -126,12 +129,17 @@ def _figure(text: str) -> int:
     return int(text.replace(",", ""))
 
 
-def too_long_figures(message: str) -> tuple[int | None, int | None]:
-    """(limit, requested) read from a refusal: "maximum context length is 8192 tokens. However,
-    you requested 9500 tokens", "prompt is too long: 205000 tokens > 200000 maximum", "exceeds
-    the available context size (4096 tokens)" (limit only)."""
+def too_long_figures(message: str, *, sent: int | None = None) -> tuple[int | None, int | None]:
+    """(limit, prompt) read from a refusal: "maximum context length is 8192 tokens. However,
+    you requested 9500 tokens (8476 in the messages, 1024 in the completion)", "prompt is too
+    long: 205000 tokens > 200000 maximum", "exceeds the available context size (4096 tokens)"
+    (limit only). What OpenAI's form requested holds the reply's room: the prompt is the
+    messages' part when it is given, else what is left once ``sent``, the max_tokens the request
+    carried, is taken away."""
     if found := _LIMIT_THEN_ASKED.search(message):
-        return _figure(found.group(1)), _figure(found.group(2))
+        if part := _PROMPT_PART.search(message, found.end()):
+            return _figure(found.group(1)), _figure(part.group(1))
+        return _figure(found.group(1)), _figure(found.group(2)) - (sent or 0)
     if found := _ASKED_OVER_LIMIT.search(message):
         return _figure(found.group(2)), _figure(found.group(1))
     if found := _CONTEXT_SIZE.search(message):
@@ -207,15 +215,16 @@ async def after_too_long(db: aiosqlite.Connection, call: dict, model: dict, *, m
     """A refusal for a prompt too long: the size it names, when it differs from the one counted,
     and its count against the estimate when it gives both; else a wider margin, a share of the
     window more each time, up to FIT_MARGIN_MOST. What the person typed is never written."""
-    limit, requested = too_long_figures(message)
+    limit, prompt = too_long_figures(message, sent=call.get("max_tokens"))
 
     def change(current: dict) -> dict:
         sets: dict = {}
         if limit is not None and limit != call["context_size"]:
             sets.update(context_read=limit, context_read_kind="served")
-        if limit is not None and requested is not None and estimate > 0:
-            sets.update(token_ratio=_bounded(requested / estimate), token_ratio_n=1,
-                        fit_margin=None)
+        if limit is not None and prompt is not None and prompt > 0 and estimate > 0:
+            # A count of the whole prompt, as a reply's is: it moves the average, not replaces it.
+            ratio, n = next_ratio(current, prompt / estimate)
+            sets.update(token_ratio=ratio, token_ratio_n=n, fit_margin=None)
         if not sets:
             sets["fit_margin"] = min(FIT_MARGIN_MOST,
                                      (current.get("fit_margin") or 0) + FIT_MARGIN_STEP)
