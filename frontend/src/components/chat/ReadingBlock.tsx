@@ -27,7 +27,9 @@ export function ReadingBlock({ entry, name, outlook, compact, part }: {
     card: entry.parts.card,
     reminders: entry.parts.reminders,
     history: entry.parts.history,
-    room: entry.reply_room,
+    // What the turn keeps, as the card in Settings draws it; the way's room from a server that
+    // does not say it.
+    room: entry.reply_kept ?? entry.reply_room,
   };
   const width = (count: number) => `${Math.min(100, (count / entry.context_size) * 100).toFixed(2)}%`;
   const lighter = full ? lighterSaying(outlook, t) : null;
