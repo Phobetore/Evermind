@@ -143,9 +143,10 @@ async def copy(db: aiosqlite.Connection, from_id: str, name: str) -> dict:
 
 
 async def _move(db: aiosqlite.Connection, from_id: str, to_id: str) -> int:
-    """The conversations that play a way, moved to another: what they adjusted stays."""
-    cursor = await db.execute("UPDATE conversations SET play_style = ? WHERE play_style = ?",
-                              (to_id, from_id))
+    """The conversations that play a way, moved to another, which they play whole: what they
+    adjusted of the way removed goes, as when another way is chosen."""
+    cursor = await db.execute("UPDATE conversations SET play_style = ?, play_overrides = NULL"
+                              " WHERE play_style = ?", (to_id, from_id))
     return cursor.rowcount
 
 

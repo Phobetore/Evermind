@@ -224,13 +224,21 @@ async def test_two_devices_changing_two_ways_keep_both(make_client):
     assert way_in(listed, "immersive")["history_limit"] == 80
 
 
+async def outlook_of(client, convo_id: str) -> dict:
+    resp = await client.get(f"/api/conversations/{convo_id}/outlook", params={"only": "current"})
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
 async def test_removing_a_way_moves_its_conversations_to_the_default_in_one_transaction(
         client, monkeypatch):
     mine = await copy_of(client)
     made = [await conversation_on(client) for _ in range(3)]
     for convo in made:
         await patch(client, convo["id"], play_style=mine["id"])
-    await patch(client, made[0]["id"], play_overrides={"reply_length": "short"})
+    await patch(client, made[0]["id"], play_overrides={"reply_length": "short",
+                                                       "history_limit": 10})
+    assert (await outlook_of(client, made[0]["id"]))["current"]["history_limit"] == 10
 
     async def broken(*_):
         raise RuntimeError("the disk went away")
@@ -250,7 +258,11 @@ async def test_removing_a_way_moves_its_conversations_to_the_default_in_one_tran
     assert way_in(listed, "balanced")["conversations"] == 3
     played = [(await client.get(f"/api/conversations/{c['id']}")).json() for c in made]
     assert [p["play_style"] for p in played] == ["balanced"] * 3
-    assert played[0]["play_overrides"] == {"reply_length": "short"}
+    # It plays balanced whole: what it adjusted of the way removed went with it.
+    assert [p["play_overrides"] for p in played] == [None] * 3
+    current = (await outlook_of(client, made[0]["id"]))["current"]
+    assert (current["history_limit"], current["way"]["reply_length"],
+            current["way"]["adjusted"]) == (24, "medium", False)
 
 
 async def test_removing_the_default_way_offers_balanced(client):
