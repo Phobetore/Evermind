@@ -334,13 +334,49 @@ async def delete(db: aiosqlite.Connection, model_id: str) -> bool:
     return True
 
 
+async def measure(db: aiosqlite.Connection, model_id: str, model: str, change) -> bool:
+    """What a reply taught of the AI, while it still names ``model``: ``change`` is given the row
+    as it is now, in the same write, so that two replies ending together both count. False when
+    the AI is gone or names another model, with nothing written."""
+    async with write_transaction(db):
+        current = await get_row(db, model_id)
+        if current is None or current["model"] != model:
+            return False
+        sets = change(current)
+        if sets:
+            await db.execute(
+                f"UPDATE models SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
+                (*sets.values(), model_id))
+    return True
+
+
+async def observe(db: aiosqlite.Connection, model_id: str, tokens: int) -> dict | None:
+    """The size a reply was seen read at: counted from now on, and a larger size typed by the
+    person forgotten, since the server reads no more than this. None when the AI is gone."""
+    async with write_transaction(db):
+        current = await get_row(db, model_id)
+        if current is None:
+            return None
+        sets: dict = {"context_read": tokens, "context_read_kind": "observed",
+                      "updated_at": now_iso()}
+        if current["context_own"] is not None and current["context_own"] > tokens:
+            sets["context_own"] = None
+        await db.execute(f"UPDATE models SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
+                         (*sets.values(), model_id))
+    return await get(db, model_id)
+
+
 async def store_read(db: aiosqlite.Connection, model_id: str, model: str, read_from: dict,
-                     listed: Listed | None, family: str | None) -> None:
+                     listed: Listed | None, family: str | None, *, by_hand: bool = False) -> None:
     """What a read of ``model`` at the service ``read_from`` (as it was when the read began)
     found, kept only while the AI still names that model and its service is still at that API
     and address, and only where it says more: a size never replaced by a less sure one,
     reasoning never unlearned. A model no longer listed keeps all it had. The family found is
-    kept for a generic service."""
+    kept for a generic service.
+
+    A size observed is what a reply showed the server really reads: a larger one said by the
+    server replaces it only on a read the person asked for (``by_hand``), once they have loaded
+    the model larger; a read made by itself would bring back the very size that was contradicted."""
     async with write_transaction(db):
         current = await get_row(db, model_id)
         if current is None or current["model"] != model:
@@ -355,7 +391,9 @@ async def store_read(db: aiosqlite.Connection, model_id: str, model: str, read_f
                 size = getattr(listed, kind)
                 if size is None:
                     continue
-                if _SURE[kind] >= _SURE.get(current["context_read_kind"], 0):
+                held = (current["context_read_kind"] == "observed" and not by_hand
+                        and size > (current["context_read"] or 0))
+                if _SURE[kind] >= _SURE.get(current["context_read_kind"], 0) and not held:
                     sets["context_read"], sets["context_read_kind"] = size, kind
                 break
             if listed.max_output is not None:

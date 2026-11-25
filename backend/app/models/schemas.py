@@ -257,6 +257,11 @@ class RefreshIn(Input):
     fresh: bool = False
 
 
+class ObservedIn(Input):
+    # What a reply was seen read at: no less than the floor of the engine's budget.
+    tokens: int = Field(ge=512, le=WHOLE, strict=True)
+
+
 Length = Literal["short", "medium", "long"]
 Reminders = Literal["essential", "normal", "rich", "all"]
 # A whole number JSON and JavaScript both hold exactly, never negative.
