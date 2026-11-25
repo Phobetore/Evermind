@@ -235,7 +235,7 @@
         "long": "Respuesta cortada: llenó el espacio reservado para una respuesta larga."
       },
       "cutThought": "La IA razonó mucho tiempo y no le quedó espacio para escribir.",
-      "extend": "Prolongar",
+      "extend": "Continuar",
       "retry": "Reintentar",
       "longHere": "Respuestas largas aquí",
       "longHereDone": "Respuestas largas en esta conversación."

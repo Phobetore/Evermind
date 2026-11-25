@@ -60,6 +60,8 @@ describe("a sentence reads right where it is shown", () => {
     ["fr", "settings.about.updateHint", "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé."],
     ["de", "settings.about.updateHint", "Halten Sie Evermind an und führen Sie dann das hier in dem Ordner aus, in dem Sie es installiert haben."],
     ["es", "settings.about.updateHint", "Detenga Evermind y luego ejecute esto en la carpeta donde lo instaló."],
+    // One action, one name: "Continuar la respuesta" everywhere else.
+    ["es", "chat.message.extend", "Continuar"],
   ] as const)("in %s, %s", (locale, key, said) => {
     expect(new Map(flatten({ en, fr, de, es }[locale])).get(key)).toBe(said);
   });
