@@ -430,6 +430,121 @@ async def test_a_story_read_only_from_its_end_is_seen_on_the_third_turn(client, 
     assert meta["truncated"] == {"read": 3015, "window": 16384}
 
 
+def test_a_count_that_did_not_follow_the_story_stood_still():
+    # Capped: the story grew 3 %, the count not at all, or less than half as much.
+    assert learning.stood_still([(8192, 8436)], 8192, 8689)
+    assert learning.stood_still([(8100, 8100)], 8192, 8500)
+    assert learning.stood_still([(8192, 8436)], 8150, 8689)
+    # Read whole: the count grew with the story, even at a lower rate than the story's.
+    assert not learning.stood_still([(8436, 8436)], 8689, 8689)
+    assert not learning.stood_still([(8000, 8000)], 8150, 8240)
+    # A story that did not grow (a version rewritten, a window Evermind trims) or shrank.
+    assert not learning.stood_still([(8192, 8436)], 8192, 8436)
+    assert not learning.stood_still([(8192, 8436)], 8192, 8500)
+    assert not learning.stood_still([(8192, 9000)], 6900, 6900)
+    assert not learning.stood_still([], 8192, 8689)
+
+
+class Capped:
+    """A model's server that counts what it reads as ``times`` the engine's estimate, but reads
+    no more than ``cap``: it drops the beginning of a longer story. Keeps (whole count, count,
+    estimate)."""
+
+    times = 1.1
+    cap: ClassVar[int | None] = None
+    seen: ClassVar[list] = []
+
+    def __init__(self, call):
+        self.figures = CallFigures()
+
+    async def stream_chat(self, payload):
+        self.figures.reset()
+        estimate = payload.stats["used_tokens"]
+        whole = round(Capped.times * estimate)
+        prompt = whole if Capped.cap is None else min(whole, Capped.cap)
+        Capped.seen.append((whole, prompt, estimate))
+        self.figures.take_usage({"prompt_tokens": prompt, "completion_tokens": 40}, final=True)
+        yield ProviderEvent(type="delta", text="*She nods.*")
+        yield ProviderEvent(type="done", stop="stop")
+
+
+@pytest.fixture()
+def capped(monkeypatch):
+    Capped.seen, Capped.cap = [], None
+    monkeypatch.setattr("app.services.chat_service.get_provider", Capped)
+    return Capped
+
+
+async def grow_by(convo_id: str, share: float, estimate: int) -> None:
+    """One message more, of about ``share`` of the story the engine last estimated."""
+    await long_story(convo_id, 1, int(share * estimate * 3.5))
+
+
+@pytest.mark.parametrize("cap", [8192, 6000])
+@pytest.mark.parametrize("growth", [0.03, 0.06])
+async def test_a_server_capped_under_a_growing_story_is_caught_before_it_teaches_a_ratio(
+        client, capped, cap, growth):
+    ai, convo = await a_story(client, context_own=16384)
+    resp = await client.patch(f"/api/conversations/{convo['id']}", json={"play_style": "maximum"})
+    assert resp.status_code == 200, resp.text
+    # A story a little under the cap, at the rate the server counts.
+    await long_story(convo["id"], int(cap * 0.85 / capped.times * 3.5 / 1300), 1300)
+    capped.cap = cap
+    over = flagged = 0
+    for turn in range(16):
+        if turn:
+            await grow_by(convo["id"], growth, capped.seen[-1][2])
+        assert await send(client, convo["id"]) is None
+        whole = capped.seen[-1][0]
+        meta = (await last_reply(client, convo))["meta"]
+        over += whole > cap
+        assert meta["context"]["budget"] <= 16384, (turn, meta["context"])
+        if "truncated" in meta:
+            assert meta["truncated"] == {"read": cap, "window": 16384}
+            flagged = over
+            break
+        # Until it is caught, the ratio stays near the rate the server counts at.
+        row = await row_of(ai["id"])
+        assert row["token_ratio"] == pytest.approx(capped.times, rel=0.03), (turn, row)
+    assert 1 <= flagged <= 3, capped.seen
+
+    # Once what it reads is observed, the story fits: nothing is cut, nothing flagged.
+    resp = await client.post(f"/api/models/{ai['id']}/observed", json={"tokens": cap})
+    assert resp.status_code == 200, resp.text
+    for _ in range(5):
+        await grow_by(convo["id"], growth, capped.seen[-1][2])
+        assert await send(client, convo["id"]) is None
+        whole, prompt, _ = capped.seen[-1]
+        assert whole == prompt < cap
+        meta = (await last_reply(client, convo))["meta"]
+        assert "truncated" not in meta and meta["context"]["context_size"] == cap
+    assert (await row_of(ai["id"]))["token_ratio"] == pytest.approx(capped.times, rel=0.03)
+
+
+@pytest.mark.parametrize("growth", [0.03, 0.06])
+async def test_a_server_that_reads_a_growing_story_whole_is_never_caught(client, capped, growth):
+    ai, convo = await a_story(client, context_own=16384)
+    resp = await client.patch(f"/api/conversations/{convo['id']}", json={"play_style": "maximum"})
+    assert resp.status_code == 200, resp.text
+    await long_story(convo["id"], 32, 1300)
+    # It grows past what Evermind sends: from then on Evermind trims the story itself.
+    for turn in range(14):
+        if turn:
+            await grow_by(convo["id"], growth, capped.seen[-1][2])
+        assert await send(client, convo["id"]) is None
+        assert "truncated" not in (await last_reply(client, convo))["meta"], turn
+    assert capped.seen[-1][2] > 0.9 * (await last_reply(client, convo))["meta"]["context"]["budget"]
+    # Every count was learned.
+    row = await row_of(ai["id"])
+    assert (row["token_ratio"], row["token_ratio_n"]) == (pytest.approx(capped.times, rel=1e-3), 14)
+
+    # A version rewritten: the same story, the same count.
+    for _ in range(3):
+        assert await send(client, convo["id"], mode="regenerate") is None
+        assert "truncated" not in (await last_reply(client, convo))["meta"]
+    assert (await row_of(ai["id"]))["token_ratio_n"] == 17
+
+
 async def test_a_ratio_stored_too_high_comes_down(client, counting, monkeypatch):
     ai, convo = await a_story(client)
     await long_story(convo["id"], 12, 1300)

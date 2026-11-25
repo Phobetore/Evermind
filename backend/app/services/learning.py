@@ -2,8 +2,9 @@
 
 The engine estimates tokens without a tokenizer; the server knows. Its count against the estimate
 (the ratio) lets the next prompt fill the window without spilling over, and narrows the margin kept
-under it. A count far under the estimate, at a round size or standing still while the story grows,
-is a server that read the story only from its end: that is said, and teaches no ratio. A refusal
+under it. A count standing still while the story grows, or far under the estimate at a round
+size, is a server that read the story only from its end: that is said, and teaches no ratio; a
+count that did not follow the story since the reply before teaches none either. A refusal
 for a prompt too long teaches what it can, and the turn asks once more.
 
 Only a whole reply teaches: a stopped one, a failed one or a memory pass never does.
@@ -36,6 +37,8 @@ _ROUND_SIZES = tuple(2 ** k for k in range(11, 22))
 _SIZE_SET = ("configured", "max")
 # A plateau is a story that grew meanwhile: by more than this over the oldest of the three.
 _GROWN = 1.05
+# A count followed the estimate when it grew by at least this share of the estimate's growth.
+_FOLLOWED = 0.5
 # The statuses a server refuses a prompt too long with.
 _TOO_LONG_STATUSES = (400, 413, 422)
 # A refusal that names the context, or a count of tokens.
@@ -104,29 +107,52 @@ def _rate_shown(earlier: list[tuple[int, int]]) -> float | None:
     return _bounded(rates[1]) if moved and followed and alike else None
 
 
+def _plateau(earlier: list[tuple[int, int]], prompt: int, estimate: int) -> bool:
+    """The two earlier counts and this one within PLATEAU of each other while this estimate is
+    above the oldest one's by more than 5 %: a server that drops the beginning of a story that
+    grows. A server that reads what it is sent counts more as the story grows; a story that did
+    not grow (a version rewritten, a window Evermind trims itself) shows none."""
+    if len(earlier) < 2:
+        return False
+    points = [*earlier[-2:], (prompt, estimate)]
+    prompts = [p for p, _ in points]
+    return (max(prompts) - min(prompts) <= PLATEAU * max(prompts)
+            and estimate > points[0][1] * _GROWN)
+
+
+def stood_still(earlier: list[tuple[int, int]], prompt: int, estimate: int) -> bool:
+    """The count did not follow the estimate since the last counted reply: the estimate grew by
+    more than PLATEAU while the count grew by less than half as much (or fell). A server capped
+    under the story counts the same whatever is added; one that reads what it is sent counts the
+    added text too, at less than half the story's rate only for text far unlike the rest."""
+    if not earlier:
+        return False
+    last_prompt, last_estimate = earlier[-1]
+    if min(last_prompt, last_estimate) <= 0 or estimate <= last_estimate * (1 + PLATEAU):
+        return False
+    grown = estimate / last_estimate - 1
+    return prompt / last_prompt - 1 < _FOLLOWED * grown
+
+
 def truncated(*, prompt: int, estimate: int, ratio: float, model: dict,
               earlier: list[tuple[int, int]]) -> bool:
-    """prompt < 0.7 × round(estimate × ratio), and either it sits within 2 % under a power of two
-    from 2048 to 2^21, or under the model's context_read when its kind is configured or max; or
-    the two earlier (prompt, estimate) of this conversation and this one are within 1 % of each
-    other in prompt while this estimate is above the oldest one's by more than 5 %. When the two
-    earlier counts moved with the story, the rate they show stands for ``ratio``: a ratio stored
-    before (another script, a refusal's guess) would make a count at that rate look cut."""
+    """The two earlier (prompt, estimate) of this conversation and this one make a plateau
+    (``_plateau``), however near the estimate the count is; or prompt < 0.7 × round(estimate ×
+    ratio) and it sits within 2 % under a power of two from 2048 to 2^21, or under the model's
+    context_read when its kind is configured or max. When the two earlier counts moved with the
+    story, the rate they show stands for ``ratio``: a ratio stored before (another script, a
+    refusal's guess) would make a count at that rate look cut."""
+    # Judged on its own: a server capped a little under the story counts a little under it, and
+    # each such count learned as a ratio would hide the next one.
+    if _plateau(earlier, prompt, estimate):
+        return True
     ratio = _rate_shown(earlier) or ratio
     if not _far_under(prompt, estimate, ratio):
         return False
     if any(_just_under(prompt, size) for size in _ROUND_SIZES):
         return True
     read = model.get("context_read")
-    if read and model.get("context_read_kind") in _SIZE_SET and _just_under(prompt, read):
-        return True
-    if len(earlier) < 2:
-        return False
-    # A count that stands still while the story grows is a server that drops its beginning.
-    points = [*earlier[-2:], (prompt, estimate)]
-    prompts = [p for p, _ in points]
-    return (max(prompts) - min(prompts) <= PLATEAU * max(prompts)
-            and estimate > points[0][1] * _GROWN)
+    return bool(read and model.get("context_read_kind") in _SIZE_SET and _just_under(prompt, read))
 
 
 def _bounded(ratio: float) -> float:
@@ -196,9 +222,11 @@ async def after_whole_reply(db: aiosqlite.Connection, call: dict, model: dict, *
         # only from its end that no round size shows, and that the plateau shows by the third
         # reply only if no ratio learned from the first two has hidden it. Far under is judged
         # at the rate this story's counts showed, else at no more than 1.0: judged at a ratio
-        # stored too high, every count would be held back and that ratio never come down.
-        elif estimate > 0 and not _far_under(prompt, estimate,
-                                             _rate_shown(earlier) or min(ratio, 1.0)):
+        # stored too high, every count would be held back and that ratio never come down. Nor
+        # does a count that stood still while the story grew: learned, it would lower the ratio,
+        # widen the budget and send more of a story the server does not read.
+        elif (estimate > 0 and not stood_still(earlier, prompt, estimate)
+              and not _far_under(prompt, estimate, _rate_shown(earlier) or min(ratio, 1.0))):
             ratio, n = next_ratio(current, prompt / estimate)
             # What was measured replaces what a refusal had to guess.
             sets.update(token_ratio=ratio, token_ratio_n=n, fit_margin=None)
