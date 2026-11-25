@@ -34,9 +34,11 @@ _now = time.monotonic
 _failed_lists: dict[tuple[str, str, catalog.Family, str], float] = {}
 # The (base_url, model) pairs whose server refused a "reasoning" field: never sent again to them.
 _refused: set[tuple[str, str]] = set()
-# The (service id, base_url) pairs whose server refused to be asked for its counts: not asked
-# again until the next start, which may follow an update of the server.
-_usage_refused: set[tuple[str | None, str]] = set()
+# The (service id, base_url, model) whose server refused to be asked for its counts: not asked
+# again until the next start, which may follow an update of the server. Kept for each model: a
+# service that passes requests to several servers may have one that refuses and others that
+# answer.
+_usage_refused: set[tuple[str | None, str, str]] = set()
 # What asks a server for its counts on the last piece of its stream.
 USAGE_ASKED = {"include_usage": True}
 
@@ -103,8 +105,8 @@ class OpenAICompatProvider(Provider):
             body["stream_options"] = dict(USAGE_ASKED)
         return body
 
-    def _usage_key(self) -> tuple[str | None, str]:
-        return self.connection.get("service_id"), self.base_url
+    def _usage_key(self) -> tuple[str | None, str, str]:
+        return self.connection.get("service_id"), self.base_url, self.model
 
     async def _reasoning_field(self) -> dict | None:
         """What to send as "reasoning" for a caller that wants the least of it.
@@ -195,8 +197,9 @@ class OpenAICompatProvider(Provider):
         key = self._usage_key()
         if key not in _usage_refused:
             _usage_refused.add(key)
-            logger.info("%s refused to be asked for its counts with stream_options (%s), and is "
-                        "asked without until the next start", self.base_url, refusal)
+            logger.info("%s refused to be asked for the counts of %s with stream_options (%s), "
+                        "and is asked without for it until the next start", self.base_url,
+                        self.model, refusal)
 
     def _reasoning_refused(self, refusal: str) -> None:
         if (self.base_url, self.model) not in _refused:

@@ -261,6 +261,25 @@ async def test_a_server_that_refuses_include_usage_is_asked_without_once_per_sta
     assert not openai_compat._usage_refused
 
 
+async def test_one_model_s_refusal_of_include_usage_is_that_model_s(caplog):
+    caplog.set_level(logging.INFO, logger="app.providers.openai_compat")
+    # A service that passes each model's requests to its own server: one refuses the field.
+    service = dict(OAI_CONN, service_id="s-router", base_url="http://router/v1")
+    handler, bodies = refusing_usage()
+    await drain(serve("openai", handler, dict(service, model="old-host")))
+    assert ["stream_options" in body for body in bodies] == [True, False]
+
+    other_handler, other_bodies = answering(*OPENROUTER)
+    await drain(serve("openai", other_handler, dict(service, model="new-host")))
+    assert other_bodies[0]["stream_options"] == {"include_usage": True}
+
+    bodies.clear()
+    await drain(serve("openai", handler, dict(service, model="old-host")))
+    assert ["stream_options" in body for body in bodies] == [False]
+    told = [r for r in caplog.records if "stream_options" in r.getMessage()]
+    assert len(told) == 1 and "old-host" in told[0].getMessage()
+
+
 async def test_a_refusal_of_include_usage_nests_with_the_reasoning_field(monkeypatch):
     service = dict(OAI_CONN, service_id="s-old", least_reasoning=True)
     bodies = []
