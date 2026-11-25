@@ -2605,6 +2605,60 @@
     "allowance": 600
    },
    "expected": 4096
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons with brief thinking measured keeps the floor of its allowance",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "openrouter",
+    "anthropic": false,
+    "room": 1024,
+    "window": 32768,
+    "allowance": 1024
+   },
+   "expected": 2048
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons on Anthropic with long thinking measured keeps twice its average",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": 2048,
+    "window": 200000,
+    "allowance": 5000
+   },
+   "expected": 7048
+  },
+  {
+   "fn": "reply_reserve",
+   "name": "a model that reasons on Anthropic with brief thinking measured keeps the floor sent",
+   "input": {
+    "model": {
+     "reply_cap_mode": "auto",
+     "reply_cap_tokens": null,
+     "reasons": 1,
+     "output_read": null
+    },
+    "family": "anthropic",
+    "anthropic": true,
+    "room": 2048,
+    "window": 200000,
+    "allowance": 1024
+   },
+   "expected": 4096
   }
  ]
 }

@@ -273,6 +273,21 @@ def test_thinking_allowance_is_the_constant_until_it_is_measured():
     assert ai_call.thinking_allowance({}) == THINKING_ALLOWANCE == 3072
 
 
+@pytest.mark.parametrize("average,anthropic_sent,reserve", [
+    (None, 5120, 5120),    # not measured: 3072, as before
+    (300, 4096, 3072),     # brief: never under 1024, and Anthropic's floor
+    (2500, 7048, 7048),    # twice the average
+])
+def test_the_thinking_measured_is_given_twice_its_average(average, anthropic_sent, reserve):
+    model = {"reply_cap_mode": "auto", "reasons": 1, "output_read": 64000,
+             "reply_tokens_avg": None if average is None else
+             f'{{"thinking": {{"avg": {average}, "n": 3}}}}'}
+    sent = ceiling(model, anthropic=True, family="anthropic", room=2048, window=200000)
+    assert (sent.sent, sent.reserve) == (anthropic_sent, anthropic_sent)
+    kept = ceiling(model, anthropic=False, family="openrouter", room=2048, window=200000)
+    assert (kept.sent, kept.reserve) == (None, reserve)
+
+
 @pytest.mark.parametrize("mode,reasons,anthropic,family,room,out,window_tokens,sent,reserve", [
     ("auto", 1, False, "lmstudio", 1024, None, 4096, None, 2048),
     ("auto", 1, False, "generic", 2048, None, 8192, None, 4096),

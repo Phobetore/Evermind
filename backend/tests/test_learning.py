@@ -256,8 +256,17 @@ def test_the_three_refusal_forms_are_read():
 def test_the_thinking_allowance_is_measured_once_there_is_one():
     assert ai_call.thinking_allowance({}) == ai_call.THINKING_ALLOWANCE
     assert ai_call.thinking_allowance({"reply_tokens_avg": "not json"}) == 3072
+    # Twice the average once measured: half the replies think more than it.
     measured = json.dumps({"thinking": {"avg": 1495.6, "n": 1}})
-    assert ai_call.thinking_allowance({"reply_tokens_avg": measured}) == 1496
+    assert ai_call.thinking_allowance({"reply_tokens_avg": measured}) == 2991
+    long = json.dumps({"thinking": {"avg": 2500, "n": 4}})
+    assert ai_call.thinking_allowance({"reply_tokens_avg": long}) == 5000
+    # Never under 1024, however little it thought.
+    for little in (0, 300, 511.9):
+        brief = json.dumps({"thinking": {"avg": little, "n": 3}})
+        assert ai_call.thinking_allowance({"reply_tokens_avg": brief}) == 1024, little
+    assert ai_call.thinking_allowance(
+        {"reply_tokens_avg": json.dumps({"thinking": {"avg": 512.4, "n": 3}})}) == 1025
     none_yet = json.dumps({"thinking": {"avg": 900.0, "n": 0}})
     assert ai_call.thinking_allowance({"reply_tokens_avg": none_yet}) == 3072
 
@@ -922,7 +931,7 @@ async def test_the_reply_length_and_the_thinking_are_measured(client, monkeypatc
 
     assert await send(client, convo["id"]) is None
     context = (await last_reply(client, convo))["meta"]["context"]
-    assert context["reply_room"] == 1024 + thinking
+    assert context["reply_room"] == 1024 + 2 * thinking
 
 
 async def test_a_reply_cut_at_its_ceiling_teaches_no_length(client, monkeypatch):

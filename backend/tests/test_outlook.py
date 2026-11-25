@@ -330,7 +330,8 @@ async def test_the_figures_the_page_counts_with(client):
 
     assert measured["token_ratio"] == 1.1
     assert measured["reply_tokens"] == {"short": None, "medium": 302, "long": None}
-    assert measured["thinking_allowance"] == 812
+    # Twice what its thinking took on average: what the reserve keeps for it.
+    assert measured["thinking_allowance"] == 1625
     assert measured["thinking_measured"] is True
     assert measured["usage_seen"] is True
     assert measured["margin"] == max(200, int(16384 * 0.03))

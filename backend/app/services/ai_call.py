@@ -17,6 +17,10 @@ REPLY_ROOM = ways.REPLY_ROOM
 UNSENT_RESERVE = 1024
 # What the Anthropic template used to leave for thinking: 4096 sent, 1024 of it the story.
 THINKING_ALLOWANCE = 3072
+# Once measured, the thinking is given twice what it took on average, and never less than this:
+# half the replies of a model think more than their average.
+THINKING_HEADROOM = 2
+THINKING_FLOOR = 1024
 # Anthropic refuses a request with no ceiling, so its provider always sends at least this.
 ANTHROPIC_FLOOR = 4096
 # A way that leaves the reply's room to the AI: the most the prompt keeps for it.
@@ -52,12 +56,12 @@ def reply_averages(model: dict) -> dict:
 
 
 def thinking_allowance(model: dict) -> int:
-    """What a model that reasons is given on top of the reply: what its thinking took, once a
-    reply has measured it."""
+    """What a model that reasons is given on top of the reply: THINKING_ALLOWANCE until a reply
+    has measured its thinking, then twice what it took on average, never under THINKING_FLOOR."""
     thinking = reply_averages(model).get("thinking")
     if (isinstance(thinking, dict) and isinstance(thinking.get("n"), int) and thinking["n"] >= 1
             and isinstance(thinking.get("avg"), int | float)):
-        return round(thinking["avg"])
+        return max(THINKING_FLOOR, round(THINKING_HEADROOM * thinking["avg"]))
     return THINKING_ALLOWANCE
 
 
