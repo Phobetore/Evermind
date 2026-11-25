@@ -111,6 +111,39 @@ async def test_call_figures_are_filled_whole_on_each_provider():
     assert (figures.sent, figures.opened, figures.usage_final) == (True, True, True)
 
 
+async def test_a_count_given_as_null_never_erases_one():
+    # Anthropic's last count may carry the input or cache counts as null: the first one stays.
+    events = [*ANTHROPIC[:4], {"type": "message_delta", "delta": {"stop_reason": "end_turn"},
+                               "usage": {"input_tokens": None, "output_tokens": 210}}]
+    handler, _ = answering(*events, done=False)
+    provider = serve("anthropic", handler)
+    await drain(provider)
+    assert provider.figures.usage == {"input_tokens": 900, "output_tokens": 210}
+    assert provider.figures.usage_final
+
+
+async def test_the_first_names_given_are_kept():
+    later = {"id": "gen-2", "model": "aurore/aurore-small", "provider": "Other",
+             "choices": [{"delta": {"content": "!"}, "finish_reason": "stop"}]}
+    handler, _ = answering(*OPENROUTER[2:5], later)
+    provider = serve("openai", handler)
+    await drain(provider)
+    figures = provider.figures
+    assert (figures.generation_id, figures.model_served, figures.upstream) == (
+        "gen-1", "aurore/aurore-large", "Lumen")
+
+
+async def test_characters_are_counted_as_they_leave_whole():
+    # An emoji split in two halves across two events is one character out, not two.
+    handler, _ = answering(openrouter_chunk(content="Hi \ud83d"),
+                           openrouter_chunk(content="\ude00!"))
+    provider = serve("openai", handler)
+    events = await drain(provider)
+    text = "".join(e.text for e in events if e.type == "delta")
+    assert text == "Hi \U0001f600!"
+    assert provider.figures.chars_out == len(text) == 5
+
+
 async def test_anthropic_gives_its_stop_as_it_said_it():
     events = [*ANTHROPIC[:4], {"type": "message_delta", "delta": {"stop_reason": "max_tokens"},
                                "usage": {"output_tokens": 256}}]
@@ -192,6 +225,15 @@ async def test_a_server_that_refuses_include_usage_is_asked_without_once_per_sta
     other_handler, other_bodies = answering(*OPENROUTER)
     await drain(serve("openai", other_handler,
                       dict(OAI_CONN, service_id="s-new", base_url="http://other/v1")))
+    assert other_bodies[0]["stream_options"] == {"include_usage": True}
+
+    # The refusal is the pair's: another service at the same address is still asked with it,
+    other_handler, other_bodies = answering(*OPENROUTER)
+    await drain(serve("openai", other_handler, dict(service, service_id="s-twin")))
+    assert other_bodies[0]["stream_options"] == {"include_usage": True}
+    # and so is the same service once its address is changed.
+    other_handler, other_bodies = answering(*OPENROUTER)
+    await drain(serve("openai", other_handler, dict(service, base_url="http://moved/v1")))
     assert other_bodies[0]["stream_options"] == {"include_usage": True}
 
     openai_compat._usage_refused.clear()  # as a new start, and conftest between two tests
