@@ -123,6 +123,46 @@ test("with a keyboard the keyboard sentence sits right of the chip", { tag: "@de
   }
 });
 
+/** What the AIs would read comes this much later than asked, as on a slow link: the chip's own read
+ *  as fast as ever. `fails`: it never comes, the server failing. */
+async function figuresLate(page: Page, id: string, { fails = false } = {}) {
+  await page.route(`**/api/conversations/${id}/outlook**`, async (route) => {
+    if (new URL(route.request().url()).searchParams.has("only")) return route.fallback();
+    await new Promise((later) => setTimeout(later, 800));
+    if (fails) return route.fulfill({ status: 500, contentType: "text/html", body: "<html>Server error</html>" });
+    await route.fallback();
+  });
+}
+
+test("the rows of the ai sheet, once drawn, stay where they are", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await sylve(request);
+  await figuresLate(page, convo.id);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toBeVisible();
+  const sheet = await openSheet(page);
+  const rows = sheet.getByRole("list").getByRole("button");
+  await expect(rows.first()).toBeVisible();
+  // The sheet done rising.
+  await sheet.evaluate((dialog) => Promise.all(dialog.getAnimations({ subtree: true }).map((a) => a.finished)));
+  const tops = () => rows.evaluateAll((all) => all.map((row) => Math.round(row.getBoundingClientRect().top)));
+  const drawn = await tops();
+  await page.waitForTimeout(1_000);
+  expect(await tops(), "the rows moved after they were drawn").toEqual(drawn);
+});
+
+test("an ai can be chosen when what the ais would read cannot be", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const other = await sylve(request);
+  await figuresLate(page, convo.id, { fails: true });
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(chipOf(page)).toHaveAccessibleName(`AI: ${other.name}. Change.`);
+  expect((await conversation(request, convo.id)).model_id).toBe(other.id);
+});
+
 test("each row of the ai sheet keeps its price", async ({ page, request }) => {
   const convo = await makeConversation(request);
   const priced = await addModel(request, {

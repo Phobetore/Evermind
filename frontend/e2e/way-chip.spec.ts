@@ -116,6 +116,49 @@ test("adjusted for this conversation only", async ({ page, request }) => {
   expect((await conversation(request, other.id)).play_overrides).toBeNull();
 });
 
+test("an adjusted conversation's chip says so before what the ai reads has come", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { play_overrides: { reply_length: "long" } } });
+  // A slow link: what the AI reads has not come.
+  let release = () => {};
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  await page.route(`**/api/conversations/${convo.id}/outlook**`, async (route) => {
+    await held;
+    await route.fallback();
+  });
+  try {
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(page.locator("[data-message-id]").last()).toBeVisible();
+    await expect(chipOf(page)).toHaveText("Balanced · adjusted");
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  }
+});
+
+test("the chip read aloud says nothing of a capacity nobody told", async ({ page, request }) => {
+  const untold = await anAi(request, `Untold ${stamp()}`, {});
+  try {
+    const listed = (await (await request.get(`${API}/api/models`)).json())
+      .find((one: { id: string }) => one.id === untold.id);
+    expect(["own", "read"]).not.toContain(listed.context.source);
+    const convo = await conversationWithReply(request);
+    await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: untold.id } });
+    // It rereads fewer messages than it was asked, as an AI does once what it reads is full.
+    await page.route(`**/api/conversations/${convo.id}/outlook**`, async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      Object.assign(body.current, { messages_included: 1, history_limit: null });
+      await route.fulfill({ response, json: body });
+    });
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(chipOf(page)).toHaveText(/^Balanced · rereads 1 of \d+$/);
+    await expect(chipOf(page)).toHaveAccessibleName(/^Way to play: Balanced\. It rereads 1 message of \d+\. Change\.$/);
+  } finally {
+    await removeAi(request, untold.id);
+  }
+});
+
 test("the link to change the way for every conversation is a thumb's height", async ({ page, request }) => {
   const convo = await makeConversation(request);
   await page.goto(`/#/chat/${convo.id}`);

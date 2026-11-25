@@ -18,7 +18,7 @@ import { PageWait } from "@/components/ui/PageWait";
 import { Sheet } from "@/components/ui/Sheet";
 import { DataError, data, type AiSaved, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
-import { answering } from "@/lib/ai";
+import { answering, sizeTold } from "@/lib/ai";
 import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { cutAtCeilingOf, describeCut } from "@/lib/cutShort";
@@ -195,6 +195,9 @@ function ChatView({ id }: { id: string }) {
   // the next turn ends.
   const [whole, setWhole] = useState<Outlook | null>(null);
   const wholeAsked = useRef(0);
+  // From a read of the whole until the last one sent settles, either way: the AIs' sheet draws its
+  // rows once, with their figures or without, rather than growing under a touch as they come.
+  const [wholeReading, setWholeReading] = useState(false);
   const [waySheet, setWaySheet] = useState(false);
   const waySheetShown = useRef(false);
   // The read of the whole, for what runs outside a render (a turn's end, a read of the story).
@@ -216,15 +219,20 @@ function ChatView({ id }: { id: string }) {
   function readWhole() {
     const sent = ++wholeAsked.current;
     const glanceAt = ++glanceAsked.current;
+    setWholeReading(true);
     data.conversations.outlook(id).then(
       (read) => {
         if (glanceAt === glanceAsked.current) setGlance(read.current);
-        if (sent === wholeAsked.current) setWhole(read);
+        if (sent !== wholeAsked.current) return;
+        setWhole(read);
+        setWholeReading(false);
       },
       (error) => {
+        if (sent !== wholeAsked.current) return;
+        setWholeReading(false);
         // The sheet of the ways has nothing to show without it: it closes, and the line over the
         // input says why. The AIs' sheet does without its figures.
-        if (sent !== wholeAsked.current || !waySheetShown.current) return;
+        if (!waySheetShown.current) return;
         closeWaySheet();
         setWriteError({ error });
       },
@@ -1003,7 +1011,13 @@ function ChatView({ id }: { id: string }) {
               {data.connections && (chipShown
                 ? <AiChip ai={answeringAi} onOpen={() => (answeringAi ? openAiSheet() : setAddingAi(true))} />
                 : aisUnread && <AiUnread onRetry={readAis} />)}
-              <WayChip current={glance} playStyle={conversation.play_style} onOpen={openWaySheet} />
+              <WayChip
+                current={glance}
+                playStyle={conversation.play_style}
+                playOverrides={conversation.play_overrides}
+                capacityTold={!answeringAi || sizeTold(answeringAi)}
+                onOpen={openWaySheet}
+              />
             </ChatStatusRow>
           }
         />
@@ -1059,6 +1073,8 @@ function ChatView({ id }: { id: string }) {
           conversation={conversation}
           ais={ais}
           outlook={whole}
+          // Read again after a turn, the figures it holds stay drawn meanwhile.
+          waiting={wholeReading && whole === null}
           onPick={switched}
           onGone={aiGone}
           onAddOther={() => {
