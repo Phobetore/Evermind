@@ -273,10 +273,10 @@ const percentOf = (share: number | null) => (share === null ? null : Math.round(
 function ExactValues({ way, passages, save, said }: { way: WayListed; passages: boolean; save: Save; said: Said }) {
   const { t } = useI18n();
   const ids = useId();
-  const figure = (at: string, label: string, value: number | null, onSave: (value: number | null) => void, hint?: string) => (
+  const figure = (at: string, label: string, value: number | null, onSave: (value: number | null) => void, hint?: string, required = false) => (
     <div className="flex min-w-0 flex-col gap-1.5">
       <label className="ui-label break-words" htmlFor={`${ids}-${at}`}>{label}</label>
-      <FigureField id={`${ids}-${at}`} value={value} parse={tokensOf} inputMode="numeric" onSave={onSave} />
+      <FigureField id={`${ids}-${at}`} value={value} parse={tokensOf} inputMode="numeric" onSave={onSave} required={required} />
       {hint && <p className="text-xs leading-relaxed text-mist">{hint}</p>}
       {said(at)}
     </div>
@@ -310,8 +310,8 @@ function ExactValues({ way, passages, save, said }: { way: WayListed; passages: 
   );
   return (
     <>
-      {/* None is no figure for it: the field emptied saves nothing, 0 rereads all. */}
-      {figure("exact-history", t("ways.exact.history"), way.history_limit, (value) => value !== null && void save("exact-history", { history_limit: value }))}
+      {/* None is no figure for it: the field emptied saves nothing and shows the figure kept, 0 rereads all. */}
+      {figure("exact-history", t("ways.exact.history"), way.history_limit, (value) => value !== null && void save("exact-history", { history_limit: value }), undefined, true)}
       {figure("exact-room", t("ways.exact.room"), way.reply_room, (value) => void save("exact-room", { reply_room: value }), t("ways.exact.roomHint"))}
       <div className="flex flex-col gap-3">
         {figure("facts-cap", t("ways.exact.factsCap"), way.facts_cap, (value) => void save("facts-cap", { facts_cap: value }))}

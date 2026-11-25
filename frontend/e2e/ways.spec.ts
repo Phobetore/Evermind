@@ -190,6 +190,24 @@ test("a figure the server refuses is said under its field, which shows what is k
   await expect(most).toHaveValue("60");
 });
 
+test("the history field emptied saves nothing and shows the figure kept", async ({ page, request }) => {
+  await openWay(page, "balanced");
+  await page.getByText("Advanced: the exact values").click();
+  const saved: string[] = [];
+  page.on("request", (sent) => {
+    if (sent.method() === "PUT" && new URL(sent.url()).pathname.startsWith("/api/ways/")) saved.push(sent.url());
+  });
+  const history = page.getByRole("textbox", { name: "Messages reread (0: all)" });
+  await expect(history).toHaveValue("24");
+  await history.fill("");
+  await history.press("Tab");
+  await expect(history).toHaveValue("24");
+  // Past the pause that saves what is typed: nothing went.
+  await page.waitForTimeout(1000);
+  expect(saved).toEqual([]);
+  expect((await wayOf(request, "balanced"))?.history_limit).toBe(24);
+});
+
 test("a share is shown in whole per cent", async ({ page, request }) => {
   const copy = await (await request.post(`${API}/api/ways`, { data: { from: "balanced", name: "Seven" } })).json() as Way;
   await request.put(`${API}/api/ways/${copy.id}`, { data: { lore_share: 0.07 } });

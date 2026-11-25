@@ -37,8 +37,9 @@ export type FieldHandle = {
  *  pressed button takes the focus (Chrome), the field is left for the choice before its click: that
  *  leaving, told by the choice's pointer going down or by the focus going to a choice of the same
  *  control, saves only after a typing pause, so that the click can drop it first. Where it does not
- *  (Safari), the field is never left, and the click drops the figure. */
-export function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder, inputMode = "decimal", handleRef }: {
+ *  (Safari), the field is never left, and the click drops the figure. A `required` figure has no
+ *  "none": emptied, it saves nothing, and left so it shows the saved figure again, as a name does. */
+export function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder, inputMode = "decimal", handleRef, required = false }: {
   id?: string;
   value: number | null;
   parse(text: string): number | null | undefined;
@@ -48,6 +49,7 @@ export function FigureField({ id, value, parse, onSave, least, labelledBy, place
   placeholder?: string;
   inputMode?: "decimal" | "numeric";
   handleRef?: React.RefObject<FieldHandle | null>;
+  required?: boolean;
 }) {
   const field = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(value === null ? "" : String(value));
@@ -82,6 +84,10 @@ export function FigureField({ id, value, parse, onSave, least, labelledBy, place
     if (dropped.current) return;
     const parsed = parse(typed);
     if (parsed === undefined || parsed === sent.current) return;
+    if (parsed === null && required) {
+      if (leaving) setText(sent.current === null ? "" : String(sent.current));
+      return;
+    }
     if (!leaving && least !== undefined && (parsed === null || parsed < least)) return;
     sent.current = parsed;
     onSave(parsed);
