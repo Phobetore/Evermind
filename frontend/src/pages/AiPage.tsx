@@ -1,24 +1,26 @@
 import { AiLine } from "@/components/ai/AiLine";
+import { EstimateLine } from "@/components/ai/EstimateLine";
 import { LOCAL_FAMILIES } from "@/components/ai/addFlow";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { ServiceForm } from "@/components/ai/ServiceForm";
 import { useConfirm } from "@/components/ui/Confirm";
+import { decimalOf, FigureField, tokensOf, type FieldHandle } from "@/components/ui/FigureField";
 import { LoadFailure } from "@/components/ui/LoadFailure";
+import { TextField } from "@/components/ui/TextField";
 import { data, DataError, type AiSaved, type ModelUpdate } from "@/data";
 import type { Translate } from "@/i18n/I18nProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { pages, successorOf, warningsOf } from "@/lib/ai";
 import { describeError, describeFailure } from "@/lib/errors";
+import { readerOfAi } from "@/lib/estimate";
 import { timeAgo } from "@/lib/utils";
-import type { Ai, Service } from "@/types";
+import { offeredWay } from "@/lib/ways";
+import type { Ai, Service, Ways } from "@/types";
 import { clsx } from "clsx";
 import { ArrowLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 
-/** How long a number typed waits for the next key before it is saved: long enough not to save
- *  every figure of "16384" on its way, short enough to be saved before the page is left. */
-const TYPING_MS = 700;
 /** How long "Saved." stays beside the control that was saved. */
 const SAVED_MS = 2000;
 /** The engine's floor (engine.py): a reading capacity under it is refused by the server. */
@@ -46,6 +48,8 @@ function AiView({ id }: { id: string }) {
   const confirm = useConfirm();
   const connections = data.connections as NonNullable<typeof data.connections>;
   const [ais, setAis] = useState<Ai[] | null>(null);
+  // For its estimate, under the way offered to new conversations.
+  const [ways, setWays] = useState<Ways | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const [readFailure, setReadFailure] = useState<ReadError | null>(null);
   const [reading, setReading] = useState(false);
@@ -84,6 +88,8 @@ function AiView({ id }: { id: string }) {
   }, [connections, id, replace, gone, t]);
 
   const load = useCallback(() => {
+    // Beside the AIs, not in their way: without it the page lacks only its estimate.
+    data.ways.list().then(setWays, () => {});
     connections.models.list().then(
       (listed) => {
         setAis(listed);
@@ -237,7 +243,7 @@ function AiView({ id }: { id: string }) {
       <header className="mb-6 animate-rise">
         <h1 className="font-display text-3xl font-semibold [overflow-wrap:anywhere]">{ai.name}</h1>
         <div className="mt-2">
-          <AiLine ai={ai} />
+          <AiLine ai={ai} extra={ways && <EstimateLine reader={readerOfAi(ai)} way={offeredWay(ways)} />} />
         </div>
       </header>
 
@@ -401,6 +407,8 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
         <dt className="text-mist">{t("ai.page.price")}</dt>
         <dd className="text-parchment-dim">{price}</dd>
       </dl>
+      {/* Said once a reply has come without the server's counts: until then nothing is known. */}
+      {ai.usage_seen === false && <p className="mt-3 text-sm text-mist">{t("ai.page.noUsage")}</p>}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {/* At the largest text the icon takes a line of its own, and the words the whole width: a word
             is broken only when it alone is wider. The padding is layout: in pixels at most. */}
@@ -421,191 +429,6 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
 
 type Save = (at: string, change: ModelUpdate) => Promise<void>;
 type Said = (at: string) => React.ReactNode;
-
-/** A whole number of tokens as typed, spaces and separators of thousands allowed; "" is none, and
- *  anything else is not a number at all. */
-function tokensOf(text: string): number | null | undefined {
-  const plain = text.replace(/[\s.,'  ]/g, "");
-  if (plain === "") return null;
-  return /^\d+$/.test(plain) ? Number(plain) : undefined;
-}
-
-/** A decimal typed with a comma or a point; "" is none, and anything else is not a number at all. */
-function decimalOf(text: string): number | null | undefined {
-  const plain = text.trim().replace(",", ".");
-  if (plain === "") return null;
-  const value = Number(plain);
-  return Number.isFinite(value) ? value : undefined;
-}
-
-/** What a control's choices tell the field of "My value" they sit above. */
-type FieldHandle = {
-  /** A choice is being pressed: the field left now is left for it, and saves nothing yet. */
-  hold(): void;
-  /** A choice that hides the field was pressed: what was typed and not saved is dropped. */
-  drop(): void;
-};
-
-/** A figure saved as it is typed: once the keys stop for a moment, and when the field is left. A
- *  value under `least` waits for the field to be left, being most likely on its way to a larger one;
- *  so does an emptied one there, most likely cleared to type another: saved, it would let go of
- *  the figure (a capacity back to its server, the field closed under the person's keys).
- *
- *  Under a control's choices (`handleRef`), a choice pressed wins over the figure being typed. Where a
- *  pressed button takes the focus (Chrome), the field is left for the choice before its click: that
- *  leaving, told by the choice's pointer going down or by the focus going to a choice of the same
- *  control, saves only after a typing pause, so that the click can drop it first. Where it does not
- *  (Safari), the field is never left, and the click drops the figure. */
-function FigureField({ id, value, parse, onSave, least, labelledBy, placeholder, inputMode = "decimal", handleRef }: {
-  id?: string;
-  value: number | null;
-  parse(text: string): number | null | undefined;
-  onSave(value: number | null): void;
-  least?: number;
-  labelledBy?: string;
-  placeholder?: string;
-  inputMode?: "decimal" | "numeric";
-  handleRef?: React.RefObject<FieldHandle | null>;
-}) {
-  const field = useRef<HTMLInputElement>(null);
-  const [text, setText] = useState(value === null ? "" : String(value));
-  const sent = useRef(value);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const holding = useRef(false);
-  const dropped = useRef(false);
-
-  useEffect(() => {
-    if (!handleRef) return;
-    handleRef.current = {
-      hold: () => {
-        holding.current = true;
-      },
-      drop: () => {
-        if (timer.current) clearTimeout(timer.current);
-        dropped.current = true;
-      },
-    };
-    return () => {
-      handleRef.current = null;
-    };
-  }, [handleRef]);
-
-  // A value changed elsewhere (a notice's button) shows, unless the person is typing in it.
-  useEffect(() => {
-    sent.current = value;
-    if (document.activeElement !== field.current) setText(value === null ? "" : String(value));
-  }, [value]);
-
-  function commit(typed: string, leaving: boolean) {
-    if (dropped.current) return;
-    const parsed = parse(typed);
-    if (parsed === undefined || parsed === sent.current) return;
-    if (!leaving && least !== undefined && (parsed === null || parsed < least)) return;
-    sent.current = parsed;
-    onSave(parsed);
-  }
-
-  // Gone from the page with a figure typed and not saved (the browser's back, which is Android's
-  // back button, leaves no field): saved as leaving the field saves it. Nothing changed, nothing sent.
-  const latest = useRef({ text, commit });
-  useEffect(() => {
-    latest.current = { text, commit };
-  });
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-    latest.current.commit(latest.current.text, true);
-  }, []);
-
-  return (
-    <input
-      ref={field}
-      id={id}
-      className="field"
-      type="text"
-      inputMode={inputMode}
-      autoComplete="off"
-      aria-labelledby={labelledBy}
-      placeholder={placeholder}
-      value={text}
-      onChange={(e) => {
-        const typed = e.target.value;
-        setText(typed);
-        if (timer.current) clearTimeout(timer.current);
-        timer.current = setTimeout(() => commit(typed, false), TYPING_MS);
-      }}
-      onFocus={() => {
-        holding.current = false;
-      }}
-      onBlur={(e) => {
-        if (timer.current) clearTimeout(timer.current);
-        const typed = e.target.value;
-        const to = e.relatedTarget;
-        const group = e.currentTarget.closest("[role=group]");
-        const toChoice = to instanceof HTMLElement && to.hasAttribute("aria-pressed") && group !== null && to.closest("[role=group]") === group;
-        if (handleRef && (holding.current || toChoice)) {
-          // Left for a choice: saved after a pause, unless the choice drops it meanwhile.
-          holding.current = false;
-          timer.current = setTimeout(() => commit(typed, true), TYPING_MS);
-          return;
-        }
-        commit(typed, true);
-      }}
-    />
-  );
-}
-
-/** A text saved when the field is left, or on Enter. An empty one goes back to what is saved. */
-function TextField({ label, value, onSave, mono = false }: {
-  label: string;
-  value: string;
-  onSave(value: string): void;
-  mono?: boolean;
-}) {
-  const id = useId();
-  const [text, setText] = useState(value);
-  // What was saved, changed (by this field's own save, or elsewhere), is what the field shows.
-  const [saved, setSaved] = useState(value);
-  if (saved !== value) {
-    setSaved(value);
-    setText(value);
-  }
-  // Gone from the page with a text typed and not saved: saved as leaving the field saves it.
-  // What was last sent, so that a text sent as the field was left is not sent a second time.
-  const sent = useRef(value);
-  const latest = useRef({ text, value, onSave });
-  useEffect(() => {
-    latest.current = { text, value, onSave };
-  });
-  useEffect(() => () => {
-    const { text: typed, value: before, onSave: save } = latest.current;
-    const kept = typed.trim();
-    if (kept && kept !== before && kept !== sent.current) save(kept);
-  }, []);
-  return (
-    <label className="flex flex-col gap-1.5" htmlFor={id}>
-      <span className="ui-label">{label}</span>
-      <input
-        id={id}
-        className={clsx("field", mono && "font-mono")}
-        autoComplete="off"
-        spellCheck={!mono}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
-        onBlur={() => {
-          const typed = text.trim();
-          if (!typed) setText(value);
-          else if (typed !== value) {
-            sent.current = typed;
-            onSave(typed);
-          }
-        }}
-      />
-    </label>
-  );
-}
 
 function DefaultSwitch({ ai, t, onSave }: { ai: Ai; t: Translate; onSave(): void }) {
   const ids = useId();

@@ -25,7 +25,7 @@ async def test_an_edit_a_send_and_a_setting_wait_for_a_write_held_past_five_seco
             client.patch(f"/api/conversations/{convo['id']}", json={"author_note": "Rain."}),
             client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "send",
                                            "content": "Hello"}),
-            client.put("/api/settings", json={"reply_length": "long"}),
+            client.put("/api/settings", json={"update_check": False}),
         )]
         await asyncio.sleep(6)  # past the 5 seconds Python's sqlite3 waits unless told otherwise
         assert not any(task.done() for task in asked)
@@ -42,7 +42,7 @@ async def test_an_edit_a_send_and_a_setting_wait_for_a_write_held_past_five_seco
     assert read["author_note"] == "Rain."
     assert [m["content"] for m in await messages_of(client, convo["id"])][1:] == [
         "Hello", "She nods."]
-    assert (await client.get("/api/settings")).json()["reply_length"] == "long"
+    assert (await client.get("/api/settings")).json()["update_check"] is False
 
 
 async def test_a_connection_commits_while_what_opening_it_returned_is_still_held(

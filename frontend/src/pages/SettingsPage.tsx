@@ -1,8 +1,10 @@
 import { AddAiFlow } from "@/components/ai/AddAiFlow";
 import { AiLine } from "@/components/ai/AiLine";
+import { EstimateLine } from "@/components/ai/EstimateLine";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
+import { WaysList } from "@/components/ways/WaysList";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
 import { DisplayControls } from "@/components/display/DisplayControls";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -11,9 +13,11 @@ import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
+import { readerOfAi } from "@/lib/estimate";
 import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
-import type { Ai, Installation, Settings } from "@/types";
+import { offeredWay } from "@/lib/ways";
+import type { Ai, Installation, Settings, Ways } from "@/types";
 import { Cable, ChevronRight, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
@@ -22,6 +26,9 @@ export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
   const [ais, setAis] = useState<Ai[] | null>(null);
+  // Read with the AIs: each line's estimate weighs the way offered to new conversations. Read in
+  // every edition: the ways to play are in both.
+  const [ways, setWays] = useState<Ways | null>(null);
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -35,6 +42,7 @@ export function SettingsPage() {
   const load = useCallback(() => {
     Promise.all([
       data.connections?.models.list().then(setAis),
+      data.ways.list().then(setWays),
       data.settings.get().then(setSettings),
     ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
   }, []);
@@ -143,9 +151,10 @@ export function SettingsPage() {
                 <li key={ai.id}>
                   <Link
                     to={`/settings/ai/${ai.id}`}
-                    className="panel flex items-center justify-between gap-3 px-5 py-4 hover:border-ink-600"
+                    // As the ways' lines: gutters in pixels at most, or the largest text squeezes the words.
+                    className="panel flex items-center justify-between gap-[min(0.75rem,12px)] px-[min(1.25rem,20px)] py-4 hover:border-ink-600"
                   >
-                    <AiLine ai={ai} />
+                    <AiLine ai={ai} extra={ways && <EstimateLine reader={readerOfAi(ai)} way={offeredWay(ways)} />} />
                     <ChevronRight className="h-4 w-4 shrink-0 text-mist" aria-hidden="true" />
                   </Link>
                 </li>
@@ -155,60 +164,7 @@ export function SettingsPage() {
         </section>
       )}
 
-      {settings && (
-        <section className="mb-10 grid gap-4 sm:grid-cols-2">
-          <Field
-            label={t("settings.replyLengthLabel")}
-            hint={t("settings.replyLengthHint")}
-          >
-            <select
-              className="field"
-              value={settings.reply_length}
-              onChange={(e) => saveSettings({ reply_length: e.target.value as Settings["reply_length"] })}
-            >
-              <option value="short">{t("settings.replyLengthOptions.short")}</option>
-              <option value="medium">{t("settings.replyLengthOptions.medium")}</option>
-              <option value="long">{t("settings.replyLengthOptions.long")}</option>
-            </select>
-          </Field>
-          <Field
-            label={t("settings.historyLimitLabel")}
-            hint={t("settings.historyLimitHint")}
-          >
-            <input
-              type="number"
-              className="field"
-              min={4}
-              max={200}
-              key={settings.history_limit}
-              defaultValue={settings.history_limit}
-              onBlur={(e) => {
-                const v = Math.max(4, Math.min(200, Math.round(Number(e.target.value)) || 24));
-                e.target.value = String(v);
-                if (v !== settings.history_limit) saveSettings({ history_limit: v });
-              }}
-            />
-          </Field>
-          <Field
-            label={t("settings.passageBudgetLabel")}
-            hint={t("settings.passageBudgetHint")}
-          >
-            <input
-              type="number"
-              className="field"
-              min={0}
-              max={4000}
-              key={settings.passage_budget}
-              defaultValue={settings.passage_budget}
-              onBlur={(e) => {
-                const v = Math.max(0, Math.min(4000, Math.round(Number(e.target.value)) || 0));
-                e.target.value = String(v);
-                if (v !== settings.passage_budget) saveSettings({ passage_budget: v });
-              }}
-            />
-          </Field>
-        </section>
-      )}
+      {ways && <WaysList ways={ways} ais={ais} />}
 
       {/* Kept on this device, not on the server: shown even when the server's settings could not be read. */}
       <section className="mb-10 max-w-xl" aria-labelledby={displayTitle}>

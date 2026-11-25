@@ -8,6 +8,8 @@ import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
 import { ChatStatusRow } from "@/components/chat/ChatStatusRow";
 import { useChatToast } from "@/components/chat/ChatToast";
+import { WayChip } from "@/components/chat/WayChip";
+import { WaySheet } from "@/components/chat/WaySheet";
 import { RpText } from "@/components/chat/RpText";
 import { useConversationBackdrop } from "@/components/chat/useConversationBackdrop";
 import { DisplayControls } from "@/components/display/DisplayControls";
@@ -16,19 +18,20 @@ import { PageWait } from "@/components/ui/PageWait";
 import { Sheet } from "@/components/ui/Sheet";
 import { DataError, data, type AiSaved, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
-import { answering, roomFor } from "@/lib/ai";
+import { answering, sizeTold } from "@/lib/ai";
 import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
-import { describeCeiling } from "@/lib/cutShort";
+import { cutAtCeilingOf, describeCut } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
 import { holdSizes, wantSizes } from "@/lib/portraitSizes";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
 import { hasKeyboard, newId, nothingFocused, smallPortrait } from "@/lib/utils";
 import { clsx } from "clsx";
-import type { Ai, Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
+import type { Ai, Character, Conversation, Message, Outlook, Persona, TurnFailure } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { Link, useNavigate, useParams } from "react-router";
 
 /** How many messages are drawn at first, and more each time more are asked for. */
@@ -46,6 +49,17 @@ const headerSquare =
 export function ChatPage() {
   const { id = "" } = useParams();
   return <ChatView key={id} id={id} />;
+}
+
+/** What the server counted `ai` read of a reply, when it read only the end of the story
+ *  (`meta.truncated`): only for the version on screen, read by that AI under the model it runs now,
+ *  as the mark names them. Null for any other reply, and for a mark that names none of them. */
+function readOnlyTheEnd(message: Message, ai: Ai | null): { read: number; window: number } | null {
+  const said = message.meta?.truncated as
+    { read?: unknown; window?: unknown; version?: unknown; model_id?: unknown; model?: unknown } | undefined;
+  if (!said || !ai || typeof said.read !== "number" || typeof said.window !== "number") return null;
+  if (said.version !== message.active_index || said.model_id !== ai.id || said.model !== ai.model) return null;
+  return { read: said.read, window: said.window };
 }
 
 /** The reply being written: the only thing on screen that follows its words. */
@@ -159,20 +173,104 @@ function ChatView({ id }: { id: string }) {
     aisAsked.current += 1;
     setAis(change);
   }, []);
-  // The room a reply needs, from the settings read once with the page: 0 until then, warning of nothing.
-  // Only where the edition keeps AIs of its own: nothing else here reads it.
-  const [room, setRoom] = useState(0);
   const [aiSheet, setAiSheet] = useState(false);
+  const aiSheetShown = useRef(false);
   const [addingAi, setAddingAi] = useState(false);
+
+  // What the conversation's AI reads of it under its way, for the way's chip: read as the story is
+  // first shown, at each turn's end, and when the AI or the way changes. The last sent counts.
+  const [glance, setGlance] = useState<Outlook["current"] | null>(null);
+  const glanceAsked = useRef(0);
+  const readGlance = useCallback(() => {
+    const sent = ++glanceAsked.current;
+    data.conversations.outlook(id, { only: "current" }).then(
+      (read) => {
+        if (sent === glanceAsked.current) setGlance(read.current);
+      },
+      // The chip keeps what it said, or the way's name: nothing to tell.
+      () => {},
+    );
+  }, [id]);
+  // The whole of it, every AI and every way, for the two sheets: read as either opens, kept until
+  // the next turn ends.
+  const [whole, setWhole] = useState<Outlook | null>(null);
+  const wholeAsked = useRef(0);
+  // From a read of the whole until the last one sent settles, either way: the AIs' sheet draws its
+  // rows once, with their figures or without, rather than growing under a touch as they come.
+  const [wholeReading, setWholeReading] = useState(false);
+  const [waySheet, setWaySheet] = useState(false);
+  const waySheetShown = useRef(false);
+  // The read of the whole, for what runs outside a render (a turn's end, a read of the story).
+  const rereadWhole = useRef<() => void>(() => {});
+  /** What the next turn would read may have changed: an open sheet reads the whole again, keeping
+   *  its figures meanwhile, as nothing else reads them while it stays open; otherwise the chip's
+   *  pair is read, and the whole waits for a sheet to open. */
+  const outlookChanged = useCallback(() => {
+    if (waySheetShown.current || aiSheetShown.current) return rereadWhole.current();
+    setWhole(null);
+    readGlance();
+  }, [readGlance]);
   useEffect(() => {
     if (!data.connections) return;
     readAis();
-    data.settings.get().then((settings) => setRoom(roomFor(settings)), () => {});
   }, [readAis]);
+  /** Every AI under the way and every way with the AI, for a sheet opening: what was held shows
+   *  meanwhile. It says the chip's pair too, newer than a short read sent before it. */
+  function readWhole() {
+    const sent = ++wholeAsked.current;
+    const glanceAt = ++glanceAsked.current;
+    setWholeReading(true);
+    data.conversations.outlook(id).then(
+      (read) => {
+        if (glanceAt === glanceAsked.current) setGlance(read.current);
+        if (sent !== wholeAsked.current) return;
+        setWhole(read);
+        setWholeReading(false);
+      },
+      (error) => {
+        if (sent !== wholeAsked.current) return;
+        setWholeReading(false);
+        // The sheet of the ways has nothing to show without it: it closes, and the line over the
+        // input says why. The AIs' sheet does without its figures.
+        if (!waySheetShown.current) return;
+        closeWaySheet();
+        setWriteError({ error });
+      },
+    );
+  }
+  useEffect(() => {
+    rereadWhole.current = readWhole;
+  });
+
   function openAiSheet() {
     // What the page holds at once, and the list as it is now once it comes.
+    aiSheetShown.current = true;
     setAiSheet(true);
     readAis();
+    readWhole();
+  }
+
+  function closeAiSheet() {
+    aiSheetShown.current = false;
+    setAiSheet(false);
+  }
+
+  function openWaySheet() {
+    waySheetShown.current = true;
+    setWaySheet(true);
+    readWhole();
+  }
+
+  function closeWaySheet() {
+    waySheetShown.current = false;
+    setWaySheet(false);
+  }
+
+  /** The conversation as the sheet of the ways saved it: another way, or an adjustment. */
+  function playing(saved: Conversation) {
+    setConversation((c) => (c ? { ...c, play_style: saved.play_style, play_overrides: saved.play_overrides } : c));
+    // The sheet still open after an adjustment shows the figures it changed; closed, the chip does.
+    outlookChanged();
   }
 
   /** Whether the server took a change; given `landed`, a lost answer or a message gone shows what it holds. */
@@ -261,14 +359,27 @@ function ChatView({ id }: { id: string }) {
         || !held.some((ai) => ai.id === conversation.model_id)
         || (conversation.model_lost && conversation.model_lost !== before.model_lost)
       )) readAis();
+      // Another AI or another way, chosen on another device: what it reads is read again.
+      if (before && (
+        conversation.model_id !== before.model_id
+        || conversation.play_style !== before.play_style
+        || JSON.stringify(conversation.play_overrides) !== JSON.stringify(before.play_overrides)
+      )) outlookChanged();
       setConversation((shown) => (shown
-        ? { ...shown, title: conversation.title, model_id: conversation.model_id, model_lost: conversation.model_lost }
+        ? {
+            ...shown,
+            title: conversation.title,
+            model_id: conversation.model_id,
+            model_lost: conversation.model_lost,
+            play_style: conversation.play_style,
+            play_overrides: conversation.play_overrides,
+          }
         : conversation));
       setMessages(conversation.messages ?? []);
       return true;
     };
     return { conversation, show };
-  }, [id, summaryTaker, readAis]);
+  }, [id, summaryTaker, readAis, outlookChanged]);
 
   // The person's message as the server saved it, before the conversation is read again.
   const add = useCallback((sent: Message) => {
@@ -278,12 +389,15 @@ function ChatView({ id }: { id: string }) {
   // A reply asked for again or carried on takes back a memory that read it: an open panel reads it at
   // the turn's end, once the page shows the story with nothing being written. That is also when the
   // request's answer was lost and the page found the turn already over, never having seen it run.
+  // The same moment reads what the next turn would read: the story has moved, and the way or the AI
+  // may have changed elsewhere. As the page opens, that is its first read of it.
   const rewriting = useRef(false);
   const settled = useCallback(() => {
+    outlookChanged();
     if (!rewriting.current) return;
     rewriting.current = false;
     setStoryCuts((n) => n + 1);
-  }, []);
+  }, [outlookChanged]);
 
   const turn = useTurn(id, read, add, settled);
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
@@ -322,7 +436,7 @@ function ChatView({ id }: { id: string }) {
   if (heard.writing !== writing) {
     const said = writing !== null ? "typing" : heard.said && !outcome ? "replied" : "";
     const newest = messages.at(-1);
-    const cut = said === "replied" && newest?.role === "assistant" ? describeCeiling(newest, t) : null;
+    const cut = said === "replied" && newest?.role === "assistant" ? (describeCut(newest, t)?.text ?? null) : null;
     setHeard({ writing, said, cut });
   }
 
@@ -425,6 +539,30 @@ function ChatView({ id }: { id: string }) {
     return () => watch.disconnect();
   }, [storyNode, keepPlace]);
 
+  // The keyboard's sentence under the input steps aside while the line over the input is said, only
+  // where the three do not fit: the line's sentence whole, a line of the story over its padding (the
+  // flex-basis of the story's box), and the keyboard's sentence. Aside, it is measured at no height in
+  // its place, and comes back only where the story keeps that line with it: the two answers never
+  // undo each other. Decided before the frame is painted.
+  const [sentenceNode, setSentenceNode] = useState<HTMLParagraphElement | null>(null);
+  const [hintAside, setHintAside] = useState(false);
+  // Watched from before the line's first frame: the observer's first word comes before it is painted.
+  useLayoutEffect(() => {
+    if (!storyNode || !sentenceNode || !hasKeyboard()) return;
+    const check = () => {
+      const hint = document.querySelector<HTMLElement>("[data-status-row] [data-keyboard-hint]");
+      if (!hint) return;
+      const line = parseFloat(getComputedStyle(storyNode.parentElement!).flexBasis) || 0;
+      const whole = sentenceNode.scrollHeight <= sentenceNode.clientHeight + 1;
+      const room = storyNode.clientHeight + 1 - (hint.dataset.aside !== undefined ? hint.scrollHeight : 0);
+      flushSync(() => setHintAside(!(whole && room >= line)));
+    };
+    const watch = new ResizeObserver(check);
+    watch.observe(storyNode);
+    watch.observe(sentenceNode);
+    return () => watch.disconnect();
+  }, [storyNode, sentenceNode]);
+
   /** Settles at the server's answer or at patience's end; either way the page then finds out how things stand. */
   function ask(request: Omit<TurnRequest, "conversation_id">) {
     keepFocus.current = true;
@@ -502,9 +640,10 @@ function ChatView({ id }: { id: string }) {
   /** The AI answering from now on, as the server took it; the last reply can be redone by it while
    *  nothing is being written, the reply before kept beside it. */
   function switched(ai: Ai) {
-    setAiSheet(false);
+    closeAiSheet();
     // Another AI chosen: the line saying one was removed goes with it, as on the server.
     setConversation((c) => (c ? { ...c, model_id: ai.id, model_lost: null } : c));
+    outlookChanged();
     const newest = messages.at(-1);
     const redoable = !busy && newest?.role === "assistant" && !newest.meta?.greeting;
     toast(t("chat.ai.switched", { name: ai.name }), redoable
@@ -518,9 +657,10 @@ function ChatView({ id }: { id: string }) {
       : undefined);
   }
 
-  /** An AI as the server saved it, in the list the page holds. */
+  /** An AI as the server saved it, in the list the page holds; what it reads may change with it. */
   function tookAi(saved: AiSaved) {
     changeAis((now) => now && now.map((ai) => (ai.id === saved.id ? saved : ai)));
+    outlookChanged();
   }
 
   /** An AI the server no longer has, picked in the sheet: its row goes, and the list is read again. */
@@ -538,6 +678,37 @@ function ChatView({ id }: { id: string }) {
     } catch (error) {
       toast(describeError(error, t));
     }
+  }
+
+  /** Long replies in this conversation alone, for a reply that filled the room its way keeps: the
+   *  conversation as the server saved it, what the next turn reads read again, then said. */
+  async function longHere() {
+    try {
+      const saved = await data.conversations.update(id, {
+        play_overrides: { ...(conversation?.play_overrides ?? {}), reply_length: "long" },
+      });
+      playing(saved);
+      toast(t("chat.message.longHereDone"));
+    } catch (error) {
+      toast(describeError(error, t));
+    }
+  }
+
+  // What the server counted that the AI read of the last reply, when it read only the end of the
+  // story: it reads less than it is counted to.
+  const [shrinking, setShrinking] = useState(false);
+  /** The size the server showed, kept on the AI, then the reply written again within it. */
+  async function shrink(ai: Ai, read: number) {
+    setShrinking(true);
+    try {
+      tookAi(await data.connections!.models.observed(ai.id, read));
+    } catch (error) {
+      toast(describeError(error, t));
+      return;
+    } finally {
+      setShrinking(false);
+    }
+    void ask({ mode: "regenerate" });
   }
 
   async function seeLost() {
@@ -561,30 +732,32 @@ function ChatView({ id }: { id: string }) {
   }
 
   const character = conversation.character;
+  // What answers it, where the edition keeps AIs of its own; drawn once they are read.
+  const chipShown = data.connections !== undefined && ais !== null;
+  const answeringAi = ais ? answering(conversation.model_id, ais) : null;
   const silent = failure?.kind === "unreachable";
   // That another reply is being written, only as long as it is.
   const refusal = refused instanceof DataError && refused.kind === "turn_running" && !busy ? null : refused;
+  // Refused as too long twice: said with the AI's name where the page knows it, and asked again,
+  // which sends less now that the server has said how much it reads.
+  const tooLong = !lost && !refusal && failure?.kind === "model_too_long";
   const problem = lost || refusal
     ? describeError(lost || refusal, t, t("chat.errors.connectionFailed"))
-    : failure?.kind === "nothing_added"
-      ? t("chat.errors.nothingAdded")
-      : failure && !silent
-        ? describeFailure(failure, t)
-        : unanswered === true
-          ? t("chat.errors.noReply")
-          : null;
-  const latest = messages.findLast((m) => m.meta?.context)?.meta;
-  const contextStats = latest?.context as ContextStats | undefined;
-  const perf = latest?.perf as TurnPerf | undefined;
+    : tooLong && answeringAi
+      ? t("chat.tooLong", { name: answeringAi.name })
+      : failure?.kind === "nothing_added"
+        ? t("chat.errors.nothingAdded")
+        : failure && !silent
+          ? describeFailure(failure, t)
+          : unanswered === true
+            ? t("chat.errors.noReply")
+            : null;
   // The message being written is drawn from its words as they arrive.
   const visibleMessages = messages.filter((m) => m.id !== writing);
   const shown = backdropOf(conversation, character, display);
   // The plate under the text, only where a picture is drawn: with none, nothing changes.
   const veiled = shown.src !== null && shown.strength > 0;
   const drawnMessages = visibleMessages.slice(-drawn);
-  // What answers it, where the edition keeps AIs of its own; drawn once they are read.
-  const chipShown = data.connections !== undefined && ais !== null;
-  const answeringAi = ais ? answering(conversation.model_id, ais) : null;
   const lostLine = chipShown && conversation.model_lost && (
     <div
       data-model-lost
@@ -598,6 +771,41 @@ function ChatView({ id }: { id: string }) {
       <button type="button" className="btn btn-ghost touch-target !py-1 text-xs" onClick={seeLost}>
         {t("chat.ai.seen")}
       </button>
+    </div>
+  );
+  // The last reply was read by an AI that saw only the end of the story: said over the input, where
+  // it is seen, until the next reply. Only for the version shown, and the AI that answers now under
+  // the model it was counted for: what another read says nothing of what this one reads.
+  // On a short screen with large text, what gives way, in this order: the keyboard's sentence under
+  // the input; the line's sentence, down to one whole line of its text, scrolling in its own part
+  // with its shade at the foot; then the story's own line (see the story's box). Its button never
+  // gives way, the only thing to do about it. Both parts sit in the column itself, so the story
+  // yields before the button.
+  const truncated = !busy && last?.role === "assistant" ? readOnlyTheEnd(last, answeringAi) : null;
+  const truncatedAi = truncated ? answeringAi : null;
+  const truncatedLine = truncated && truncatedAi && data.connections && (
+    <div data-truncated className="contents">
+      <p
+        ref={setSentenceNode}
+        data-truncated-text
+        // At least one line of its text (text-xs: 1rem) under its padding and its border.
+        className="scroll-cue min-h-[calc(1.5rem+1px)] shrink-[1000] overflow-y-auto border-t border-ink-700 px-4 pt-2 text-center text-xs text-parchment-dim [overflow-wrap:anywhere]"
+      >
+        <span className="mx-auto block max-w-3xl">
+          {t("chat.truncated.text", { name: truncatedAi.name, read: truncated.read, window: truncated.window })}
+        </span>
+      </p>
+      {/* In a column narrower than any phone's, thinner sides, so that its words stand whole. */}
+      <div className="flex shrink-0 justify-center bg-ink-900 px-4 pb-2 pt-1 @max-[240px]/column:px-[8px]">
+        <button
+          type="button"
+          className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs @max-[240px]/column:!px-[8px]"
+          disabled={shrinking}
+          onClick={() => void shrink(truncatedAi, truncated.read)}
+        >
+          {t("chat.truncated.button")}
+        </button>
+      </div>
     </div>
   );
 
@@ -668,32 +876,6 @@ function ChatView({ id }: { id: string }) {
             )}
           </div>
           <div className="ml-auto flex items-center gap-[12px] @max-[320px]/column:gap-[4px]">
-            {contextStats && (
-              <div
-                className="hidden items-center gap-2 sm:flex"
-                title={
-                  `${t("chat.context.tooltipUsage", { used: contextStats.used_tokens, budget: contextStats.budget, size: contextStats.context_size })}\n` +
-                  `${t("chat.context.tooltipMessages", { included: contextStats.messages_included, total: contextStats.messages_total })}` +
-                  (contextStats.messages_included < contextStats.messages_total
-                    ? ` ${t("chat.context.tooltipOlderInMemory")}`
-                    : "") +
-                  (contextStats.lore_matched
-                    ? `\n${t("chat.context.tooltipLore", { count: contextStats.lore_matched })}`
-                    : "")
-                }
-              >
-                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-ink-700">
-                  <div
-                    className="h-full rounded-full bg-ember-500 transition-all"
-                    style={{ width: `${Math.min(100, Math.round((contextStats.used_tokens / contextStats.budget) * 100))}%` }}
-                  />
-                </div>
-                <span className="font-mono text-[0.68rem] text-mist-dim">
-                  {t("chat.context.percent", { pct: Math.round((contextStats.used_tokens / contextStats.budget) * 100) })}
-                  {perf?.tokens_per_s ? ` · ${t("chat.context.perSecond", { tps: perf.tokens_per_s })}` : ""}
-                </span>
-              </div>
-            )}
             <button
               ref={displayButton}
               onClick={() => openDisplay(false, () => displayButton.current)}
@@ -732,8 +914,11 @@ function ChatView({ id }: { id: string }) {
         </header>
 
         {/* The picture takes the story's box exactly, under the part that scrolls: it stays put while
-            the text moves, and follows the column as the keyboard opens or the panel takes a share. */}
-        <div className="relative min-h-0 flex-1">
+            the text moves, and follows the column as the keyboard opens or the panel takes a share.
+            It starts from a line of its text over its bottom padding: the line over the input, which
+            gives way a thousand times faster, leaves it that much until its sentence is down to a
+            line of its own; then the story yields. */}
+        <div className="relative min-h-0 flex-[1_1_calc(1.8rem*var(--chat-scale,1)+1.5rem)]">
           <Backdrop shown={shown} />
           <div
             ref={storyRef}
@@ -768,8 +953,13 @@ function ChatView({ id }: { id: string }) {
                     if (!now.some((m) => m.id === message.id)) cut();
                   })}
                   onBranch={() => write(() => branchFrom(message))}
-                  onLetEvermind={message.id === last?.id && answeringAi?.reply_cap.mode === "fixed"
+                  // Only the ceiling that cut this version: of the AI that wrote it, as it was then.
+                  onLetEvermind={message.id === last?.id && answeringAi && cutAtCeilingOf(message, answeringAi)
                     ? () => letEvermind(answeringAi)
+                    : undefined}
+                  // Not once this conversation already asks for long replies.
+                  onLongHere={message.id === last?.id && conversation.play_overrides?.reply_length !== "long"
+                    ? longHere
                     : undefined}
                 />
               ))}
@@ -787,8 +977,8 @@ function ChatView({ id }: { id: string }) {
                 <div className="chat-banner mx-1 my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-blood/40 px-4 py-3">
                   <p role="alert" className="min-w-0 flex-[1_1_12rem] text-sm text-blood">{problem}</p>
                   {!busy && !lost && !refusal && (
-                    <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
-                      {t("chat.errors.retryButton")}
+                    <button className="btn btn-ghost max-w-full shrink-0 whitespace-normal !py-1.5 text-xs" onClick={retry}>
+                      {t(tooLong ? "chat.truncated.button" : "chat.errors.retryButton")}
                     </button>
                   )}
                 </div>
@@ -809,6 +999,7 @@ function ChatView({ id }: { id: string }) {
             {describeError(writeError.error, t)}
           </p>
         )}
+        {truncatedLine}
         <ChatInput
           conversationId={conversation.id}
           onSend={sendMessage}
@@ -819,18 +1010,20 @@ function ChatView({ id }: { id: string }) {
           say={toast}
           above={<>{toastNode}{lostLine}</>}
           status={
-            data.connections ? (
-              // On a touch screen the chip takes the place of the keyboard's sentence.
-              <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null}>
-                {chipShown
-                  ? <AiChip ai={answeringAi} onOpen={() => (answeringAi ? openAiSheet() : setAddingAi(true))} />
-                  : aisUnread && <AiUnread onRetry={readAis} />}
-              </ChatStatusRow>
-            ) : (
-              <ChatStatusRow keyboardHint={t(hasKeyboard() ? "chat.input.hintDefault" : "chat.input.hintTouch")}>
-                {null}
-              </ChatStatusRow>
-            )
+            // On a touch screen the chips take the place of the keyboard's sentence. It steps aside while
+            // the line over the input is said, where there is no room for both and a line of the story.
+            <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null} hintAside={Boolean(truncatedLine) && hintAside}>
+              {data.connections && (chipShown
+                ? <AiChip ai={answeringAi} onOpen={() => (answeringAi ? openAiSheet() : setAddingAi(true))} />
+                : aisUnread && <AiUnread onRetry={readAis} />)}
+              <WayChip
+                current={glance}
+                playStyle={conversation.play_style}
+                playOverrides={conversation.play_overrides}
+                capacityTold={!answeringAi || sizeTold(answeringAi)}
+                onOpen={openWaySheet}
+              />
+            </ChatStatusRow>
           }
         />
       </div>
@@ -884,19 +1077,37 @@ function ChatView({ id }: { id: string }) {
         <AiSheet
           conversation={conversation}
           ais={ais}
-          room={room}
+          outlook={whole}
+          // Read again after a turn, the figures it holds stay drawn meanwhile.
+          waiting={wholeReading && whole === null}
           onPick={switched}
           onGone={aiGone}
           onAddOther={() => {
-            setAiSheet(false);
+            closeAiSheet();
             setAddingAi(true);
           }}
-          onClose={() => setAiSheet(false)}
+          onClose={closeAiSheet}
           onCapLifted={(saved) => {
             tookAi(saved);
             // Closed, so that the line saying it is read: on a phone the sheet covers it.
-            setAiSheet(false);
+            closeAiSheet();
             toast(t("ai.notice.capLifted", { name: saved.name }));
+          }}
+        />
+      )}
+      {waySheet && (
+        <WaySheet
+          conversation={conversation}
+          // Until the whole outlook comes, the reading the chip holds, the rows on their way; with
+          // neither, the sheet opens all the same, as the touch asked.
+          outlook={whole ?? (glance && { current: glance, models: [], ways: [] })}
+          ais={data.connections ? ais : null}
+          onPicked={playing}
+          onClose={closeWaySheet}
+          onLetEvermind={(ai) => {
+            // Closed, so that the line saying it is read: on a phone the sheet covers it.
+            closeWaySheet();
+            void letEvermind(ai);
           }}
         />
       )}

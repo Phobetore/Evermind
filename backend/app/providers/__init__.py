@@ -1,8 +1,16 @@
 from .anthropic import AnthropicProvider
-from .base import Answer, Provider, ProviderError, ProviderEvent, complete, complete_answer
+from .base import (
+    Answer,
+    CallFigures,
+    Provider,
+    ProviderError,
+    ProviderEvent,
+    complete,
+    complete_answer,
+)
 from .openai_compat import OpenAICompatProvider
 
-__all__ = ["Answer", "Provider", "ProviderError", "ProviderEvent", "complete", "complete_answer",
+__all__ = ["Answer", "CallFigures", "Provider", "ProviderError", "ProviderEvent", "complete", "complete_answer",
            "get_provider", "max_tokens_sent"]
 
 

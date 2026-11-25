@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 
 from ..db import get_db
 from ..errors import MODEL_UNREADABLE, AppError, NotFoundError
-from ..models.schemas import ModelsCreate, ModelUpdate, RefreshIn
+from ..models.schemas import ModelsCreate, ModelUpdate, ObservedIn, RefreshIn
 from ..prompting.engine import PromptPayload
 from ..prompting.tokens import estimate_tokens
 from ..providers import catalog, get_provider
@@ -165,11 +165,24 @@ async def refresh_model(model_id: str, payload: RefreshIn | None = None,
         # Whatever else breaks a read, the page says so; what was read stays.
         error = {"kind": MODEL_UNREADABLE, "message": type(exc).__name__}
     else:
-        await repo.store_read(db, model_id, model["model"], service, listed, family)
+        # Asked for by the person, it may undo what a reply showed the server reads.
+        await repo.store_read(db, model_id, model["model"], service, listed, family,
+                              by_hand=bool(payload and payload.fresh))
     current = await repo.get(db, model_id)
     if current is None:
         raise _not_found()
     return {"model": current, "read_ok": error is None, "error": error}
+
+
+@router.post("/{model_id}/observed")
+async def observed_model(model_id: str, payload: ObservedIn,
+                         db: aiosqlite.Connection = Depends(get_db)):
+    """A reply seen read only from its end, at this size: counted from now on (the page then
+    writes the reply again, shorter)."""
+    ai = await repo.observe(db, model_id, payload.tokens)
+    if ai is None:
+        raise _not_found()
+    return ai
 
 
 @router.post("/{model_id}/benchmark")

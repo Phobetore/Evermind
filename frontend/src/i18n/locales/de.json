@@ -97,17 +97,6 @@
   "settings": {
     "subtitle": "Ihre Modelle, Ihre Regeln: Evermind verbindet sich mit der KI Ihrer Wahl.",
     "defaultConnectionLabel": "Standard-KI",
-    "replyLengthLabel": "Antwortlänge",
-    "replyLengthHint": "Gilt für alle Unterhaltungen. Evermind hält den nötigen Platz für KIs frei, die es selbst einstellt; eine KI mit fester Obergrenze kann lange Antworten abschneiden: siehe Meine KIs.",
-    "replyLengthOptions": {
-      "short": "Kurz: ein dichter Absatz",
-      "medium": "Mittel: 1 bis 3 Absätze",
-      "long": "Lang: 3 bis 5 ausführliche Absätze"
-    },
-    "historyLimitLabel": "Aktuelle Nachrichten an das Modell",
-    "historyLimitHint": "Darüber hinaus leben ältere Züge nur noch in der Zusammenfassung und den etablierten Fakten weiter. Kleines Fenster (16–30): Das Modell bleibt auf die Anweisungen konzentriert, statt seine eigenen Antworten nachzuahmen. Großes Fenster: mehr ungefilterter Verlauf, aber kleine Modelle fangen an zu schwafeln.",
-    "passageBudgetLabel": "Passagen-Erinnerung (Tokens)",
-    "passageBudgetHint": "Holt wörtliche Auszüge aus älteren Nachrichten hervor, die inhaltlich zur aktuellen Szene passen (erfordert das Extra „semantic“). ~1500 ≈ 10 % eines 16k-Kontexts. 0 zum Deaktivieren. Jedes Token für Erinnerungen fehlt dem aktuellen Verlauf.",
     "autoMemoryTitle": "Automatisches Gedächtnis",
     "autoMemoryHint": {
       "before": "Das Modell extrahiert automatisch",
@@ -164,14 +153,6 @@
       "aboutAriaLabel": "Über {name}",
       "openButton": "Karte öffnen"
     },
-    "context": {
-      "tooltipUsage": "Kontext: {used} / {budget} Tokens (Fenster {size})",
-      "tooltipMessages": "{included}/{total} Nachrichten im Kontext",
-      "tooltipOlderInMemory": "(ältere sind durch das Gedächtnis abgedeckt)",
-      "tooltipLore": "{count} aktive Lorebook-Einträge",
-      "percent": "{pct}\u00a0%",
-      "perSecond": "{tps} T/s"
-    },
     "stream": {
       "assistantTyping": "{name} schreibt…",
       "replied": "{name} hat geantwortet."
@@ -205,7 +186,6 @@
       "stopTitle": "Generierung stoppen",
       "sendTitle": "Senden",
       "hintDefault": "Enter zum Senden · Umschalt+Enter für eine neue Zeile · Feder: Die KI entwirft Ihre Antwort",
-      "hintTouch": "Zum Abschicken auf Senden tippen. Die Feder entwirft Ihre Antwort.",
       "draftRestored": "Entwurf wiederhergestellt",
       "more": "Sprechen, erzählen, außerhalb der Rolle oder für mich schreiben",
       "penLabel": "Für mich schreiben"
@@ -248,8 +228,23 @@
       "nextVariantAriaLabel": "Nächste Variante oder neu generieren",
       "confirmDeleteFrom": "Diese Nachricht und alle folgenden löschen?",
       "confirmBranch": "Die Geschichte ab hier verzweigen?",
-      "branchAction": "Abzweigen"
+      "branchAction": "Abzweigen",
+      "cutRoom": {
+        "short": "Antwort abgeschnitten: Die KI hat den Platz gefüllt, der für eine kurze Antwort freigehalten wird.",
+        "medium": "Antwort abgeschnitten: Die KI hat den Platz gefüllt, der für eine mittlere Antwort freigehalten wird.",
+        "long": "Antwort abgeschnitten: Die KI hat den Platz gefüllt, der für eine lange Antwort freigehalten wird."
+      },
+      "cutThought": "Die KI hat lange nachgedacht und hatte keinen Platz mehr zum Schreiben.",
+      "extend": "Fortsetzen",
+      "retry": "Erneut versuchen",
+      "longHere": "Hier lange Antworten",
+      "longHereDone": "Lange Antworten in dieser Unterhaltung."
     },
+    "truncated": {
+      "text": "{name} hat nur das Ende der Geschichte gelesen. Die KI liest weniger als erwartet: ≈ {read:grouped} Tokens, nicht {window:grouped}.",
+      "button": "Verkleinern und erneut versuchen"
+    },
+    "tooLong": "{name} sagt, dass das zu lang für sie ist.",
     "panel": {
       "closeAriaLabel": "Panel schließen",
       "kindScenario": "Szenario",
@@ -660,6 +655,7 @@
       "connection": "Diesen Dienst gibt es nicht mehr.",
       "fact": "Diesen Fakt gibt es nicht mehr.",
       "model": "Diese KI gibt es nicht mehr.",
+      "way": "Diese Spielweise gibt es nicht mehr.",
       "other": "Dieses Element gibt es nicht mehr."
     },
     "pngWithoutCard": "Dieses PNG-Bild enthält keine Charakterkarte.",
@@ -683,6 +679,7 @@
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuchen Sie es noch einmal.",
     "modelOnlyThought": "Die KI hat ihre ganze Antwort mit Nachdenken verbraucht und nichts geschrieben. Versuchen Sie es noch einmal: Evermind weiß jetzt, dass sie nachdenkt, und lässt ihr Platz, außer ihre Obergrenze für Antworten ist von Hand festgelegt (Meine KIs, unter Erweitert). Wenn es wieder passiert, nehmen Sie eine KI, die nicht so lange nachdenkt.",
     "modelWithheld": "Der Server des Modells hat die Antwort zurückgehalten („{reason}“). Versuchen Sie es noch einmal oder wechseln Sie das Modell oder den Anbieter.",
+    "modelTooLong": "Die KI sagt, dass das zu lang für sie ist. Versuchen Sie es erneut: Evermind sendet dann weniger.",
     "modelAuthRefused": "Der Dienst hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Meine KIs. Er meldet: {message}",
     "modelNotFound": "Der Dienst kennt diese Adresse oder dieses Modell nicht. Prüfen Sie beides unter Meine KIs. Er meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuchen Sie es gleich noch einmal. Der Server meldet: {message}",
@@ -844,7 +841,7 @@
       "sizeSome": "Mittel · ≈ {count:grouped} Seiten",
       "sizeMany": "Viel · ≈ {count:grouped} Seiten",
       "sizeUnknown": "Ich weiß es nicht",
-      "sizeUnknownHint": "Evermind rechnet dann mit {tokens:grouped} Tokens (≈ {count:grouped} Seiten), wie bisher.",
+      "sizeUnknownHint": "Evermind rechnet dann mit {tokens:grouped} Tokens (≈ {count:grouped} Seiten), wie bisher, und sagt Ihnen Bescheid, wenn die KI tatsächlich nur einen Teil davon liest.",
       "sizeNoted": "Notiert. Jederzeit auf der Seite der KI änderbar.",
       "priceTitle": "Sein Preis, falls Sie ihn kennen ($ pro Million Tokens)",
       "priceIn": "Gelesen",
@@ -958,7 +955,8 @@
       "removeOrphans": "{count} Unterhaltungen haben keine KI, bis Sie eine hinzufügen.",
       "removeOrphans_one": "1 Unterhaltung hat keine KI, bis Sie eine hinzufügen.",
       "removeKey": "Es ist die letzte KI von {service}: Sein Schlüssel wird ebenfalls vergessen.",
-      "gone": "Diese KI gibt es nicht mehr."
+      "gone": "Diese KI gibt es nicht mehr.",
+      "noUsage": "Dieser Server sagt nicht, was er zählt: Evermind hält einen größeren Spielraum frei."
     },
     "service": {
       "title": "{name} bearbeiten",
@@ -971,6 +969,148 @@
       "forAll": "Was Sie hier ändern, gilt für die {count} KIs dieses Dienstes.",
       "forAll_one": "Was Sie hier ändern, gilt für die einzige KI dieses Dienstes.",
       "save": "Speichern"
+    }
+  },
+  "money": {
+    "estimate": "≈ {amount} pro 100 Nachrichten",
+    "atLeast": "mindestens {amount} pro 100 Nachrichten (≈ {fuller} mit Nachdenken)",
+    "underACent": "weniger als {amount} pro 100 Nachrichten"
+  },
+  "ways": {
+    "names": {
+      "light": "Leicht",
+      "balanced": "Ausgewogen",
+      "immersive": "Immersiv",
+      "maximum": "Maximum",
+      "mine": "Meine Einstellungen"
+    },
+    "title": "Spielweisen",
+    "summary": {
+      "light": "Kurze Antworten, liest die letzten 16 Nachrichten erneut, Erinnerungen aufs Wesentliche beschränkt. Schnell und sparsam: für eine kleine KI oder ein knappes Budget.",
+      "balanced": "Antworten von 1 bis 3 Absätzen, liest die letzten 24 Nachrichten erneut. Die ursprüngliche Einstellung von Evermind, Zahl für Zahl.",
+      "immersive": "Lange Antworten, liest die letzten 60 Nachrichten erneut, mehr Erinnerungen. Für KIs, die viel auf einmal lesen.",
+      "maximum": "Liest die ganze Geschichte erneut, so viel die KI auf einmal lesen kann. Lange Antworten, reichhaltige Erinnerungen. Am treuesten und bei einer kostenpflichtigen KI am teuersten.",
+      "custom": "Ihre eigenen Werte."
+    },
+    "defaultTag": "Standard",
+    "count": "{count} Unterhaltungen",
+    "count_one": "1 Unterhaltung",
+    "usage": "{count} Unterhaltungen nutzen diese Spielweise. Was Sie hier ändern, ändert sich für alle.",
+    "usage_one": "1 Unterhaltung nutzt diese Spielweise. Was Sie hier ändern, ändert sich für sie.",
+    "usageNone": "Noch keine Unterhaltung nutzt diese Spielweise.",
+    "history": {
+      "label": "Vor jeder Antwort erneut gelesene Nachrichten",
+      "hint": "Die KI liest so viele der letzten Nachrichten Wort für Wort; Älteres erreicht sie über die Zusammenfassung und die gemerkten Fakten.",
+      "all": "Alle"
+    },
+    "length": {
+      "label": "Angestrebte Länge der Antworten",
+      "hint": "Wie lang die KI schreiben soll; Evermind hält den nötigen Platz frei, mehr ist nicht einzustellen.",
+      "short": "Kurz",
+      "medium": "Mittel",
+      "long": "Lang"
+    },
+    "reminders": {
+      "label": "Erinnerungen an Welt und Geschehenes",
+      "hint": "Was Evermind der KI zusätzlich mitgibt: die gemerkten Fakten, die Seiten der Welt und alte Passagen der Geschichte.",
+      "essential": "Das Wesentliche",
+      "normal": "Normal",
+      "rich": "Reichhaltig",
+      "all": "Ohne Obergrenze",
+      "custom": "Individuell"
+    },
+    "bar": {
+      "card": "Karte",
+      "reminders": "Erinnerungen",
+      "history": "erneut gelesene Nachrichten",
+      "room": "Platz für die Antwort"
+    },
+    "advanced": "Erweitert: die genauen Werte",
+    "exact": {
+      "history": "Erneut gelesene Nachrichten (0: alle)",
+      "room": "Platz für die Antwort (Tokens)",
+      "roomHint": "Leer: kein eigener. Evermind sendet dann keine Obergrenze.",
+      "factsCap": "Gemerkte Fakten: höchstens (Tokens)",
+      "maxFacts": "Gemerkte Fakten: höchstens wie viele",
+      "loreCap": "Seiten der Welt: höchstens (Tokens)",
+      "share": "oder Anteil dessen, was sie liest (%)",
+      "passages": "Zurückgeholte alte Passagen",
+      "passagesHint": "Erinnert die Szene an einen früheren Moment, legt Evermind der KI diese Passage wortgetreu wieder vor.",
+      "noLimit": "Leer: keine Grenze."
+    },
+    "unavailable": "In dieser Installation nicht verfügbar: Das Modul für die Suche nach Bedeutung ist nicht installiert.",
+    "reset": "Ursprüngliche Werte",
+    "copy": "Kopie erstellen",
+    "copyName": "{name} (Kopie)",
+    "nameLabel": "Name",
+    "makeDefault": "{name} für neue Unterhaltungen vorschlagen",
+    "isDefault": "Wird neuen Unterhaltungen vorgeschlagen.",
+    "remove": "Diese Spielweise löschen",
+    "removeConfirm": "{count} Unterhaltungen wechseln zu {name}.",
+    "removeConfirm_one": "1 Unterhaltung wechselt zu {name}.",
+    "removeConfirmNone": "Keine Unterhaltung nutzt sie.",
+    "saved": "Gespeichert.",
+    "card": {
+      "lighter": "Mit {name} würde die KI {count} erneut lesen.",
+      "title": "Was die KI liest",
+      "with": "Mit",
+      "sent": "≈ {pages:grouped} Seiten mit jeder Nachricht gesendet",
+      "reads": "{name} kann ≈ {pages:grouped} Seiten auf einmal lesen",
+      "full": "Ihr Leseumfang ist voll: Die KI liest {read} der {asked} verlangten Nachrichten erneut. Das ist die Grenze des Modells, nicht die von Evermind.",
+      "full_one": "Ihr Leseumfang ist voll: Die KI liest {count} der {asked} verlangten Nachrichten erneut. Das ist die Grenze des Modells, nicht die von Evermind.",
+      "fullAll": "Ihr Leseumfang ist voll: Die KI liest {read} Nachrichten erneut, alles, was hineinpasst. Das ist die Grenze des Modells, nicht die von Evermind.",
+      "fullAll_one": "Ihr Leseumfang ist voll: Die KI liest {count} Nachricht erneut, alles, was hineinpasst. Das ist die Grenze des Modells, nicht die von Evermind.",
+      "reference": "Bei einer langen Geschichte.",
+      "noAi": "Fügen Sie eine KI hinzu, um zu sehen, was sie lesen würde.",
+      "untold": "{name} sagt nicht, wie viel sie auf einmal liest: Was sie erneut lesen würde, lässt sich nicht zeigen.",
+      "askedOnly": "Liest bis zu {count} Nachrichten erneut.",
+      "askedOnly_one": "Liest bis zu {count} Nachricht erneut.",
+      "askedAll": "Liest die ganze Geschichte erneut."
+    },
+    "chip": {
+      "aria": "Spielweise: {label}. Ändern.",
+      "adjusted": "{name} · angepasst",
+      "full": "{label} · liest {read} von {asked} erneut",
+      "fullAria": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {read} von {asked} Nachrichten erneut. Ändern.",
+      "untoldAria": "Spielweise: {label}. Die KI liest {read} von {asked} Nachrichten erneut. Ändern.",
+      "untoldAria_one": "Spielweise: {label}. Die KI liest {count} von {asked} Nachrichten erneut. Ändern.",
+      "fullAria_one": "Spielweise: {label}. Ihr Leseumfang ist voll: Die KI liest {count} von {asked} Nachrichten erneut. Ändern."
+    },
+    "sheet": {
+      "title": "Spielweise",
+      "hint": "Nur für diese Unterhaltung.",
+      "row": "{messages} · {pages}",
+      "rowNoSize": "Liest {read} der {total} Nachrichten erneut",
+      "rowNone": "Noch keine Nachricht zu lesen",
+      "rowOnly": "Liest die einzige Nachricht erneut",
+      "adjust": "Für diese Unterhaltung anpassen",
+      "backTo": "Zurück zu {name} ohne Anpassungen",
+      "editAll": "{name} für alle Unterhaltungen ändern…"
+    },
+    "reading": {
+      "line": "Was {name} liest: {pages} · {messages}",
+      "lineVowel": "Was {name} liest: {pages} · {messages}",
+      "lineNoSize": "Liest {read} Nachrichten erneut, alle verlangten",
+      "lineNoSizeNone": "Noch keine Nachricht zu lesen",
+      "lineNoSizeOne": "Liest 1 Nachricht erneut, mehr ist nicht verlangt",
+      "lineNoSizeFull": "Liest {read} der {asked} verlangten erneut",
+      "full": "Ihr Leseumfang ist voll ({capacity}): {sent}, der Rest bleibt für ihre Antwort frei.",
+      "over": "Was gesendet wird ({sent}), ist mehr, als diese KI auf einmal liest ({capacity}): Karte und Erinnerungen passen nicht hinein. Wählen Sie eine leichtere Spielweise oder eine KI, die mehr liest.",
+      "why": "Warum",
+      "limit": "Das ist die Grenze des Modells, nicht die von Evermind; der Rest erreicht die KI über die Zusammenfassung und die Fakten.",
+      "legend": "In Tokens: Karte {card:grouped} · Erinnerungen {reminders:grouped} · erneut gelesene Nachrichten {history:grouped} · Platz für die Antwort {room:grouped} · Leseumfang {capacity:grouped}",
+      "pages": "≈ {count:grouped} Seiten",
+      "pages_one": "≈ {count:grouped} Seite",
+      "pagesSent": "≈ {count:grouped} Seiten gesendet",
+      "pagesSent_one": "≈ {count:grouped} Seite gesendet",
+      "rereadNone": "noch keine Nachricht zu lesen",
+      "rereadOne": "liest 1 Nachricht erneut, mehr ist nicht verlangt",
+      "rereadAll": "liest {read} Nachrichten erneut, alle verlangten",
+      "rereadSome": "liest {read} der {asked} verlangten erneut"
+    },
+    "longRoom": {
+      "text": "{name} erhält keine Obergrenze, und Evermind hält ihr nur {tokens:grouped} Tokens frei: Eine lange Antwort passt vielleicht nicht in das, was die KI liest.",
+      "button": "Platz für lange Antworten freihalten"
     }
   }
 }

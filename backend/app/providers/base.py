@@ -2,9 +2,9 @@
 
 import json
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import aclosing
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, fields, replace
 from typing import Literal
 
 import httpx
@@ -51,6 +51,53 @@ class ProviderEvent:
     count: int = 0
 
 
+@dataclass
+class CallFigures:
+    """What a model's server said of one request, as it arrived: its own counts and names, kept
+    whatever became of the reply, so that a stop or an error leaves what came readable."""
+
+    usage: dict = field(default_factory=dict)  # merged field by field (see take_usage)
+    generation_id: str | None = None   # the chunk `id` (OpenRouter `gen-…`), Anthropic's `message.id`
+    model_served: str | None = None    # the chunk's `model`
+    upstream: str | None = None        # OpenRouter's `provider`
+    stop: str | None = None            # the stop reason as the server gave it, before any mapping
+    chars_out: int = 0                 # visible characters received
+    thought_chars: int = 0             # reasoning characters received
+    sent: bool = False                 # the status line came back: the request reached the server
+    opened: bool = False               # any stream event seen
+    usage_final: bool = False          # a final count arrived
+    on_id: Callable[["CallFigures"], None] | None = None  # set by whoever records the call; called
+                                       # once when generation_id is first known; ignored if None
+
+    def reset(self) -> None:
+        """Back to nothing known, for a new request. The same object, so that whoever holds it,
+        or set on_id, hears of the request that answers."""
+        for each in fields(self):
+            if each.name != "on_id":
+                setattr(self, each.name, each.default_factory() if each.name == "usage"
+                        else each.default)
+
+    def take_usage(self, usage: object, final: bool) -> None:
+        """A server's counts, field by field: the last value given wins, a None never erases one,
+        and nothing is added up (Anthropic's last count already holds the first)."""
+        if not isinstance(usage, dict) or not usage:
+            return
+        self.usage.update({key: value for key, value in usage.items() if value is not None})
+        self.usage_final = self.usage_final or final
+
+    def take_names(self, generation_id: object = None, model: object = None,
+                   upstream: object = None) -> None:
+        """The names the server gave its answer: the first given of each is kept."""
+        if self.model_served is None and isinstance(model, str) and model:
+            self.model_served = model
+        if self.upstream is None and isinstance(upstream, str) and upstream:
+            self.upstream = upstream
+        if self.generation_id is None and isinstance(generation_id, str) and generation_id:
+            self.generation_id = generation_id
+            if self.on_id is not None:
+                self.on_id(self)
+
+
 _SURROGATE = re.compile("[\ud800-\udfff]")
 
 
@@ -85,11 +132,16 @@ def well_formed(text: str) -> str:
 
 class ProviderError(AppError):
     """A model's server that failed: ``message`` is what it said, or the address it could not be
-    reached at, and ``status`` the error status it answered with, if it did."""
+    reached at, and ``status`` the error status it answered with, if it did. ``said`` keeps what
+    its error's body gave beside the words, for whoever reads why it refused: its ``code`` and
+    ``type`` when they are text, and ``n_prompt_tokens`` and ``n_ctx`` (llama.cpp's) when they
+    are whole numbers."""
 
-    def __init__(self, message: str, kind: str = MODEL_ERROR, status: int | None = None):
+    def __init__(self, message: str, kind: str = MODEL_ERROR, status: int | None = None,
+                 said: dict | None = None):
         super().__init__(message, 502, kind=kind)
         self.status = status
+        self.said = said or {}
 
 
 def words_of(said: object, api_key: str | None) -> str:
@@ -150,15 +202,31 @@ def scrub(message: str, api_key: str | None) -> str:
     return message.replace(api_key, f"…{api_key[-4:]}")
 
 
+_SAID_TEXT = ("code", "type")
+_SAID_WHOLE = ("n_prompt_tokens", "n_ctx")
+
+
+def _said(body: object) -> dict:
+    """What an error's body says beside its words (see ProviderError.said)."""
+    error = body.get("error", body) if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return {}
+    said = {k: error[k] for k in _SAID_TEXT if isinstance(error.get(k), str)}
+    said.update({k: error[k] for k in _SAID_WHOLE
+                 if isinstance(error.get(k), int) and not isinstance(error.get(k), bool)})
+    return said
+
+
 def _refusal(status: int, body: bytes, api_key: str | None = None) -> ProviderError:
     try:
-        words = words_of(json.loads(body), api_key)
+        parsed = json.loads(body)
+        words = words_of(parsed, api_key)
     except (ValueError, RecursionError):
         # Not JSON, or nested deeper than the parser follows: the status alone.
-        words = ""
+        parsed, words = None, ""
     kind = {401: AUTH_REFUSED, 402: MODEL_NO_CREDIT, 404: MODEL_NOT_FOUND,
             429: RATE_LIMITED}.get(status, MODEL_ERROR)
-    return ProviderError(words or f"HTTP {status}", kind, status)
+    return ProviderError(words or f"HTTP {status}", kind, status, said=_said(parsed))
 
 
 def lost(exc: Exception, base_url: str) -> ProviderError:
@@ -180,6 +248,8 @@ class Provider:
         self.api_key = connection.get("api_key") or ""
         self.model = connection.get("model") or ""
         self._client_factory = lambda: httpx.AsyncClient(timeout=DEFAULT_TIMEOUT)
+        # What the server said of the last request, as it came: started afresh by each one.
+        self.figures = CallFigures()
 
     def _headers(self) -> dict:
         raise NotImplementedError
@@ -201,9 +271,11 @@ class Provider:
             async for event in events:
                 if event.type == "delta":
                     if text := reply.take(event.text):
+                        self.figures.chars_out += len(text)
                         yield replace(event, text=text)
                 elif event.type == "thought":
                     if text := reasoning.take(event.text):
+                        self.figures.thought_chars += len(text)
                         yield ProviderEvent(type="thought", count=len(text))
                 else:
                     yield event
@@ -223,10 +295,15 @@ class Provider:
 
     async def _sse(self, path: str, body: dict) -> AsyncIterator[dict]:
         """The objects of the server's event stream, until it says [DONE] or ends."""
+        # The figures describe the request that answers: a second try starts them again. Nothing
+        # clears them after a stop or an error, which leave what came readable.
+        self.figures.reset()
         try:
             async with self._client_factory() as client, client.stream(
                 "POST", self.base_url + path, headers=self._headers(), json=body,
             ) as response:
+                # Its status line came back: the server has the request, whatever it answers.
+                self.figures.sent = True
                 if response.status_code >= 400:
                     raise _refusal(response.status_code, await response.aread(), self.api_key)
                 async for line in response.aiter_lines():
@@ -238,6 +315,7 @@ class Provider:
                     except ValueError:
                         continue
                     if isinstance(event, dict):
+                        self.figures.opened = True
                         yield event
         except (httpx.HTTPError, httpx.InvalidURL) as exc:
             raise self._lost(exc)
@@ -253,6 +331,7 @@ class Answer:
     text: str
     thought: int  # characters of reasoning that came with it, only counted
     stop: str | None  # what ``ProviderEvent.stop`` says on the "done" event
+    figures: CallFigures = field(default_factory=CallFigures)  # the provider's, at the end
 
 
 # How a model stops when it simply has nothing more to say, whatever its server calls it.
@@ -289,7 +368,9 @@ async def complete_answer(provider: Provider, payload: PromptPayload) -> Answer:
                 thought += event.count
             elif event.type == "done":
                 stop = event.stop
-    return Answer("".join(parts), thought, stop)
+    # A stand-in that only streams has no figures to give: the answer then has none.
+    figures = getattr(provider, "figures", None) or CallFigures()
+    return Answer("".join(parts), thought, stop, figures=figures)
 
 
 async def complete(provider: Provider, payload: PromptPayload) -> str:

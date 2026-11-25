@@ -5,6 +5,7 @@ import aiosqlite
 
 from ..db import write_transaction
 from ..errors import NotFoundError
+from ..prompting import ways
 from ..providers.catalog import (
     LOCAL_FAMILIES,
     Listed,
@@ -16,6 +17,7 @@ from ..providers.catalog import (
 )
 from ..services import ai_call
 from . import connections as services_repo
+from . import settings as settings_repo
 from .base import new_id, now_iso
 
 # The one that answers when none is named: the marked default, else the oldest.
@@ -29,6 +31,8 @@ ROLEPLAY = {"temperature": 0.8, "top_p": 0.95, "frequency_penalty": 0.15,
 SAMPLING = tuple(ROLEPLAY)
 _READ = ("context_read", "context_read_kind", "output_read", "reasons", "price_in", "price_out",
          "price_cache_read", "price_cache_write", "price_varies", "limits_read_at")
+# What the replies of a model taught: another model counts, writes and thinks its own way.
+_MEASURED = ("token_ratio", "fit_margin", "usage_seen", "reply_tokens_avg")
 
 
 def _family(service: dict) -> str:
@@ -53,11 +57,22 @@ def is_free(model: dict, service: dict) -> bool:
             and _price(model, "price_out", "price_own_out") == 0)
 
 
-def to_out(model_row, service_row, conversation_count: int = 0) -> dict:
-    """Public shape: the key never leaves, only its end."""
+def _measured(average) -> int | None:
+    """A length its replies measured, rounded; None until one has."""
+    if (isinstance(average, dict) and isinstance(average.get("n"), int) and average["n"] >= 1
+            and isinstance(average.get("avg"), int | float)):
+        return round(average["avg"])
+    return None
+
+
+def to_out(model_row, service_row, conversation_count: int = 0,
+           room: int | None = None) -> dict:
+    """Public shape: the key never leaves, only its end. ``room`` is the reply room of the way
+    offered to new conversations, which its notices weigh."""
     model, service = dict(model_row), dict(service_row)
     family = _family(service)
     counted = ai_call.window(model, family=family)
+    averages = ai_call.reply_averages(model)
     return {
         "id": model["id"],
         "service": {
@@ -82,7 +97,15 @@ def to_out(model_row, service_row, conversation_count: int = 0) -> dict:
         "reply_cap": {"mode": model["reply_cap_mode"], "tokens": model["reply_cap_tokens"]},
         **{key: model[key] for key in SAMPLING},
         "migrated": bool(model["migrated"]),
-        "notices": ai_call.notices(model),
+        "notices": ai_call.notices(model, room),
+        # What the page counts with as the server does, never worked out again there.
+        "margin": ai_call.margin_for(model, counted.tokens),
+        "token_ratio": model["token_ratio"] if model["token_ratio_n"] else None,
+        "reply_tokens": {length: _measured(averages.get(length)) for length in ways.REPLY_ROOM},
+        "thinking_allowance": ai_call.thinking_allowance(model),
+        "thinking_measured": _measured(averages.get("thinking")) is not None,
+        "usage_seen": None if model["usage_seen"] is None else bool(model["usage_seen"]),
+        "anthropic": service["provider"] == "anthropic",
         "conversation_count": conversation_count,
         "created_at": model["created_at"], "updated_at": model["updated_at"],
     }
@@ -101,10 +124,19 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
     """In the order `resolve` picks them; with none marked, the first is the default."""
     rows = await (await db.execute(f"{_JOINED} ORDER BY {_DEFAULT_FIRST}")).fetchall()
     services = await _services(db)
-    out = [to_out(r, services[r["connection_id"]], r["conversation_count"]) for r in rows]
+    room = ways.way_for(None, await settings_repo.get_all(db))["reply_room"]
+    out = [to_out(r, services[r["connection_id"]], r["conversation_count"], room) for r in rows]
     if out:
         out[0]["is_default"] = True
     return out
+
+
+async def every_row(db: aiosqlite.Connection) -> list[tuple[dict, dict]]:
+    """Every AI with its service, key included, in the order `list_all` gives them."""
+    rows = await (await db.execute(
+        f"SELECT m.* FROM models m ORDER BY {_DEFAULT_FIRST}")).fetchall()
+    services = await _services(db)
+    return [(dict(r), services[r["connection_id"]]) for r in rows]
 
 
 async def get_row(db: aiosqlite.Connection, model_id: str) -> dict | None:
@@ -260,7 +292,7 @@ async def _insert(db: aiosqlite.Connection, service_id: str, service: dict, fami
 
 async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict | None:
     """``fields`` as ModelUpdate gave them, only those sent. A model id changed forgets in the
-    same write all that was read of the one before; what was typed stays."""
+    same write all that was read and measured of the one before; what was typed stays."""
     sets: dict = {}
     for key in ("name", "model", "context_own", *SAMPLING, "price_own_in", "price_own_out"):
         if key in fields:
@@ -276,8 +308,8 @@ async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict 
         if current is None:
             return None
         if "model" in sets and sets["model"] is not None and sets["model"] != current["model"]:
-            sets.update({key: None for key in _READ})
-            sets["price_varies"] = 0
+            sets.update({key: None for key in (*_READ, *_MEASURED)})
+            sets.update(price_varies=0, token_ratio_n=0)
         elif sets.get("model") is None:
             sets.pop("model", None)
         if sets.get("name") is None:
@@ -329,13 +361,49 @@ async def delete(db: aiosqlite.Connection, model_id: str) -> bool:
     return True
 
 
+async def measure(db: aiosqlite.Connection, model_id: str, model: str, change) -> bool:
+    """What a reply taught of the AI, while it still names ``model``: ``change`` is given the row
+    as it is now, in the same write, so that two replies ending together both count. False when
+    the AI is gone or names another model, with nothing written."""
+    async with write_transaction(db):
+        current = await get_row(db, model_id)
+        if current is None or current["model"] != model:
+            return False
+        sets = change(current)
+        if sets:
+            await db.execute(
+                f"UPDATE models SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
+                (*sets.values(), model_id))
+    return True
+
+
+async def observe(db: aiosqlite.Connection, model_id: str, tokens: int) -> dict | None:
+    """The size a reply was seen read at: counted from now on, and a larger size typed by the
+    person forgotten, since the server reads no more than this. None when the AI is gone."""
+    async with write_transaction(db):
+        current = await get_row(db, model_id)
+        if current is None:
+            return None
+        sets: dict = {"context_read": tokens, "context_read_kind": "observed",
+                      "updated_at": now_iso()}
+        if current["context_own"] is not None and current["context_own"] > tokens:
+            sets["context_own"] = None
+        await db.execute(f"UPDATE models SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
+                         (*sets.values(), model_id))
+    return await get(db, model_id)
+
+
 async def store_read(db: aiosqlite.Connection, model_id: str, model: str, read_from: dict,
-                     listed: Listed | None, family: str | None) -> None:
+                     listed: Listed | None, family: str | None, *, by_hand: bool = False) -> None:
     """What a read of ``model`` at the service ``read_from`` (as it was when the read began)
     found, kept only while the AI still names that model and its service is still at that API
     and address, and only where it says more: a size never replaced by a less sure one,
     reasoning never unlearned. A model no longer listed keeps all it had. The family found is
-    kept for a generic service."""
+    kept for a generic service.
+
+    A size observed is what a reply showed the server really reads: a larger one said by the
+    server replaces it only on a read the person asked for (``by_hand``), once they have loaded
+    the model larger; a read made by itself would bring back the very size that was contradicted."""
     async with write_transaction(db):
         current = await get_row(db, model_id)
         if current is None or current["model"] != model:
@@ -350,7 +418,9 @@ async def store_read(db: aiosqlite.Connection, model_id: str, model: str, read_f
                 size = getattr(listed, kind)
                 if size is None:
                     continue
-                if _SURE[kind] >= _SURE.get(current["context_read_kind"], 0):
+                held = (current["context_read_kind"] == "observed" and not by_hand
+                        and size > (current["context_read"] or 0))
+                if _SURE[kind] >= _SURE.get(current["context_read_kind"], 0) and not held:
                     sets["context_read"], sets["context_read_kind"] = size, kind
                 break
             if listed.max_output is not None:

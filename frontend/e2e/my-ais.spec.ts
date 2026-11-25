@@ -1,6 +1,8 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { API } from "../playwright.config";
-import { MOCK_ROOT, answer, boxHears, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
+import { MOCK_ROOT, answer, boxHears, chat, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
 
 /**
  * My AIs in Settings, and the page of each AI. The suite's server started on a database from the
@@ -340,6 +342,34 @@ test.describe("my ais", () => {
     await expect(page.getByText("This AI no longer exists.")).toBeVisible();
     await page.getByRole("link", { name: "Back to settings" }).click();
     await expect(page.getByRole("heading", { name: "My AIs" })).toBeVisible();
+  });
+
+  test("a server that does not say what it counts is said on the ai's page, and one that does is not", async ({ page, request }) => {
+    const NO_USAGE = "This server does not say what it counts: Evermind keeps a wider margin.";
+    const quiet = await lmstudioAi(request, "Quiet");
+    const told = await lmstudioAi(request, "Told");
+    try {
+      const character = await makeCharacter(request);
+      // The mock leaves its counts out of a reply whose request says MOCK_NO_USAGE.
+      for (const [ai, content] of [[quiet, "MOCK_NO_USAGE The rain comes down."], [told, "The rain comes down."]] as const) {
+        const convo = await (await request.post(`${API}/api/conversations`, {
+          data: { character_id: character.id, model_id: ai.id },
+        })).json();
+        await chat(request, { conversation_id: convo.id, mode: "send", content });
+      }
+      const seen = async (id: string) => ((await aiOf(request, id)) as Ai & { usage_seen: boolean | null }).usage_seen;
+      expect(await seen(quiet.id)).toBe(false);
+      expect(await seen(told.id)).toBe(true);
+
+      await openPage(page, quiet.id);
+      await expect(page.getByText(NO_USAGE)).toBeVisible();
+      await openPage(page, told.id);
+      await expect(page.getByRole("switch", { name: "Default AI" })).toBeVisible();
+      await expect(page.getByText(NO_USAGE)).toHaveCount(0);
+    } finally {
+      await request.delete(`${API}/api/models/${quiet.id}`);
+      await request.delete(`${API}/api/models/${told.id}`);
+    }
   });
 
   test("the default switch makes the ai the default", async ({ page, request }) => {
@@ -714,6 +744,76 @@ test.describe("settings at very large text keep to the screen", () => {
         await page.waitForLoadState("networkidle");
         expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
         expect(await misfits(page), `at ${size.width}px`).toEqual([]);
+      }
+    });
+  }
+});
+
+// The lines of My AIs keep the gutters of the ways' lines under them, capped in pixels: at the
+// largest text, gutters in rem would squeeze the words; at the text's own size, nothing moves.
+test("my ais' lines keep the ways' gutters, whatever the size of the text", async ({ page, request }) => {
+  // The suite's own AI, made with a character, gives the list a line.
+  await makeCharacter(request);
+  const gutters = (selector: string) => page.locator(selector).first().evaluate((line) => {
+    const style = getComputedStyle(line);
+    return { left: style.paddingLeft, right: style.paddingRight, gap: style.columnGap };
+  });
+  for (const root of ["16px", "32px"]) {
+    if (root === "32px") await page.addInitScript(rootAt, root);
+    for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+      const at = `at ${size.width}px, a root of ${root}`;
+      await page.setViewportSize(size);
+      await page.goto("about:blank");
+      await page.goto("/#/settings");
+      await expect(page.locator("main a[href^='#/settings/ai/']").first()).toBeVisible();
+      await expect(page.locator("main a[href^='#/settings/way/']").first()).toBeVisible();
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(root);
+      const ai = await gutters("main a[href^='#/settings/ai/']");
+      expect(ai, at).toEqual({ left: "20px", right: "20px", gap: "12px" });
+      expect(ai, at).toEqual(await gutters("main a[href^='#/settings/way/']"));
+    }
+  }
+});
+
+// What 100 messages of an AI cost, under its line in Settings and on its page: the line goes to the
+// next line rather than slide the page, at the text's own size and at the largest, on two phones.
+test.describe("an ai's estimate per 100 messages keeps to the screen", () => {
+  for (const locale of ["en", "fr", "de", "es"]) {
+    test(`in ${locale}`, async ({ page, request }) => {
+      const words = JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
+      const per100 = (words.money.estimate as string).split("{amount}")[1];
+      // A price typed: an AI at home with none is free, and its line says so instead.
+      const priced = await lmstudioAi(request, "priced");
+      await request.put(`${API}/api/models/${priced.id}`, { data: { price_own_in: 0.2, price_own_out: 0.6 } });
+      const waysRead: string[] = [];
+      page.on("request", (sent) => {
+        if (new URL(sent.url()).pathname === "/api/ways") waysRead.push(sent.method());
+      });
+      await inLocale(page, locale);
+      try {
+        for (const root of ["16px", "32px"]) {
+          // Set once, for every page after it: the text's own size is measured first.
+          if (root === "32px") await page.addInitScript(rootAt, root);
+          for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+            const at = `at ${size.width}px, a root of ${root}`;
+            await page.setViewportSize(size);
+            // Loaded afresh: from the AI's page, a move within the app would not run the root's script.
+            await page.goto("about:blank");
+            waysRead.length = 0;
+            await page.goto("/#/settings");
+            await expect(lineOf(page, priced.id).getByText(per100)).toBeVisible();
+            await page.waitForLoadState("networkidle");
+            expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(root);
+            expect(await misfits(page), `settings ${at}`).toEqual([]);
+            // The ways are read once by the page, with the AIs.
+            expect(waysRead).toEqual(["GET"]);
+            await openPage(page, priced.id);
+            await expect(page.locator("header").getByText(per100)).toBeVisible();
+            expect(await misfits(page), `its page ${at}`).toEqual([]);
+          }
+        }
+      } finally {
+        await request.delete(`${API}/api/models/${priced.id}`);
       }
     });
   }

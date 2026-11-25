@@ -67,10 +67,17 @@ class AnthropicProvider(Provider):
 
     async def _events(self, payload: PromptPayload) -> AsyncIterator[ProviderEvent]:
         usage = stop = None
+        figures = self.figures
         async with aclosing(self._sse("/v1/messages", self._build_body(payload))) as events:
             async for event in events:
                 kind = event.get("type")
-                if kind == "content_block_delta":
+                if kind == "message_start":
+                    message = event.get("message")
+                    if isinstance(message, dict):
+                        figures.take_names(message.get("id"), message.get("model"))
+                        # Its output count is a first guess: only message_delta's is final.
+                        figures.take_usage(message.get("usage"), final=False)
+                elif kind == "content_block_delta":
                     delta = event.get("delta") or {}
                     thought = delta.get("thinking") if delta.get("type") == "thinking_delta" else None
                     if isinstance(thought, str) and thought:
@@ -80,7 +87,9 @@ class AnthropicProvider(Provider):
                         yield ProviderEvent(type="delta", text=text)
                 elif kind == "message_delta":
                     usage = event.get("usage") or usage
+                    figures.take_usage(event.get("usage"), final=True)
                     stop = (event.get("delta") or {}).get("stop_reason") or stop
+                    figures.stop = str(stop) if stop is not None else None
                 elif kind == "error":
                     raise ProviderError(words_of(event, self.api_key))
                 elif kind == "message_stop":

@@ -17,6 +17,21 @@ describe("a count", () => {
     expect(translate("en", "chatList.messageCount", { count: 0 })).toBe("0 messages");
   });
 
+  it("of a way's conversations says none as none, never as one", () => {
+    expect(translate("fr", "ways.count", { count: 0 })).toBe("0 conversation");
+    expect(translate("fr", "ways.count", { count: 1 })).toBe("1 conversation");
+    expect(translate("en", "ways.count", { count: 0 })).toBe("0 conversations");
+    expect(translate("de", "ways.count", { count: 0 })).toBe("0 Unterhaltungen");
+    expect(translate("es", "ways.count", { count: 0 })).toBe("0 conversaciones");
+  });
+
+  // A list read again can come back empty: the line under it then counts none.
+  it("of a service's models says none as none, never as one", () => {
+    expect(translate("fr", "ai.list.count", { count: 0 })).toBe("0 modèle");
+    expect(translate("fr", "ai.list.count", { count: 1 })).toBe("1 modèle");
+    expect(translate("en", "ai.list.count", { count: 0 })).toBe("0 models");
+  });
+
   it("with no form of its own keeps the sentence there is", () => {
     expect(translate("en", "time.minutesAgo", { count: 1 })).toBe("1 min ago");
   });
@@ -31,7 +46,7 @@ describe("a number", () => {
   ] as const)("is written in %s as the language writes it", (locale, speed, share) => {
     expect(translate(locale, "ai.benchmarkResult", { tokensPerSecond: 54.1, firstTokenSeconds: 0.23 }))
       .toBe(speed);
-    expect(translate(locale, "chat.context.percent", { pct: 19 })).toBe(share);
+    expect(translate(locale, "display.scale", { pct: 19 })).toBe(share);
   });
 
   it.each([

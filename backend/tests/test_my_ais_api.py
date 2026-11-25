@@ -23,6 +23,7 @@ from .conftest import FakeProvider, assist, messages_of, send, setup_conversatio
 from .helpers import add_model, cap
 from .test_memory import EXTRACTION_JSON
 from .test_memory_room import chunk, finish, thinking, writing
+from .test_requests_3_7 import same_context
 from .test_requests_before import (
     CALLS,
     RECORDED,
@@ -30,6 +31,7 @@ from .test_requests_before import (
     call_each,
     lent_to_every_provider,
     put_seed,
+    without_usage_asked,
 )
 
 KEY = "sk-test-SECRET-4f2a"
@@ -183,9 +185,12 @@ async def test_an_update_sends_each_model_the_request_it_sent_before(tmp_path, m
     assert len(server.bodies) == 20 and all(server.bodies)
     for conn_id, calls in recorded["requests"].items():
         for call in CALLS:
-            assert (json.dumps(sent[conn_id][call], sort_keys=True)
+            # The one field 3.8.0 adds: an OpenAI-compatible server is asked for its counts.
+            body = without_usage_asked(calls[call], sent[conn_id][call])
+            assert (json.dumps(body, sort_keys=True)
                     == json.dumps(calls[call], sort_keys=True)), (conn_id, call)
-        assert sent[conn_id]["turn_context"] == calls["turn_context"], conn_id
+        # The second: the wider margin of an AI that has measured nothing, and what 3.8.0 adds.
+        assert same_context(calls["turn_context"], sent[conn_id]["turn_context"], 24), conn_id
     assert sent["c-openrouter"]["memory_pass"]["reasoning"] == {"effort": "none"}
 
 
@@ -475,6 +480,44 @@ async def test_a_failed_or_poorer_read_keeps_what_was_read_before(client, lists)
     assert poorer["model"]["context"]["read"] == 32768
     lists.routes["/v1/models"] = {"data": [{"id": "m", "context_length": 8192}]}
     assert (await refresh())["model"]["context"]["read"] == 8192
+
+
+async def observed_then_served(client, lists, served: int) -> dict:
+    """An AI whose reply was seen cut at 4096, then a server that says it serves ``served``."""
+    ai = await add_model(client, base_url=HOSTED, model="m", context_own=None)
+    resp = await client.post(f"/api/models/{ai['id']}/observed", json={"tokens": 4096})
+    assert resp.status_code == 200, resp.text
+    lists.routes["/v1/models"] = {"data": [{"id": "m", "context_length": served}]}
+    return ai
+
+
+async def read_by_itself(ai_id: str) -> None:
+    limits.schedule_refresh(ai_id, fresh=False)
+    await limits.drain()
+
+
+async def test_a_read_made_by_itself_does_not_undo_what_was_observed(client, lists):
+    ai = await observed_then_served(client, lists, 32768)
+    before = (await model_of(client, ai["id"]))["limits_read_at"]
+    await read_by_itself(ai["id"])
+    after = await model_of(client, ai["id"])
+    assert (after["context"]["read"], after["context"]["read_kind"]) == (4096, "observed")
+    assert after["limits_read_at"] is not None and after["limits_read_at"] != before
+
+
+async def test_read_again_by_hand_takes_what_the_server_says(client, lists):
+    ai = await observed_then_served(client, lists, 32768)
+    resp = await client.post(f"/api/models/{ai['id']}/refresh", json={"fresh": True})
+    assert resp.status_code == 200, resp.text
+    context = resp.json()["model"]["context"]
+    assert (context["read"], context["read_kind"]) == (32768, "served")
+
+
+async def test_a_smaller_read_replaces_what_was_observed(client, lists):
+    ai = await observed_then_served(client, lists, 2048)
+    await read_by_itself(ai["id"])
+    context = (await model_of(client, ai["id"]))["context"]
+    assert (context["read"], context["read_kind"]) == (2048, "served")
 
 
 async def test_a_typed_value_above_what_the_server_says_is_kept_with_a_warning(client):

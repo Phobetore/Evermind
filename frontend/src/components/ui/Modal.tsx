@@ -51,8 +51,9 @@ export function Modal({
         className={`panel max-h-[92dvh] w-full sm:max-h-[88dvh] ${tall ? "h-[92dvh] [overflow-anchor:none] sm:h-[88dvh]" : ""} ${wide ? "max-w-2xl" : "max-w-md"} overflow-y-auto p-4 animate-rise sm:p-6`}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
-          {/* A title can be a name, whatever its owner typed: a handle is one long word. */}
-          <h2 className="min-w-0 break-words text-xl font-semibold">{title}</h2>
+          {/* A title can be a name, whatever its owner typed: a handle is one long word. A long word
+              is cut as its language cuts it (the page's lang), and anywhere only past that. */}
+          <h2 className="min-w-0 break-words hyphens-auto text-xl font-semibold">{title}</h2>
           <button
             onClick={onClose}
             className="-mr-1 shrink-0 rounded-lg p-3 text-mist transition-colors hover:bg-ink-700 hover:text-parchment sm:mr-0 sm:p-1.5 sm:pointer-coarse:p-3"

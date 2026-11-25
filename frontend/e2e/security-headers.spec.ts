@@ -1,7 +1,8 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
 import { API, GATE_PASSWORD, GATED } from "../playwright.config";
 import {
-  answer, conversationWithReply, makeCharacter, makeConversation, MOCK_ROOT, PNG, policyViolations, replyEnds, watchPolicy,
+  addModel, answer, conversationWithReply, makeCharacter, makeConversation, MOCK, MOCK_ROOT, PNG, policyViolations,
+  replyEnds, watchPolicy,
 } from "./fixtures";
 
 /** The policy the server sends with every page, and what the app itself does under it: a page that
@@ -75,6 +76,25 @@ test("no page of the app breaks the policy it is served with @desktop", async ({
   await expect(page.getByRole("heading", { level: 1, name: "e2e" })).toBeVisible();
   await expect(page.getByText(/^Read from the server|^Not read yet/)).toBeVisible();
   await noViolations(page, "an AI's page");
+
+  // A way's page, its card's bar drawn and its exact values open. The bar is drawn for an AI whose
+  // reading capacity is told: one of a typed size, chosen on the card and taken away after.
+  const stamp = Date.now();
+  const sized = await addModel(request, {
+    base_url: MOCK, model: `sized-${stamp}`, name: `Sized ${stamp}`, changes: { context_own: 32768 },
+  });
+  try {
+    await page.goto("/#/settings");
+    await page.locator('main a[href="#/settings/way/balanced"]').click();
+    await expect(page.getByRole("heading", { level: 1, name: "Balanced" })).toBeVisible();
+    await page.getByLabel("With", { exact: true }).selectOption(sized.id);
+    await expect(page.getByText(/pages sent with each message$/)).toBeVisible();
+    await page.getByText("Advanced: the exact values").click();
+    await expect(page.getByRole("textbox", { name: "Room kept for the reply (tokens)" })).toBeVisible();
+    await noViolations(page, "a way's page");
+  } finally {
+    await request.delete(`${API}/api/models/${sized.id}`);
+  }
 
   await page.goto("/#/personas");
   await expect(page.getByRole("button", { name: "New persona" })).toBeVisible();

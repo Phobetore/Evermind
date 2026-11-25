@@ -114,7 +114,20 @@ export interface Ai {
   presence_penalty: number | null;
   /** Made from a connection by the update to AIs. */
   migrated: boolean;
-  notices: ("follow_server" | "let_evermind")[];
+  notices: ("follow_server" | "let_evermind" | "long_room")[];
+  /** What the prompt leaves unused under the window, as the server counts it for this AI. */
+  margin: number;
+  /** The server's tokens for each one the engine estimates; null until a reply has measured it. */
+  token_ratio: number | null;
+  /** What its whole replies took, by length, as measured; null until one was. */
+  reply_tokens: Record<Length, number | null>;
+  /** What a model that reasons is given on top of the reply for its thinking. */
+  thinking_allowance: number;
+  thinking_measured: boolean;
+  /** Whether its server says what it counts; null until a reply has said either. */
+  usage_seen: boolean | null;
+  /** Reached by Anthropic's own API, which must be sent a ceiling. */
+  anthropic: boolean;
   conversation_count: number;
   created_at: string;
   updated_at: string;
@@ -155,6 +168,15 @@ export interface Message {
   created_at: string;
 }
 
+export type Length = "short" | "medium" | "long";
+export type Reminders = "essential" | "normal" | "rich" | "all";
+/** What one conversation changes of its way of playing, for itself alone. */
+export interface PlayOverrides {
+  history_limit?: number;
+  reply_length?: Length;
+  reminders?: Reminders;
+}
+
 export interface Conversation {
   id: string;
   character_id: string;
@@ -178,6 +200,11 @@ export interface Conversation {
   backdrop: Backdrop;
   /** Its own strength, 0 to 1; null follows the device's. */
   backdrop_strength: number | null;
+  /** The way of playing it was made with, or chosen since; an id no longer known plays the way
+   *  offered to new conversations. */
+  play_style: string;
+  /** What it adjusted of its way for itself; null when nothing. */
+  play_overrides: PlayOverrides | null;
   forked_from?: string | null;
   /** Counts the changes to its messages. */
   revision?: number;
@@ -196,6 +223,76 @@ export interface ContextStats {
   messages_included: number;
   messages_total: number;
   lore_matched: number;
+  /** What the card, the reminders and the story took of what was read. */
+  parts?: { card: number; reminders: number; history: number };
+  /** What the prompt kept for the reply. */
+  reply_room?: number;
+  /** How many messages the way asked to reread; 0: all of them. */
+  history_limit?: number;
+}
+
+/** A way of playing, field for field: how much of the story is reread, how long a reply runs,
+ *  how much room the reminders take. null: no cap, no share, or the room left to the AI. */
+export interface WayFields {
+  /** 0: the whole story. */
+  history_limit: number;
+  reply_length: Length;
+  reply_room: number | null;
+  facts_cap: number | null;
+  max_facts: number | null;
+  lore_cap: number | null;
+  lore_share: number | null;
+  passage_cap: number | null;
+  passage_share: number | null;
+}
+
+/** name is null for a built-in way and for "mine", which the interface names in its language. */
+export interface Way extends WayFields {
+  id: string;
+  name: string | null;
+  built_in: boolean;
+  /** A built-in way changed from its own figures. */
+  overridden: boolean;
+}
+
+export interface WayListed extends Way {
+  /** How many conversations play it. */
+  conversations: number;
+}
+
+export interface Ways {
+  /** The way offered to new conversations. */
+  default: string;
+  /** Whether past passages can be found again on this server. */
+  passages_available: boolean;
+  ways: WayListed[];
+}
+
+/** What an AI would read of a conversation under a way, worked out without asking a model, in
+ *  the server's tokens. */
+export interface OutlookEntry {
+  model_id: string | null;
+  play_style: string;
+  used_tokens: number;
+  budget: number;
+  context_size: number;
+  messages_included: number;
+  messages_total: number;
+  history_limit: number;
+  reply_room: number;
+  /** What the turn keeps for the reply: the way's room as this AI is sent it, with its thinking,
+   *  under its own ceiling or none. Absent from a server that does not say it. */
+  reply_kept?: number;
+  parts: { card: number; reminders: number; history: number };
+  /** The ceiling of its own that keeps the reply under the way's room; null when none does. */
+  cap_short: number | null;
+}
+
+/** The conversation's AI under its way, then every AI under its way, then every way with its AI. */
+export interface Outlook {
+  current: OutlookEntry & { way: Way & { adjusted: boolean } };
+  models: OutlookEntry[];
+  ways: (OutlookEntry & { way: Way })[];
 }
 
 export interface TurnPerf {
@@ -244,9 +341,6 @@ export interface LibraryItem {
 export interface Settings {
   global_instructions: string;
   auto_memory: boolean;
-  reply_length: "short" | "medium" | "long";
-  history_limit: number;
-  passage_budget: number;
   update_check: boolean;
 }
 

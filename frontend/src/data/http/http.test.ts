@@ -38,7 +38,7 @@ describe("the contract", () => {
   test("offers what the contract names, and nothing else", () => {
     expect(Object.keys(data).sort()).toEqual([
       "access", "characters", "connections", "conversations", "device", "file", "library", "memories",
-      "messages", "personas", "remoteImages", "settings", "turns", "updates",
+      "messages", "personas", "remoteImages", "settings", "turns", "updates", "ways",
     ]);
   });
 });
@@ -130,6 +130,41 @@ describe("what is sent", () => {
     ]);
     expect(JSON.parse(calls[4].init.body as string)).toEqual({ service: { id: "s1" }, models: [{ model: "a/b" }] });
     expect(JSON.parse(calls[7].init.body as string)).toEqual({ fresh: false });
+  });
+
+  test("the ways of playing are each read and written at their own address", async () => {
+    await data.ways.list();
+    await data.ways.update("w/1", { history_limit: 40, name: "Long nights" });
+    await data.ways.copy("balanced", "Mine too");
+    await data.ways.remove("w1");
+    await data.ways.reset("light");
+    await data.ways.setDefault("immersive");
+    expect(calls.map((c) => [c.url, c.init.method ?? "GET"])).toEqual([
+      ["api/ways", "GET"],
+      ["api/ways/w%2F1", "PUT"],
+      ["api/ways", "POST"],
+      ["api/ways/w1", "DELETE"],
+      ["api/ways/light/reset", "POST"],
+      ["api/ways/default", "PUT"],
+    ]);
+    expect(JSON.parse(calls[1].init.body as string)).toEqual({ history_limit: 40, name: "Long nights" });
+    expect(JSON.parse(calls[2].init.body as string)).toEqual({ from: "balanced", name: "Mine too" });
+    expect(JSON.parse(calls[5].init.body as string)).toEqual({ id: "immersive" });
+  });
+
+  test("a conversation's outlook is asked past any cache, whole or for its current pair alone", async () => {
+    await data.conversations.outlook("v/1");
+    await data.conversations.outlook("v1", { only: "current" });
+    expect(calls.map((c) => [c.url, c.init.cache])).toEqual([
+      ["api/conversations/v%2F1/outlook", "no-store"],
+      ["api/conversations/v1/outlook?only=current", "no-store"],
+    ]);
+  });
+
+  test("a size observed is sent to its ai", async () => {
+    await data.connections!.models.observed("m/1", 8_192);
+    expect(calls[0]).toMatchObject({ url: "api/models/m%2F1/observed", init: { method: "POST" } });
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ tokens: 8_192 });
   });
 
   test("a read again past the server's cache says so", async () => {

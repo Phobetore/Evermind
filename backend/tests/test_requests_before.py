@@ -138,6 +138,16 @@ def _sse(events: list[dict], end: str | None = None) -> httpx.Response:
                           headers={"content-type": "text/event-stream"})
 
 
+def without_usage_asked(recorded: dict, sent: dict) -> dict:
+    """The body sent, less the one field 3.8.0 adds to an OpenAI-compatible request: its server is
+    asked for its counts. Carried with another value, or by a body Anthropic's (the one with
+    "system" at its top), it is left in, so that the body differs from the one recorded."""
+    if (sent.get("stream_options") != {"include_usage": True} or "system" in recorded
+            or "stream_options" in recorded):
+        return sent
+    return {key: value for key, value in sent.items() if key != "stream_options"}
+
+
 class Server:
     """Every model's server at once: it answers ``answer`` to each request for a reply, and keeps
     the body of each, and OpenRouter's list to whoever reads it."""

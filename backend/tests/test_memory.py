@@ -347,9 +347,9 @@ async def test_facts_budget_scales_with_context(client, fake_provider):
     assert big.system.count("Fait ") > small.system.count("Fait ") > 0
 
 
-async def test_history_limit_setting_flows_into_chat(client, fake_provider):
-    """PUT /api/settings history_limit must cap the turns the provider sees."""
-    updated = (await client.put("/api/settings", json={"history_limit": 4})).json()
+async def test_the_history_limit_of_a_way_flows_into_chat(client, fake_provider):
+    """A way's history_limit caps the turns the provider sees."""
+    updated = (await client.put("/api/ways/balanced", json={"history_limit": 4})).json()
     assert updated["history_limit"] == 4
 
     convo = await setup_conversation(client)
@@ -360,8 +360,8 @@ async def test_history_limit_setting_flows_into_chat(client, fake_provider):
     payload = fake_provider.captured["payload"]
     assert len(payload.messages) == 4
 
-    too_low = await client.put("/api/settings", json={"history_limit": 1})
-    assert too_low.status_code == 422  # bounded: ge=4
+    too_low = await client.put("/api/ways/balanced", json={"history_limit": -1})
+    assert too_low.status_code == 422  # 0 is the whole story; nothing is under it
 
 
 async def test_consolidate_merges_facts(client, fake_provider):
@@ -919,13 +919,13 @@ async def test_fork_copies_fact_embedding(client, fake_provider, monkeypatch):
         await db.close()
 
 
-async def test_passage_budget_setting(client, fake_provider):
-    updated = (await client.put("/api/settings", json={"passage_budget": 800})).json()
-    assert updated["passage_budget"] == 800
-    fresh = (await client.get("/api/settings")).json()
-    assert "passage_budget" in fresh
-    too_big = await client.put("/api/settings", json={"passage_budget": 99999})
-    assert too_big.status_code == 422  # bounded 0..4000
+async def test_the_passage_cap_of_a_way(client, fake_provider):
+    updated = (await client.put("/api/ways/balanced", json={"passage_cap": 800})).json()
+    assert updated["passage_cap"] == 800
+    ways = (await client.get("/api/ways")).json()["ways"]
+    assert next(w for w in ways if w["id"] == "balanced")["passage_cap"] == 800
+    # No maximum: a model with a vast window may be given all it holds.
+    assert (await client.put("/api/ways/balanced", json={"passage_cap": 99999})).status_code == 200
 
 
 @pytest.mark.parametrize(("mode", "covered", "recalled"), [
@@ -942,8 +942,8 @@ async def test_relevant_passage_retrieved_into_prompt(client, fake_provider, mon
         return [[1.0, 0.0] if "crypt" in t.lower() else [0.0, 1.0] for t in texts]
 
     monkeypatch.setattr(embeddings, "embed", fake_embed)
-    await client.put("/api/settings", json={"auto_memory": False, "history_limit": 6,
-                                            "passage_budget": 1500})
+    await client.put("/api/settings", json={"auto_memory": False})
+    await client.put("/api/ways/balanced", json={"history_limit": 6, "passage_cap": 1500})
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="We sealed the crypt that night.", message_mode=mode)
     if covered:
@@ -972,8 +972,8 @@ async def test_passages_off_when_budget_zero(client, fake_provider, monkeypatch)
         return [[1.0, 0.0] for _ in texts]
 
     monkeypatch.setattr(embeddings, "embed", fake_embed)
-    await client.put("/api/settings", json={"auto_memory": False, "history_limit": 6,
-                                            "passage_budget": 0})
+    await client.put("/api/settings", json={"auto_memory": False})
+    await client.put("/api/ways/balanced", json={"history_limit": 6, "passage_cap": 0})
     convo = await setup_conversation(client)
     await send(client, convo["id"], content="We sealed the crypt.")
     for _ in range(8):

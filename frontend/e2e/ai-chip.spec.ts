@@ -19,7 +19,8 @@ const HINT_TOUCH = "Tap send when you are ready. The quill drafts your reply.";
 /** An AI of its own word, on the mock's plain address: added once, the same one after. */
 const sylve = (request: APIRequestContext) => addModel(request, { base_url: MOCK, model: "MOCK_SAYS_Sylve", name: "Sylve" });
 
-const chipOf = (page: Page) => page.locator("[data-status-row]").getByRole("button").first();
+// The AI's own chip: the way's chip shares the row, and is there before the AIs are read.
+const chipOf = (page: Page) => page.locator("[data-status-row] [data-ai-chip]");
 const sheetOf = (page: Page) => page.getByRole("dialog", { name: "Which AI answers?" });
 const toastOf = (page: Page) => page.locator("[data-chat-toast]");
 const addDialog = (page: Page) => page.getByRole("dialog", { name: "Add an AI" });
@@ -35,14 +36,13 @@ const capped = (request: APIRequestContext, name: string) => addModel(request, {
   changes: { reply_cap: { mode: "fixed", tokens: 1024 } },
 });
 
-/** The page reads the settings as asking long replies, whose 2,048 tokens a ceiling of 1,024 would cut:
- *  the suite's settings are shared between tests, so they are changed for this page alone. */
-async function longReplies(page: Page) {
-  await page.route("**/api/settings", async (route) => {
-    if (route.request().method() !== "GET") return route.continue();
-    const read = await route.fetch();
-    await route.fulfill({ response: read, json: { ...(await read.json()), reply_length: "long" } });
+/** The conversation asks for long replies, whose 2,048 tokens a ceiling of 1,024 would cut: adjusted
+ *  for it alone, as the suite's ways are shared between tests. */
+async function longReplies(request: APIRequestContext, conversationId: string) {
+  const resp = await request.patch(`${API}/api/conversations/${conversationId}`, {
+    data: { play_overrides: { reply_length: "long" } },
   });
+  expect(resp.ok()).toBe(true);
 }
 
 /** Counted at once, once the toast's words are in: drawn with its words, a button would be there
@@ -67,8 +67,8 @@ test("switching ai is two taps and the new one answers the next turn", { tag: "@
 
   const sheet = await openSheet(page);
   await expect(sheet).toContainText("For this conversation only.");
-  await expect(sheet.getByRole("radio", { name: /^e2e/ })).toHaveAttribute("aria-checked", "true");
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await expect(sheet.getByRole("list").getByRole("button", { name: /^e2e/ })).toHaveAttribute("aria-current", "true");
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
   await expect(sheet).toHaveCount(0);
   await expect(chip).toHaveAccessibleName(`AI: ${other.name}. Change.`);
   await expect(toastOf(page)).toContainText(`${other.name} answers from now on.`);
@@ -91,11 +91,11 @@ test("a switch that fails keeps the sheet open and the chip as it was", async ({
   await page.goto(`/#/chat/${convo.id}`);
 
   const sheet = await openSheet(page);
-  const row = sheet.getByRole("radio", { name: /^Sylve/ });
+  const row = sheet.getByRole("list").getByRole("button", { name: /^Sylve/ });
   await row.click();
   await expect(sheet.getByRole("alert")).not.toBeEmpty();
   await expect(sheet).toBeVisible();
-  await expect(row).toHaveAttribute("aria-checked", "false");
+  await expect(row).not.toHaveAttribute("aria-current", "true");
   await expect(row).not.toHaveAttribute("aria-busy", "true");
   await sheet.getByRole("button", { name: "Close" }).click();
   await expect(sheet).toHaveCount(0);
@@ -123,6 +123,46 @@ test("with a keyboard the keyboard sentence sits right of the chip", { tag: "@de
   }
 });
 
+/** What the AIs would read comes this much later than asked, as on a slow link: the chip's own read
+ *  as fast as ever. `fails`: it never comes, the server failing. */
+async function figuresLate(page: Page, id: string, { fails = false } = {}) {
+  await page.route(`**/api/conversations/${id}/outlook**`, async (route) => {
+    if (new URL(route.request().url()).searchParams.has("only")) return route.fallback();
+    await new Promise((later) => setTimeout(later, 800));
+    if (fails) return route.fulfill({ status: 500, contentType: "text/html", body: "<html>Server error</html>" });
+    await route.fallback();
+  });
+}
+
+test("the rows of the ai sheet, once drawn, stay where they are", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  await sylve(request);
+  await figuresLate(page, convo.id);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toBeVisible();
+  const sheet = await openSheet(page);
+  const rows = sheet.getByRole("list").getByRole("button");
+  await expect(rows.first()).toBeVisible();
+  // The sheet done rising.
+  await sheet.evaluate((dialog) => Promise.all(dialog.getAnimations({ subtree: true }).map((a) => a.finished)));
+  const tops = () => rows.evaluateAll((all) => all.map((row) => Math.round(row.getBoundingClientRect().top)));
+  const drawn = await tops();
+  await page.waitForTimeout(1_000);
+  expect(await tops(), "the rows moved after they were drawn").toEqual(drawn);
+});
+
+test("an ai can be chosen when what the ais would read cannot be", async ({ page, request }) => {
+  const convo = await conversationWithReply(request);
+  const other = await sylve(request);
+  await figuresLate(page, convo.id, { fails: true });
+  await page.goto(`/#/chat/${convo.id}`);
+  const sheet = await openSheet(page);
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(chipOf(page)).toHaveAccessibleName(`AI: ${other.name}. Change.`);
+  expect((await conversation(request, convo.id)).model_id).toBe(other.id);
+});
+
 test("each row of the ai sheet keeps its price", async ({ page, request }) => {
   const convo = await makeConversation(request);
   const priced = await addModel(request, {
@@ -139,10 +179,10 @@ test("each row of the ai sheet keeps its price", async ({ page, request }) => {
   await page.goto(`/#/chat/${convo.id}`);
 
   const sheet = await openSheet(page);
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${priced.name}`) }))
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${priced.name}`) }))
     .toContainText("$3 read, $15 written, per million tokens");
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${home.name}`) })).toContainText("LM Studio, on this PC");
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${home.name}`) })).toContainText("free");
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${home.name}`) })).toContainText("LM Studio, on this PC");
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${home.name}`) })).toContainText("free");
   await sheet.getByRole("button", { name: "Close" }).click();
   const row = page.locator("[data-status-row]");
   await expect(row).not.toContainText("$");
@@ -156,7 +196,7 @@ test("redo the last reply with the new ai keeps the old one beside it", async ({
   await page.goto(`/#/chat/${convo.id}`);
 
   const sheet = await openSheet(page);
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
   const toast = toastOf(page);
   await expect(toast).toContainText(`${other.name} answers from now on.`);
   const ends = replyEnds(page, convo.id);
@@ -182,7 +222,7 @@ test("no redo button when the last message is the person's or a reply is being w
   expect((await conversation(request, unanswered.id)).messages.at(-1).role).toBe("user");
   await page.goto(`/#/chat/${unanswered.id}`);
   let sheet = await openSheet(page);
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
   await expect(toastOf(page)).toContainText("Sylve answers from now on.");
   await noButtonIn(toastOf(page));
 
@@ -193,7 +233,7 @@ test("no redo button when the last message is the person's or a reply is being w
   await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
   try {
     sheet = await openSheet(page);
-    await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+    await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
     await expect(toastOf(page)).toContainText("Sylve answers from now on.");
     await noButtonIn(toastOf(page));
   } finally {
@@ -206,7 +246,7 @@ test("the redo button goes as soon as a reply is being written", async ({ page, 
   const slow = await conversationWithReply(request, { slowly: true });
   await page.goto(`/#/chat/${slow.id}`);
   const sheet = await openSheet(page);
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
   const redo = toastOf(page).getByRole("button", { name: "Redo the last reply" });
   await expect(redo).toBeVisible();
 
@@ -228,7 +268,7 @@ test("no redo button when the last message is the greeting", async ({ page, requ
   expect((await conversation(request, convo.id)).messages.at(-1).meta?.greeting).toBeTruthy();
   await page.goto(`/#/chat/${convo.id}`);
   const sheet = await openSheet(page);
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
   await expect(toastOf(page)).toContainText("Sylve answers from now on.");
   await noButtonIn(toastOf(page));
 });
@@ -238,7 +278,7 @@ test("a toast is heard through the page's one status line", async ({ page, reque
   const convo = await makeConversation(request);
   await page.goto(`/#/chat/${convo.id}`);
   const sheet = await openSheet(page);
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
   await expect(toastOf(page)).toContainText("Sylve answers from now on.");
   expect(await page.getByRole("status").count(), "status elements while the toast shows").toBe(1);
   await expect(page.getByRole("status")).toContainText("Sylve answers from now on.");
@@ -250,16 +290,16 @@ test("a capped ai is said in the sheet, and letting Evermind set it is confirmed
   const mine = await capped(request, `Ardoise ${Math.random().toString(36).slice(2, 6)}`);
   const other = await capped(request, `Basalte ${Math.random().toString(36).slice(2, 6)}`);
   await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: mine.id } });
-  await longReplies(page);
+  await longReplies(request, convo.id);
   await page.goto(`/#/chat/${convo.id}`);
 
   const sheet = await openSheet(page);
   await expect(sheet).toContainText(
     `${mine.name} keeps a ceiling of 1,024 tokens per reply, in all its conversations: long replies would be cut short.`,
   );
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${other.name}`) }))
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${other.name}`) }))
     .toContainText("Replies cut at 1,024 tokens as long as its ceiling is not lifted.");
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${mine.name}`) })).not.toContainText("Replies cut at");
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${mine.name}`) })).not.toContainText("Replies cut at");
 
   await sheet.getByRole("button", { name: "Let Evermind set it" }).click();
   const said = `${mine.name} no longer has a ceiling of its own: Evermind keeps the room it needs.`;
@@ -287,7 +327,7 @@ test("a row touched says it is on its way until the server answers", async ({ pa
   await page.goto(`/#/chat/${convo.id}`);
 
   const sheet = await openSheet(page);
-  const row = sheet.getByRole("radio", { name: /^Sylve/ });
+  const row = sheet.getByRole("list").getByRole("button", { name: /^Sylve/ });
   await row.click();
   await expect(row).toHaveAttribute("aria-busy", "true");
   await expect(sheet).toBeVisible();
@@ -317,9 +357,9 @@ test("of several rows touched in a row, the last one counts", async ({ page, req
   await page.goto(`/#/chat/${convo.id}`);
 
   const sheet = await openSheet(page);
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
-  await expect(sheet.getByRole("radio", { name: /^Sylve/ })).toHaveAttribute("aria-busy", "true");
-  await sheet.getByRole("radio", { name: new RegExp(`^${bruine.name}`) }).click();
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
+  await expect(sheet.getByRole("list").getByRole("button", { name: /^Sylve/ })).toHaveAttribute("aria-busy", "true");
+  await sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${bruine.name}`) }).click();
   await expect(sheet).toHaveCount(0);
   await expect(chipOf(page)).toHaveAccessibleName(`AI: ${bruine.name}. Change.`);
   release();
@@ -440,7 +480,7 @@ test("choosing another ai clears the line saying one was removed", async ({ page
   const line = page.locator("[data-model-lost]");
   await expect(line).toBeVisible();
   const sheet = await openSheet(page);
-  await sheet.getByRole("radio", { name: /^Sylve/ }).click();
+  await sheet.getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
   await expect(sheet).toHaveCount(0);
   await expect(line).toHaveCount(0);
   await page.reload();
@@ -494,7 +534,7 @@ test("an ai removed on another device while the conversation is open is said at 
   await expect(page.locator("[data-model-lost]")).toContainText(`${gone.name} was removed from your AIs: e2e answers in its place.`);
   await expect(chipOf(page)).toHaveAccessibleName("AI: e2e. Change.");
   const sheet = await openSheet(page);
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${gone.name}`) })).toHaveCount(0);
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${gone.name}`) })).toHaveCount(0);
 });
 
 test("an ai chosen on another device names itself at the next reply", async ({ page, request }) => {
@@ -521,8 +561,8 @@ test("the sheet shows the ais added and removed elsewhere since the page opened"
   const coming = await addModel(request, { base_url: MOCK, model: `e2e-coming-${Date.now()}`, name: `Coming ${shortTag()}` });
   expect((await request.delete(`${API}/api/models/${leaving.id}`)).ok()).toBe(true);
   const sheet = await openSheet(page);
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${coming.name}`) })).toBeVisible();
-  await expect(sheet.getByRole("radio", { name: new RegExp(`^${leaving.name}`) })).toHaveCount(0);
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${coming.name}`) })).toBeVisible();
+  await expect(sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${leaving.name}`) })).toHaveCount(0);
 });
 
 test("an ai picked that no longer exists leaves the sheet, which says so", async ({ page, request }) => {
@@ -539,7 +579,7 @@ test("an ai picked that no longer exists leaves the sheet, which says so", async
   expect((await request.delete(`${API}/api/models/${gone.id}`)).ok()).toBe(true);
 
   const sheet = await openSheet(page);
-  const row = sheet.getByRole("radio", { name: new RegExp(`^${gone.name}`) });
+  const row = sheet.getByRole("list").getByRole("button", { name: new RegExp(`^${gone.name}`) });
   await expect(row).toBeVisible();
   await expect.poll(() => reads.n).toBe(2);
   serveStale = false;
@@ -613,7 +653,7 @@ test("a read of the ais that answers after the ceiling was lifted in the sheet d
   const convo = await makeConversation(request);
   const mine = await capped(request, `Ardoise ${shortTag()}`);
   await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: mine.id } });
-  await longReplies(page);
+  await longReplies(request, convo.id);
   // The read as the sheet opens, and the one as it opens again, held.
   const reads = await holdAiReads(page, [2, 3]);
   await page.goto(`/#/chat/${convo.id}`);
@@ -747,7 +787,7 @@ test.describe("at very large text the toast's button stays on the screen", () =>
         await page.goto(`/#/chat/${convo.id}`);
         await page.reload();
         await chipOf(page).click();
-        await page.getByRole("dialog").getByRole("radio", { name: /^Sylve/ }).click();
+        await page.getByRole("dialog").getByRole("list").getByRole("button", { name: /^Sylve/ }).click();
         await expect(toastOf(page).getByRole("button")).toBeVisible();
         expect(await misfits(page, "[data-chat-toast]"), `at ${width}px`).toEqual([]);
       }

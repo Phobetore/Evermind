@@ -1,4 +1,6 @@
-import type { Ai, Backdrop, Character, Family, Kind, LoreEntry, Memory, ProbeModel, ProviderType } from "@/types";
+import type {
+  Ai, Backdrop, Character, Family, Kind, LoreEntry, Memory, PlayOverrides, ProbeModel, ProviderType,
+} from "@/types";
 
 /** Given up on with `signal`, or as unanswered when no answer has begun within `within` ms. */
 export interface Asking {
@@ -101,6 +103,8 @@ export interface ConversationInput {
   model_id: string | null;
   /** Asked for again under the same one, it is the conversation made the first time. */
   client_id?: string;
+  /** Left out: the way offered to new conversations at this moment, which it then keeps. */
+  play_style?: string;
 }
 
 export interface ConversationPatch {
@@ -115,6 +119,10 @@ export interface ConversationPatch {
   wallpaper_opacity?: number;
   backdrop?: Backdrop;
   backdrop_strength?: number | null;
+  /** Another way: what the conversation adjusted of the one before is dropped. */
+  play_style?: string;
+  /** null: nothing adjusted any more. */
+  play_overrides?: PlayOverrides | null;
 }
 
 /** What "memorize now" found: the facts it added, a new summary if the

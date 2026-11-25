@@ -1,0 +1,168 @@
+import { useI18n } from "@/i18n/I18nProvider";
+import { sizeTold } from "@/lib/ai";
+import { estimateOf, estimateText, pages, readerOfAi, readingOf, type Reader, type Reading } from "@/lib/estimate";
+import { pagesPart, wayName } from "@/lib/ways";
+import type { Ai, WayFields } from "@/types";
+import { useId, useState } from "react";
+
+/** The margin of a reading capacity nothing has measured: 6 % of it, never under 200. */
+const WIDE_MARGIN = 0.06;
+const LEAST_MARGIN = 200;
+
+/** A capacity the source says, with no AI of its own: read as the engine counts, the reply's room
+ *  taken whole, and no price. */
+function readerOfWindow(window: number): Reader {
+  return {
+    window,
+    margin: Math.max(LEAST_MARGIN, Math.trunc(window * WIDE_MARGIN)),
+    ratio: 1,
+    reserve: (room) => room ?? 0,
+    replyTokens: { short: null, medium: null, long: null },
+    reasons: null,
+    thinkingMeasured: false,
+    pricing: null,
+  };
+}
+
+/** The room kept for the reply: hatched, as it is room left, not text read. */
+export const HATCHED = { background: "repeating-linear-gradient(135deg, var(--color-mist-dim) 0 3px, transparent 3px 6px)" };
+
+/** The colour of each part of what is read, here and in the conversation's sheet. */
+export const PART_CLASS = { card: "bg-arcane-500", reminders: "bg-arcane-300", history: "bg-mist", room: "" } as const;
+
+/** The default first, then the others as listed. */
+const inOrder = (ais: Ai[]) => [...ais.filter((ai) => ai.is_default), ...ais.filter((ai) => !ai.is_default)];
+
+/** What an AI would read of a long story under a way: the pages sent with each message, the
+ *  share of each part, whether its capacity is full and what Light would do then, and what 100
+ *  messages would cost. `ais` null: an edition with no AIs of its own, which says only what the
+ *  way asks, unless the source says a capacity (`hostWindow`). `light`: Light as it is now, edited
+ *  or not; null on Light's own page, which has nothing to weigh it against. */
+export function ReadingCard({ way, light, ais, hostWindow }: {
+  way: WayFields;
+  light: WayFields | null;
+  ais: Ai[] | null;
+  hostWindow: number | null;
+}) {
+  const { t, locale } = useI18n();
+  const ids = useId();
+  const [chosen, setChosen] = useState<string | null>(null);
+  const listed = ais && inOrder(ais);
+  const ai = listed && (listed.find((each) => each.id === chosen) ?? listed[0] ?? null);
+
+  // What the way asks, as said where no AI tells what it reads.
+  const askedLine = (
+    <p className="text-sm text-parchment-dim">
+      {way.history_limit === 0 ? t("ways.card.askedAll") : t("ways.card.askedOnly", { count: way.history_limit })}
+    </p>
+  );
+  // What 100 messages of a long story cost with the AI under the way.
+  const estimate = ai && (
+    <p className="text-sm text-parchment-dim">
+      {estimateText(estimateOf(readerOfAi(ai), way), locale, t)}{" "}
+      <small className="text-xs text-mist">{t("ways.card.reference")}</small>
+    </p>
+  );
+  let body: React.ReactNode;
+  if (listed && listed.length === 0) {
+    body = <p className="text-sm text-mist">{t("ways.card.noAi")}</p>;
+  } else if (ai && !sizeTold(ai)) {
+    // A capacity nobody told is not said in pages, nor said full, as the two sheets do: the line
+    // of the AI says it is not given. Its estimate stays, the one every screen compares.
+    body = (
+      <>
+        <p className="text-sm text-parchment-dim">{t("ways.card.untold", { name: ai.name })}</p>
+        {askedLine}
+        {estimate}
+      </>
+    );
+  } else if (ai) {
+    const reader = readerOfAi(ai);
+    const reading = readingOf(reader, way);
+    const lighter = light && readingOf(reader, light);
+    body = (
+      <>
+        <Lines reading={reading} window={ai.context.used} name={ai.name} />
+        {lighter && reading.full && (reading.reread ?? 0) < (lighter.reread ?? 0) && (
+          <p className="text-sm text-ember-300">
+            {t("ways.card.lighter", { name: wayName({ id: "light", name: null }, t), count: lighter.reread ?? 0 })}
+          </p>
+        )}
+        {estimate}
+      </>
+    );
+  } else if (hostWindow !== null) {
+    body = <Lines reading={readingOf(readerOfWindow(hostWindow), way)} window={hostWindow} name={null} />;
+  } else {
+    body = askedLine;
+  }
+
+  return (
+    <section className="panel flex flex-col gap-3 px-[min(1.25rem,20px)] py-4" aria-labelledby={`${ids}-title`}>
+      <h2 id={`${ids}-title`} className="ui-label">{t("ways.card.title")}</h2>
+      {listed && listed.length > 0 && ai && (
+        // The select under its label, the card's whole width to itself: a select never wraps, and
+        // beside the label a long name, or any at a large text size, would be cut.
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <label htmlFor={`${ids}-ai`} className="text-sm text-mist">{t("ways.card.with")}</label>
+          <select
+            id={`${ids}-ai`}
+            className="field min-h-11 !py-1.5 text-sm"
+            value={ai.id}
+            onChange={(e) => setChosen(e.target.value)}
+          >
+            {listed.map((each) => <option key={each.id} value={each.id}>{each.name}</option>)}
+          </select>
+        </div>
+      )}
+      {body}
+    </section>
+  );
+}
+
+/** The pages sent and read, the bar of the parts and its key, and the sentence of a full capacity,
+ *  or, in its place, of what is sent and kept for the reply not fitting what the AI reads at once. */
+function Lines({ reading, window, name }: { reading: Reading; window: number; name: string | null }) {
+  const { t } = useI18n();
+  const { parts } = reading;
+  const sent = parts.card + parts.reminders + parts.history;
+  const over = sent + parts.room > window;
+  const width = (tokens: number) => `${Math.min(100, (tokens / window) * 100).toFixed(2)}%`;
+  const segments = [
+    { key: "card", tokens: parts.card, className: PART_CLASS.card },
+    { key: "reminders", tokens: parts.reminders, className: PART_CLASS.reminders },
+    { key: "history", tokens: parts.history, className: PART_CLASS.history },
+    { key: "room", tokens: parts.room, className: PART_CLASS.room },
+  ] as const;
+  return (
+    <>
+      <p className="font-display text-base text-parchment">{t("ways.card.sent", { pages: reading.pages })}</p>
+      {name !== null && <p className="text-sm text-parchment-dim">{t("ways.card.reads", { name, pages: pages(window) })}</p>}
+      {/* The words are in the key under it: the bar only draws them. */}
+      <div aria-hidden="true" className="flex h-3 overflow-hidden rounded-full bg-ink-700">
+        {segments.map((segment) => (
+          <i key={segment.key} className={`block h-full ${segment.className}`} style={{ width: width(segment.tokens), ...(segment.key === "room" ? HATCHED : {}) }} />
+        ))}
+      </div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-mist">
+        {segments.map((segment) => (
+          <li key={segment.key} className="flex items-center gap-1.5">
+            <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-sm ${segment.className}`} style={segment.key === "room" ? HATCHED : undefined} />
+            {t(`ways.bar.${segment.key}`)}
+          </li>
+        ))}
+      </ul>
+      {over ? (
+        <p className="text-sm text-parchment-dim">
+          {t("ways.reading.over", { sent: pagesPart(sent, t), capacity: pagesPart(window, t) })}
+        </p>
+      ) : reading.full && (
+        <p className="text-sm text-parchment-dim">
+          {reading.asked === null
+            ? t("ways.card.fullAll", { read: reading.reread ?? 0, count: reading.reread ?? 0 })
+            : t("ways.card.full", { read: reading.reread ?? 0, count: reading.reread ?? 0, asked: reading.asked })}
+        </p>
+      )}
+    </>
+  );
+}

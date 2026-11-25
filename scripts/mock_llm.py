@@ -138,6 +138,26 @@ class Handler(BaseHTTPRequestHandler):
             self._json(json.dumps({"error": {"message": "unknown endpoint"}}), status=404)
             return
 
+        said = json.dumps(payload)
+        # A server that will not be asked for its count, as KoboldCpp and older llama.cpp.
+        if "MOCK_REFUSES_USAGE_OPTION" in said and "stream_options" in payload:
+            self._json(json.dumps({"error": {"message": "Unrecognized request argument "
+                                             "supplied: stream_options"}}), status=400)
+            return
+        # What it counts as read: a third of the characters of what it was sent, or what
+        # MOCK_READS_<n> says.
+        reads = re.search(r"MOCK_READS_(\d+)", said)
+        read = int(reads.group(1)) if reads else sum(
+            len(m["content"]) for m in payload.get("messages", [])
+            if isinstance(m.get("content"), str)) // 3
+        # A server that reads no more than <n>, and refuses a longer prompt as OpenAI words it.
+        too_long = re.search(r"MOCK_TOO_LONG_(\d+)", said)
+        if too_long and read > int(too_long.group(1)):
+            self._json(json.dumps({"error": {"message": (
+                f"This model's maximum context length is {too_long.group(1)} tokens. "
+                f"However, you requested {read} tokens.")}}), status=400)
+            return
+
         # MOCK_FAILS_MIDWAY holds MOCK_FAILS, which is another failure: refusing outright.
         if "MOCK_FAILS" in json.dumps(payload).replace("MOCK_FAILS_MIDWAY", ""):
             time.sleep(FAIL_AFTER)
@@ -261,8 +281,10 @@ class Handler(BaseHTTPRequestHandler):
         if "MOCK_QUIET" in json.dumps(payload):
             time.sleep(QUIET_FOR)
         delay = SLOW_WORD_DELAY if "SLOWLY" in json.dumps(payload) else WORD_DELAY
+        written = 0  # characters of the reply and its reasoning, which its count is made of
         for number in range(THOUGHTS if thinks else 0):
             thought = f"Step {number + 1}: weighing the brief, the voice and the stakes. "
+            written += len(thought)
             chunk = {"choices": [{"delta": {"reasoning_content": thought}}]}
             self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
             self.wfile.flush()
@@ -274,12 +296,21 @@ class Handler(BaseHTTPRequestHandler):
                 return
             # A cut card ends exactly where the model stopped, on its comma.
             text = word if cut and number == len(words) - 1 else word + " "
+            written += len(text)
             chunk = {"choices": [{"delta": {"content": text}}]}
             self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
             self.wfile.flush()
             time.sleep(delay)
-        self.wfile.write(b'data: {"choices":[{"delta":{},"finish_reason":"%s"}],'
-                         b'"usage":{"total_tokens":42}}\n\n' % finish.encode())
+        end = {"choices": [{"delta": {}, "finish_reason": finish}]}
+        if "MOCK_NO_USAGE" in said:
+            pass  # a server that never says what it counted
+        elif (payload.get("stream_options") or {}).get("include_usage"):
+            # Asked, as Evermind asks: what it read and wrote, as a server counts them.
+            end["usage"] = {"prompt_tokens": read, "completion_tokens": written // 3,
+                            "total_tokens": read + written // 3}
+        else:
+            end["usage"] = {"total_tokens": 42}
+        self.wfile.write(f"data: {json.dumps(end)}\n\n".encode())
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
 

@@ -97,17 +97,6 @@
   "settings": {
     "subtitle": "Sus modelos, sus reglas: Evermind se conecta a la IA que elija.",
     "defaultConnectionLabel": "IA predeterminada",
-    "replyLengthLabel": "Longitud de las respuestas",
-    "replyLengthHint": "Se aplica a todas las conversaciones. Evermind guarda el espacio necesario para las IA que ajusta él; una IA con tope fijo puede cortar las respuestas largas: consulte Mis IA.",
-    "replyLengthOptions": {
-      "short": "Cortas: un párrafo denso",
-      "medium": "Medias: de 1 a 3 párrafos",
-      "long": "Largas: de 3 a 5 párrafos ricos"
-    },
-    "historyLimitLabel": "Mensajes recientes enviados al modelo",
-    "historyLimitHint": "Más allá de eso, los turnos antiguos solo perviven en el resumen y en los hechos establecidos. Ventana corta (16–30): el modelo sigue atento a las instrucciones en vez de imitar sus propias respuestas. Ventana larga: más historial sin filtrar, pero los modelos pequeños empiezan a divagar.",
-    "passageBudgetLabel": "Recuerdo de pasajes (tokens)",
-    "passageBudgetHint": "Recupera extractos literales de mensajes antiguos relacionados semánticamente con la escena actual (requiere el extra «semantic»). ~1500 ≈ 10 % de un contexto de 16k. Ponga 0 para desactivarlo. Cada token de recuerdo es un token menos de historial reciente.",
     "autoMemoryTitle": "Memoria automática",
     "autoMemoryHint": {
       "before": "El modelo extrae automáticamente los",
@@ -164,14 +153,6 @@
       "aboutAriaLabel": "Acerca de {name}",
       "openButton": "Ver la ficha"
     },
-    "context": {
-      "tooltipUsage": "Contexto: {used} / {budget} tokens (ventana {size})",
-      "tooltipMessages": "{included}/{total} mensajes en el contexto",
-      "tooltipOlderInMemory": "(los más antiguos están cubiertos por la memoria)",
-      "tooltipLore": "{count} entradas de lorebook activas",
-      "percent": "{pct}\u00a0%",
-      "perSecond": "{tps} t/s"
-    },
     "stream": {
       "assistantTyping": "{name} está escribiendo…",
       "replied": "{name} ha respondido."
@@ -205,7 +186,6 @@
       "stopTitle": "Detener la generación",
       "sendTitle": "Enviar",
       "hintDefault": "Enter para enviar · Mayús+Enter para una nueva línea · pluma: la IA le redacta la respuesta",
-      "hintTouch": "Pulse enviar cuando quiera. La pluma redacta su respuesta.",
       "draftRestored": "Borrador restaurado",
       "more": "Hablar, narrar, fuera de personaje o escribir por mí",
       "penLabel": "Escribir por mí"
@@ -248,8 +228,23 @@
       "nextVariantAriaLabel": "Variante siguiente o regenerar",
       "confirmDeleteFrom": "¿Eliminar este mensaje y todos los siguientes?",
       "confirmBranch": "¿Ramificar la historia desde aquí?",
-      "branchAction": "Crear la rama"
+      "branchAction": "Crear la rama",
+      "cutRoom": {
+        "short": "Respuesta cortada: llenó el espacio reservado para una respuesta corta.",
+        "medium": "Respuesta cortada: llenó el espacio reservado para una respuesta media.",
+        "long": "Respuesta cortada: llenó el espacio reservado para una respuesta larga."
+      },
+      "cutThought": "La IA razonó mucho tiempo y no le quedó espacio para escribir.",
+      "extend": "Continuar",
+      "retry": "Reintentar",
+      "longHere": "Respuestas largas aquí",
+      "longHereDone": "Respuestas largas en esta conversación."
     },
+    "truncated": {
+      "text": "{name} solo ha leído el final de la historia. Lee menos de lo previsto: ≈ {read:grouped} tokens, no {window:grouped}.",
+      "button": "Reducir y reintentar"
+    },
+    "tooLong": "{name} dice que es demasiado largo para ella.",
     "panel": {
       "closeAriaLabel": "Cerrar el panel",
       "kindScenario": "Escenario",
@@ -660,6 +655,7 @@
       "connection": "Este servicio ya no existe.",
       "fact": "Este hecho ya no existe.",
       "model": "Esta IA ya no existe.",
+      "way": "Esta forma de jugar ya no existe.",
       "other": "Este elemento ya no existe."
     },
     "pngWithoutCard": "Esta imagen PNG no contiene una ficha de personaje.",
@@ -683,6 +679,7 @@
     "modelUnreadable": "No se ha podido leer la respuesta del modelo. Inténtelo de nuevo.",
     "modelOnlyThought": "El modelo ha gastado toda su respuesta en pensar y no ha escrito nada. Inténtelo de nuevo: Evermind sabe ahora que razona y le deja sitio, salvo que su tope de respuesta esté fijado a mano (Mis IA, en Avanzado). Si vuelve a pasar, use una IA que razone menos tiempo.",
     "modelWithheld": "El servidor del modelo ha retenido la respuesta («{reason}»). Inténtelo de nuevo o cambie de modelo o de proveedor.",
+    "modelTooLong": "La IA dice que es demasiado largo para ella. Vuelva a intentarlo: Evermind enviará menos.",
     "modelAuthRefused": "El servicio ha rechazado la clave. Compruébela en Mis IA. Ha indicado: {message}",
     "modelNotFound": "El servicio no reconoce esta dirección ni este modelo. Compruébelos en Mis IA. Ha indicado: {message}",
     "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtelo de nuevo en un momento. El servidor indicó: {message}",
@@ -844,7 +841,7 @@
       "sizeSome": "Medio · ≈ {count:grouped} páginas",
       "sizeMany": "Mucho · ≈ {count:grouped} páginas",
       "sizeUnknown": "No lo sé",
-      "sizeUnknownHint": "Evermind cuenta entonces {tokens:grouped} tokens (≈ {count:grouped} páginas), como hasta ahora.",
+      "sizeUnknownHint": "Evermind cuenta entonces {tokens:grouped} tokens (≈ {count:grouped} páginas), como hasta ahora, y le avisa si la IA en realidad solo lee una parte.",
       "sizeNoted": "Anotado. Se puede cambiar en cualquier momento en la ficha de la IA.",
       "priceTitle": "Su precio, si lo conoce ($ por millón de tokens)",
       "priceIn": "Leídos",
@@ -958,7 +955,8 @@
       "removeOrphans": "{count} conversaciones se quedarán sin IA hasta que usted añada una.",
       "removeOrphans_one": "1 conversación se quedará sin IA hasta que usted añada una.",
       "removeKey": "Es la última IA de {service}: su clave también se olvidará.",
-      "gone": "Esta IA ya no existe."
+      "gone": "Esta IA ya no existe.",
+      "noUsage": "Este servidor no dice lo que cuenta: Evermind deja un margen más amplio."
     },
     "service": {
       "title": "Modificar {name}",
@@ -971,6 +969,148 @@
       "forAll": "Lo que cambie aquí vale para las {count} IA de este servicio.",
       "forAll_one": "Lo que cambie aquí vale para la única IA de este servicio.",
       "save": "Guardar"
+    }
+  },
+  "money": {
+    "estimate": "≈ {amount} cada 100 mensajes",
+    "atLeast": "al menos {amount} cada 100 mensajes (≈ {fuller} con su razonamiento)",
+    "underACent": "menos de {amount} cada 100 mensajes"
+  },
+  "ways": {
+    "names": {
+      "light": "Ligero",
+      "balanced": "Equilibrado",
+      "immersive": "Inmersivo",
+      "maximum": "Máximo",
+      "mine": "Mis ajustes"
+    },
+    "title": "Formas de jugar",
+    "summary": {
+      "light": "Respuestas cortas, relee los 16 últimos mensajes, recordatorios reducidos a lo esencial. Rápido y económico: para una IA pequeña o un presupuesto ajustado.",
+      "balanced": "Respuestas de 1 a 3 párrafos, relee los 24 últimos mensajes. El ajuste original de Evermind, cifra por cifra.",
+      "immersive": "Respuestas largas, relee los 60 últimos mensajes, más recordatorios. Para las IA que leen mucho de una vez.",
+      "maximum": "Relee toda la historia, tanto como la IA pueda leer de una vez. Respuestas largas, recordatorios ricos. Lo más fiel y lo más caro con una IA de pago.",
+      "custom": "Sus propios valores."
+    },
+    "defaultTag": "Predeterminada",
+    "count": "{count} conversaciones",
+    "count_one": "1 conversación",
+    "usage": "{count} conversaciones usan esta forma de jugar. Lo que cambie aquí cambia para todas.",
+    "usage_one": "1 conversación usa esta forma de jugar. Lo que cambie aquí cambia para ella.",
+    "usageNone": "Ninguna conversación usa esta forma de jugar por ahora.",
+    "history": {
+      "label": "Mensajes releídos antes de cada respuesta",
+      "hint": "La IA relee palabra por palabra esta cantidad de mensajes recientes; lo anterior le llega por el resumen y los hechos recordados.",
+      "all": "Todos"
+    },
+    "length": {
+      "label": "Longitud buscada de las respuestas",
+      "hint": "Lo larga que la IA intenta escribir; Evermind le guarda el espacio necesario, sin más ajustes.",
+      "short": "Cortas",
+      "medium": "Medias",
+      "long": "Largas"
+    },
+    "reminders": {
+      "label": "Recordatorios del mundo y de lo ocurrido",
+      "hint": "Lo que Evermind le añade a la IA: los hechos recordados, las páginas del mundo y pasajes antiguos de la historia.",
+      "essential": "Lo esencial",
+      "normal": "Normal",
+      "rich": "Rico",
+      "all": "Sin tope",
+      "custom": "A medida"
+    },
+    "bar": {
+      "card": "ficha",
+      "reminders": "recordatorios",
+      "history": "mensajes releídos",
+      "room": "espacio para la respuesta"
+    },
+    "advanced": "Avanzado: los valores exactos",
+    "exact": {
+      "history": "Mensajes releídos (0: todos)",
+      "room": "Espacio para la respuesta (tokens)",
+      "roomHint": "Vacío: ninguno propio. Evermind no le envía entonces ningún tope.",
+      "factsCap": "Hechos recordados: como máximo (tokens)",
+      "maxFacts": "Hechos recordados: cuántos como máximo",
+      "loreCap": "Páginas del mundo: como máximo (tokens)",
+      "share": "o parte de lo que lee (%)",
+      "passages": "Pasajes antiguos recuperados",
+      "passagesHint": "Cuando la escena recuerda un momento anterior, Evermind vuelve a poner ese pasaje, tal como se escribió, ante la IA.",
+      "noLimit": "Vacío: sin límite."
+    },
+    "unavailable": "No disponible en esta instalación: el módulo de búsqueda por significado no está instalado.",
+    "reset": "Valores originales",
+    "copy": "Hacer una copia",
+    "copyName": "{name} (copia)",
+    "nameLabel": "Nombre",
+    "makeDefault": "Proponer {name} para las conversaciones nuevas",
+    "isDefault": "Se propone para las conversaciones nuevas.",
+    "remove": "Eliminar esta forma de jugar",
+    "removeConfirm": "{count} conversaciones pasarán a {name}.",
+    "removeConfirm_one": "1 conversación pasará a {name}.",
+    "removeConfirmNone": "Ninguna conversación la usa.",
+    "saved": "Guardado.",
+    "card": {
+      "lighter": "Con {name}, releería {count}.",
+      "title": "Lo que la IA lee",
+      "with": "Con",
+      "sent": "≈ {pages:grouped} páginas enviadas con cada mensaje",
+      "reads": "{name} puede leer ≈ {pages:grouped} páginas de una vez",
+      "full": "Su capacidad de lectura está llena: relee {read} de los {asked} mensajes pedidos. Es el límite del modelo, no el de Evermind.",
+      "full_one": "Su capacidad de lectura está llena: relee {count} de los {asked} mensajes pedidos. Es el límite del modelo, no el de Evermind.",
+      "fullAll": "Su capacidad de lectura está llena: relee {read} mensajes, todo lo que cabe. Es el límite del modelo, no el de Evermind.",
+      "fullAll_one": "Su capacidad de lectura está llena: relee {count} mensaje, todo lo que cabe. Es el límite del modelo, no el de Evermind.",
+      "reference": "En una historia larga.",
+      "noAi": "Añada una IA para ver lo que leería.",
+      "untold": "{name} no dice cuánto lee de una vez: no se puede mostrar lo que releería.",
+      "askedOnly": "Relee hasta {count} mensajes.",
+      "askedOnly_one": "Relee hasta {count} mensaje.",
+      "askedAll": "Relee toda la historia."
+    },
+    "chip": {
+      "aria": "Forma de jugar: {label}. Cambiar.",
+      "adjusted": "{name} · ajustado",
+      "full": "{label} · relee {read} de {asked}",
+      "fullAria": "Forma de jugar: {label}. Su capacidad de lectura está llena: relee {read} mensajes de {asked}. Cambiar.",
+      "untoldAria": "Forma de jugar: {label}. Relee {read} mensajes de {asked}. Cambiar.",
+      "untoldAria_one": "Forma de jugar: {label}. Relee {count} mensaje de {asked}. Cambiar.",
+      "fullAria_one": "Forma de jugar: {label}. Su capacidad de lectura está llena: relee {count} mensaje de {asked}. Cambiar."
+    },
+    "sheet": {
+      "title": "Forma de jugar",
+      "hint": "Solo para esta conversación.",
+      "row": "{messages} · {pages}",
+      "rowNoSize": "Relee {read} de los {total} mensajes",
+      "rowNone": "Aún no hay mensajes que releer",
+      "rowOnly": "Relee el único mensaje",
+      "adjust": "Ajustar para esta conversación",
+      "backTo": "Volver a {name} sin ajustes",
+      "editAll": "Modificar {name} para todas las conversaciones…"
+    },
+    "reading": {
+      "line": "Lo que {name} lee: {pages} · {messages}",
+      "lineVowel": "Lo que {name} lee: {pages} · {messages}",
+      "lineNoSize": "Relee {read} mensajes, todos los pedidos",
+      "lineNoSizeNone": "Aún no hay mensajes que releer",
+      "lineNoSizeOne": "Relee 1 mensaje, el único pedido",
+      "lineNoSizeFull": "Relee {read} de los {asked} pedidos",
+      "full": "Su capacidad de lectura está llena ({capacity}): {sent}, el resto queda para su respuesta.",
+      "over": "Lo que se envía ({sent}) supera lo que esta IA lee de una vez ({capacity}): su ficha y sus recordatorios no caben. Elija una forma más ligera, o una IA que lea más.",
+      "why": "Por qué",
+      "limit": "Es el límite del modelo, no el de Evermind; el resto le llega por el resumen y los hechos.",
+      "legend": "En tokens: ficha {card:grouped} · recordatorios {reminders:grouped} · mensajes releídos {history:grouped} · espacio para la respuesta {room:grouped} · capacidad {capacity:grouped}",
+      "pages": "≈ {count:grouped} páginas",
+      "pages_one": "≈ {count:grouped} página",
+      "pagesSent": "≈ {count:grouped} páginas enviadas",
+      "pagesSent_one": "≈ {count:grouped} página enviada",
+      "rereadNone": "aún no hay mensajes que releer",
+      "rereadOne": "relee 1 mensaje, el único pedido",
+      "rereadAll": "relee {read} mensajes, todos los pedidos",
+      "rereadSome": "relee {read} de los {asked} pedidos"
+    },
+    "longRoom": {
+      "text": "{name} no recibe tope, y Evermind solo le guarda {tokens:grouped} tokens: una respuesta larga puede no caber en lo que lee.",
+      "button": "Guardar el espacio de las respuestas largas"
     }
   }
 }

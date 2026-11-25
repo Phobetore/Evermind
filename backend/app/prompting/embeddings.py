@@ -2,6 +2,7 @@
 a core dependency, so packing and comparing vectors always work."""
 
 import asyncio
+import importlib.util
 import logging
 
 import numpy as np
@@ -12,6 +13,12 @@ MODEL_NAME = "intfloat/multilingual-e5-small"
 
 _model = None            # loaded SentenceTransformer, or None
 _load_attempted = False  # only try (and log failure) once
+
+
+def installed() -> bool:
+    """Whether the package that finds past passages is there, loaded or not: without it, a way's
+    room for them is never used."""
+    return importlib.util.find_spec("sentence_transformers") is not None
 
 
 def pack(vector) -> bytes:

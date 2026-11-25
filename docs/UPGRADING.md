@@ -8,6 +8,84 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead. Coming from further back, read every section from your version up.
 
+## From 3.7.x to 3.8.0
+
+This update asks for a restart and a reload of your pages. The database changes
+when Evermind starts, and a copy of it is kept first, as
+`evermind.before-3.8.0.db` in the data folder. Read this to know what changes.
+
+- **Reload Evermind on every device that had it open**, a phone above all.
+- **To go back to the previous release, put back `evermind.before-3.8.0.db`**,
+  as [Going back after an update](../INSTALL.md#going-back-after-an-update)
+  says. What you did since the update is lost. See "Going back" below for the
+  other way.
+- **Your conversations play as before.** Your three settings of today ("Reply
+  length", "Recent messages sent to the model" and "Passage recall") become a
+  way to play. It is **Balanced** if you never touched them (the figures are the
+  same), and **My settings** otherwise, which keeps your exact values. Each
+  existing conversation plays it, and it is offered to the new ones. Each AI is
+  sent the same request as before, but for three things (see "Three things
+  change without your choosing them" below).
+- **The way to play is chosen apart from the AI**, under the typing area, next
+  to the name of the AI: one tap for the list of ways, one tap to choose. The
+  choice holds for that conversation only, and it can be adjusted for that
+  conversation alone. Changing the way offered to new conversations does not
+  touch the ones that exist.
+- **Four ways to play**: Light, Balanced, Immersive and Maximum. You can
+  change them (in Settings, **Ways to play**), go back to their original values,
+  and make copies of your own. The ceilings of 200 messages reread and of 4,000
+  tokens of old passages are gone: the only limit is the model's.
+- **Evermind says what the AI reads.** At the top of the list of ways, in the
+  conversation, and under **What the AI reads** on a way's page in Settings:
+  the pages sent, the messages reread, and when the AI's reading capacity is
+  full. The small context bar in
+  the header of a conversation, on a computer, is gone, and so is its speed in
+  tokens per second; the speed test stays on the AI's page.
+- **Under a reply cut short**, its reason and the button that mends it: the AI's
+  ceiling ("Let Evermind set it"), the room of its length ("Long replies here"),
+  or its thinking ("Try again"). An AI that read only the end of the story (Ollama
+  and LM Studio cut a story that is too long without saying so) is now noticed,
+  with "Shrink and try again". A server that refuses a story that is too long
+  teaches Evermind its limit, and Evermind shrinks it and asks once more by
+  itself.
+- **Estimates "per 100 messages"** show where you choose an AI or a way to play:
+  My AIs, an AI's page, the list to add one, the ways to play, and the two lists
+  of a conversation. Never under the typing area.
+- **An AI that is sent no reply ceiling** keeps 1,024 tokens for its reply,
+  whatever the way, as before. Under a way with long replies, a notice offers
+  "Keep the room long replies need".
+- **Three things change without your choosing them: Evermind counts better.**
+  It asks the server how many tokens it counted (one field more in each request
+  to an OpenAI-compatible server, `stream_options`; a server that refuses it is
+  asked again without) and trusts the answer: once an AI has answered, what
+  Evermind sends it is measured the way its server counts, no longer by
+  Evermind's own estimate. On a story that already fills what the AI reads,
+  more or fewer messages are then reread than before: fewer when the server
+  counts more tokens than Evermind estimated (the story was then longer than
+  the AI could read), more when it counts fewer. Until it has measured an AI,
+  Evermind keeps a wider margin under what the AI reads: 6% of it, 3% once
+  measured, and never under the 200 tokens it was before. And for an AI that
+  reasons, the room kept for its thinking is no longer always 3,072 tokens:
+  once a reply has measured its thinking, it is twice what that took on
+  average, and never under 1,024 tokens. On Anthropic, which must be sent a
+  ceiling, the ceiling sent follows it. The facts and the lorebook of a
+  community card, which take a share of what is left, follow.
+- **Going back.** Besides putting the copy back, the previous release also
+  starts on the migrated database. It finds your three old settings as they were
+  the day of the update, and knows nothing of the ways to play. **Coming back to
+  this release** replays nothing: the ways are there. A conversation started
+  meanwhile in the previous release plays Balanced here, whatever your settings
+  were then. What you changed there in the three old settings is not carried
+  back either: the ways keep the values they had.
+- **A page open before the update** must be reloaded. Meanwhile it cannot save
+  the three old settings (it says "reload this page"), and its conversations
+  answer as usual.
+- **For a script that calls the API**: `GET /api/settings` no longer carries
+  `reply_length`, `history_limit` or `passage_budget`, and writing them answers
+  `410` (`page_outdated`). The ways are read and written under `/api/ways`. A
+  conversation carries `play_style` and `play_overrides`. The body of a request
+  to an OpenAI-compatible server carries `stream_options`.
+
 ## From 3.6.x to 3.7.0
 
 This update asks for a restart and a reload of your pages. The database changes

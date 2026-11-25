@@ -12,6 +12,7 @@ import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { PersonasPage } from "@/pages/PersonasPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { WayPage } from "@/pages/WayPage";
 import { createHashRouter, Navigate, Outlet } from "react-router";
 
 /** Routes live after the "#" of the address. The server then only ever has
@@ -41,6 +42,7 @@ export const router = createHashRouter([
           { path: "/personas", Component: PersonasPage },
           { path: "/settings", Component: SettingsPage },
           { path: "/settings/ai/:id", Component: AiPage },
+          { path: "/settings/way/:id", Component: WayPage },
           { path: "/login", Component: LoginPage },
           { path: "*", element: <Navigate to="/" replace /> },
         ],

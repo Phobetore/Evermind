@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { makeCharacter } from "./fixtures";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { inLocale, makeCharacter, rootAt } from "./fixtures";
 
 test("the skip link focuses the content without changing the route", async ({ page }) => {
   // Not the home page: an address the router cannot make sense of falls back
@@ -100,3 +102,51 @@ test("the language is chosen in the sidebar, or in the settings where there is n
   await shown.selectOption({ label: "Français" });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres");
 });
+
+// The bar at the foot of a phone, its text at its own size and at the largest (a root of 32px, as
+// Safari and Firefox set it): a label shows whole in its own tab, or the bar shows its icons alone,
+// each tab still named by its label. At the text's own size the labels show, as they always have.
+for (const locale of ["en", "fr", "de", "es"]) {
+  test(`the bottom navigation's labels show whole or not at all, in ${locale}`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "phone", "the bar is a phone's");
+    await inLocale(page, locale);
+    const words = JSON.parse(readFileSync(path.join(import.meta.dirname, "..", "src", "i18n", "locales", `${locale}.json`), "utf8"));
+    const names = [words.nav.discover, words.nav.conversations, words.nav.personas, words.nav.settings];
+    for (const root of ["16px", "32px"]) {
+      if (root === "32px") await page.addInitScript(rootAt, root);
+      for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+        const at = `at ${size.width}px, a root of ${root}`;
+        await page.setViewportSize(size);
+        await page.goto("about:blank");
+        await page.goto("/#/settings");
+        const bar = page.getByRole("navigation").filter({ has: page.getByRole("link", { name: names[3] }) }).last();
+        await expect(bar).toBeVisible();
+        expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(root);
+        await page.evaluate(() => document.fonts.ready);
+        for (const name of names) await expect(bar.getByRole("link", { name, exact: true }), at).toBeVisible();
+        const tabs = await bar.getByRole("link").evaluateAll((links) => links.map((link) => {
+          const label = link.querySelector("span")!;
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          const text = range.getBoundingClientRect();
+          const box = link.getBoundingClientRect();
+          const row = link.parentElement!.getBoundingClientRect();
+          return {
+            // Each tab its share: tabs grown to their words run them together.
+            even: Math.abs(box.width - row.width / links.length) < 1,
+            shown: getComputedStyle(label).position !== "absolute",
+            whole: text.left >= box.left - 0.5 && text.right <= box.right + 0.5,
+            inside: box.left >= -0.5 && box.right <= innerWidth + 0.5,
+            tall: box.height >= 44,
+          };
+        }));
+        const shown = tabs.filter((tab) => tab.shown).length;
+        // All or none: a bar half in words would read as two kinds of tabs.
+        expect([0, tabs.length], at).toContain(shown);
+        if (shown) expect(tabs.every((tab) => tab.whole && tab.inside && tab.even), `a label cut or over the next ${at}`).toBe(true);
+        else expect(tabs.every((tab) => tab.tall && tab.inside && tab.even), `an icon's tab under a finger's height ${at}`).toBe(true);
+        if (root === "16px") expect(shown, `the labels at the text's own size ${at}`).toBe(tabs.length);
+      }
+    }
+  });
+}

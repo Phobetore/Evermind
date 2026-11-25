@@ -203,18 +203,13 @@ async def test_a_stored_default_persona_or_connection_does_not_come_back(client,
 
 async def test_a_null_does_not_reset_a_setting_that_has_a_value_of_its_own_by_default(client):
     await client.put("/api/settings", json={
-        "global_instructions": "In English.", "reply_length": "long", "auto_memory": False,
-        "history_limit": 10, "passage_budget": 0, "update_check": False})
+        "global_instructions": "In English.", "auto_memory": False, "update_check": False})
 
     kept = (await client.put("/api/settings", json={
-        "global_instructions": None, "reply_length": None, "auto_memory": None,
-        "history_limit": None, "passage_budget": None, "update_check": None})).json()
+        "global_instructions": None, "auto_memory": None, "update_check": None})).json()
 
     assert kept["global_instructions"] == "In English."
-    assert kept["reply_length"] == "long"
     assert kept["auto_memory"] is False
-    assert kept["history_limit"] == 10
-    assert kept["passage_budget"] == 0
     assert kept["update_check"] is False
 
 

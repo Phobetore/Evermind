@@ -2,7 +2,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useT } from "@/i18n/useT";
-import { ceilingTokens, describeCeiling, isCutAtCeiling, isCutShort } from "@/lib/cutShort";
+import { describeCut, isCutAtCeiling, isCutShort, type CutAction } from "@/lib/cutShort";
 import { copyText, nothingFocused, smallPortrait } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -26,6 +26,7 @@ export function ChatMessage({
   onDeleteFrom,
   onBranch,
   onLetEvermind,
+  onLongHere,
 }: {
   message: Message;
   character: Character;
@@ -43,6 +44,9 @@ export function ChatMessage({
   onBranch: () => Promise<unknown>;
   /** Given while the AI answering keeps a ceiling of its own: lifts it, for a reply cut at a figure. */
   onLetEvermind?: () => Promise<unknown>;
+  /** Given where the page can adjust its conversation: long replies here, for a reply that filled
+   *  the room its way keeps. */
+  onLongHere?: () => Promise<unknown>;
 }) {
   const t = useT();
   // The version being rewritten: a swipe that lands meanwhile changes the one shown, not this.
@@ -51,7 +55,8 @@ export function ChatMessage({
   const [copied, setCopied] = useState(false);
   // A branch or a cut on its way: seen to be, and not asked for a second time meanwhile.
   const [working, setWorking] = useState<"branch" | "delete" | null>(null);
-  const [lifting, setLifting] = useState(false);
+  // The line's button whose change is on its way: seen to be, and not asked for twice meanwhile.
+  const [helping, setHelping] = useState<CutAction | null>(null);
 
   const confirm = useConfirm();
 
@@ -76,12 +81,36 @@ export function ChatMessage({
   const variants = message.variants;
   const canSwipe = !isUser && variants.length > 1;
   const interrupted = isCutShort(message);
-  // Why it is cut when no one cut it: the connection's max tokens, which its reasoning spent too.
-  // Said in full on the last reply, where Continue is; an older one keeps a mark, as "interrupted".
-  const ceiling = isLast ? describeCeiling(message, t) : null;
+  // Why it is cut when no one cut it, with the buttons that help: its AI's ceiling, the room its
+  // way keeps, or its thinking. Said in full on the last reply, where Continue is; an older one
+  // keeps a mark, as "interrupted".
+  const cut = isLast ? describeCut(message, t) : null;
   const cutAtCeiling = !isLast && isCutAtCeiling(message);
-  // The gesture that was missing the day a reply is cut at 1,024: nobody has to know where the setting is.
-  const canLift = ceiling !== null && ceilingTokens(message) !== null && onLetEvermind !== undefined;
+  // The gesture that was missing the day a reply is cut at 1,024: nobody has to know where the
+  // setting is. Each button only where the page can do what it says, and not while a reply is
+  // being written.
+  const helps: Record<CutAction, (() => unknown) | undefined> = {
+    extend: busy ? undefined : onContinue,
+    retry: busy ? undefined : onRegenerate,
+    longHere: busy ? undefined : onLongHere,
+    letEvermind: onLetEvermind,
+  };
+  const helpWords: Record<CutAction, string> = {
+    extend: t("chat.message.extend"),
+    retry: t("chat.message.retry"),
+    longHere: t("chat.message.longHere"),
+    letEvermind: t("ai.notice.letEvermind"),
+  };
+  const offered = cut ? cut.actions.filter((action) => helps[action] !== undefined) : [];
+
+  async function help(action: CutAction) {
+    setHelping(action);
+    try {
+      await helps[action]?.();
+    } finally {
+      setHelping(null);
+    }
+  }
   const messageMode = message.meta?.mode as "narrate" | "ooc" | undefined;
 
   const editButton = useRef<HTMLButtonElement>(null);
@@ -152,12 +181,13 @@ export function ChatMessage({
             </span>
           )}
 
-          {/* Always shown on touch, each button 44px across and the row giving back the height it takes;
-              six that do not fit on a line break between the reply's two and the message's four, and
-              four that do not fit either (a page zoomed to 200 %) break among themselves. */}
-          <div className="hover-actions msg-actions ml-auto flex items-center gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:flex-wrap pointer-coarse:justify-end pointer-coarse:gap-0">
+          {/* Always shown on touch, each button 44px across and the row giving back the height it takes.
+              With a pointer too, six that do not fit on a line (a narrow window with very large text)
+              break between the reply's two and the message's four, and four that do not fit either
+              (a page zoomed to 200 %) break among themselves. */}
+          <div className="hover-actions msg-actions ml-auto flex flex-wrap items-center justify-end gap-0.5 pointer-coarse:-my-2.5 pointer-coarse:gap-0">
             {isLast && !busy && (
-              <div className="flex items-center justify-end gap-0.5 pointer-coarse:flex-wrap pointer-coarse:gap-0">
+              <div className="flex flex-wrap items-center justify-end gap-0.5 pointer-coarse:gap-0">
                 {/* On a message of the person's, the reply it is waiting for. Never on a greeting: it answers nothing. */}
                 {!message.meta?.greeting && (
                   <IconButton ref={replyRef} title={t("chat.message.regenerateTitle")} onClick={onRegenerate}>
@@ -171,7 +201,7 @@ export function ChatMessage({
                 )}
               </div>
             )}
-            <div className="flex items-center justify-end gap-0.5 pointer-coarse:flex-wrap pointer-coarse:gap-0">
+            <div className="flex flex-wrap items-center justify-end gap-0.5 pointer-coarse:gap-0">
               <IconButton
                 ref={editButton}
                 title={t("chat.message.editTitle")}
@@ -248,27 +278,30 @@ export function ChatMessage({
           )}
         </div>
 
-        {/* Not live: the page says it once, as the reply comes in, and a screen reader finds it here. */}
-        {ceiling && editing === null && (
-          <div className="mt-1.5 flex flex-col items-start gap-1.5">
-            <p data-ceiling className="text-xs leading-snug text-mist-dim">{ceiling}</p>
-            {canLift && (
-              <button
-                type="button"
-                className="btn btn-ghost !py-1.5 text-xs"
-                disabled={lifting}
-                onClick={async () => {
-                  setLifting(true);
-                  try {
-                    await onLetEvermind?.();
-                  } finally {
-                    setLifting(false);
-                  }
-                }}
-              >
-                {lifting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {t("ai.notice.letEvermind")}
-              </button>
+        {/* Not live: the page says it once, as the reply comes in, and a screen reader finds it here.
+            The buttons go under one another when they do not fit side by side. */}
+        {/* In a column narrower than any phone's (beside the side panel, at the largest text), the
+            line and its buttons take the room under the avatar too, and the buttons a thinner side:
+            their words then stand whole where they can. */}
+        {cut && editing === null && (
+          <div className="mt-1.5 flex flex-col items-start gap-1.5 @max-[240px]/column:-ml-[calc(40px+0.875rem)]">
+            <p data-ceiling className="text-xs leading-snug text-mist-dim">{cut.text}</p>
+            {offered.length > 0 && (
+              <div data-cut-actions className="flex max-w-full flex-wrap gap-1.5">
+                {offered.map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    // There too, a word wider than the whole button is broken rather than run out of it.
+                    className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-xs @max-[240px]/column:!px-[8px] @max-[240px]/column:[overflow-wrap:anywhere]"
+                    disabled={helping !== null}
+                    onClick={() => void help(action)}
+                  >
+                    {helping === action && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {helpWords[action]}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )}

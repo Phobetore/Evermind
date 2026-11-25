@@ -1,10 +1,13 @@
 import { useConfirm } from "@/components/ui/Confirm";
 import { Modal } from "@/components/ui/Modal";
 import { data, DataError, type DataSource } from "@/data";
+import { BUILT_IN } from "@/engine";
 import type { Translate } from "@/i18n/I18nProvider";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import type { Ai, Conversation, Family, Service } from "@/types";
+import { readerOfRow } from "@/lib/estimate";
+import { offeredWay } from "@/lib/ways";
+import type { Ai, Conversation, Family, Service, WayFields } from "@/types";
 import { clsx } from "clsx";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useId, useReducer, useRef, useState } from "react";
@@ -12,6 +15,7 @@ import {
   CHIPS, HOSTED_FAMILIES, LOCAL_FAMILIES, footOf, have, initial, reduce, serviceRef, toCreate,
   type Chip, type FlowError, type FlowEvent, type FlowState, type Origin,
 } from "./addFlow";
+import { EstimateLine } from "./EstimateLine";
 import { ModelPickList } from "./ModelPickList";
 
 type Connections = NonNullable<DataSource["connections"]>;
@@ -42,6 +46,8 @@ export function AddAiFlow({ origin, onAdded, onClose }: {
   const [state, dispatch] = useReducer(reduce, origin, initial);
   const [services, setServices] = useState<Service[] | null>(null);
   const [ais, setAis] = useState<Ai[]>([]);
+  // The way offered to new conversations, which each row's estimate weighs: null until read.
+  const [way, setWay] = useState<WayFields | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rereading, setRereading] = useState(false);
   // One read at a time: the one asked last is the only one whose answer counts.
@@ -62,6 +68,11 @@ export function AddAiFlow({ origin, onAdded, onClose }: {
       },
     );
   }, [connections, t]);
+
+  // Once, on opening. Without it the rows only lack their estimate.
+  useEffect(() => {
+    data.ways.list().then((ways) => setWay(offeredWay(ways)), () => {});
+  }, []);
 
   // A read still on its way is given up with the dialog.
   useEffect(() => () => reading.current?.abort(), []);
@@ -181,6 +192,7 @@ export function AddAiFlow({ origin, onAdded, onClose }: {
           state={state}
           name={name}
           family={family}
+          way={way}
           have={have(state, ais)}
           rereading={rereading}
           failure={state.error && failureLine(state.error, state, name, family, t)}
@@ -516,10 +528,11 @@ function Failed({ state, line, onEvent }: { state: FlowState; line: string; onEv
   );
 }
 
-function Pick({ state, name, family, have: already, rereading, failure, onEvent, onReread, onBack, onConfirm }: {
+function Pick({ state, name, family, way, have: already, rereading, failure, onEvent, onReread, onBack, onConfirm }: {
   state: FlowState;
   name: string | null;
   family: Family;
+  way: WayFields | null;
   have: Set<string>;
   rereading: boolean;
   failure: string | null;
@@ -568,6 +581,8 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
       <ModelPickList
         list={state.list}
         service={{ name: shownName, family }}
+        // Until the ways are read, sorted under balanced, the way offered until another is chosen.
+        way={way ?? BUILT_IN.balanced}
         have={already}
         picked={state.picked}
         typed={state.typed}
@@ -576,6 +591,7 @@ function Pick({ state, name, family, have: already, rereading, failure, onEvent,
         onUseAsIs={(id) => onEvent({ type: "useAsIs", id })}
         onAnswer={(id, answer) => onEvent({ type: "answer", id, answer })}
         onReread={onReread}
+        extra={way ? (row) => <EstimateLine reader={readerOfRow(row, family)} way={way} /> : undefined}
       />
       {/* Stuck at the box's own edge, over its padding: no row shows below it. Unless it would take more
           than a third of the box (very large text on a small phone): it then comes after the list. */}

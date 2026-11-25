@@ -10,6 +10,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from . import ways
 from .defaults import DEFAULT_RP_RULES, SCENARIO_RP_RULES
 from .lorebook import (
     activated,
@@ -48,8 +49,6 @@ _BUDGET_MARGIN = 200
 _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES = 0.6
 _MAX_FACTS = 60  # so that a long story cannot crowd out the card
 _FACTS_TOKEN_BUDGET = 700       # floor, used on tiny contexts
-_MAX_FACTS_TOKEN_BUDGET = 2000  # cap, so facts never dominate the window
-_FACTS_BUDGET_SHARE = 0.12      # of the budget, between the two
 _LORE_SCAN_MESSAGES = 6
 _LORE_TOKEN_BUDGET = 800
 _NOTE_DEPTH = 4  # CharacterIn's default, for a character that says nothing of it
@@ -97,10 +96,12 @@ def split_examples(text: str) -> list[str]:
 
 
 def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
-                 relevance_scores: dict[str, float] | None = None) -> list[dict]:
+                 relevance_scores: dict[str, float] | None = None,
+                 max_facts: int | None = _MAX_FACTS) -> list[dict]:
     """Which facts get injected: pinned always survive, the rest fill the
     budget by relevance when scores are given, a fact with no vector yet first,
-    else newest-first (recency). Returned oldest-first for chronological reading."""
+    else newest-first (recency). Returned oldest-first for chronological reading.
+    ``max_facts`` None: as many as the budget holds."""
     pinned = [m for m in memories if m.get("is_pinned")]
     others = [m for m in memories if not m.get("is_pinned")]
     if relevance_scores is not None:
@@ -112,7 +113,7 @@ def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
     kept: list[dict] = []
     budget = token_budget
     for memory in pinned + others:
-        if len(kept) >= _MAX_FACTS:
+        if max_facts is not None and len(kept) >= max_facts:
             break
         cost = estimate_tokens(memory.get("content") or "")
         if not memory.get("is_pinned") and cost > budget:
@@ -124,17 +125,18 @@ def select_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
     return kept
 
 
-def _format_facts(memories: list[dict], token_budget: int = _FACTS_TOKEN_BUDGET,
-                  relevance_scores: dict[str, float] | None = None) -> str:
+def _format_facts(memories: list[dict], token_budget: int,
+                  relevance_scores: dict[str, float] | None, max_facts: int | None) -> str:
     lines = []
-    for memory in select_facts(memories, token_budget, relevance_scores):
+    for memory in select_facts(memories, token_budget, relevance_scores, max_facts):
         position = memory.get("source_position") or 0
         prefix = f"(turn {position}) " if position else ""
         lines.append(f"- {prefix}{(memory.get('content') or '').strip()}")
     return "\n".join(lines)
 
 
-def _match_lore_before_cards(entries: list[dict], messages: list[dict]) -> list[dict]:
+def _match_lore_before_cards(entries: list[dict], messages: list[dict],
+                             budget: int = _LORE_TOKEN_BUDGET) -> list[dict]:
     """Entries whose keywords appear in the recent turns, whatever the case, in the
     lorebook's order, within the lore token budget."""
     if not entries:
@@ -144,7 +146,7 @@ def _match_lore_before_cards(entries: list[dict], messages: list[dict]) -> list[
 
     matched = [entry for entry in entries if entry.get("enabled", True)
                and any(key and key.lower() in text for key in entry.get("keys") or [])]
-    kept, budget = [], _LORE_TOKEN_BUDGET
+    kept = []
     for entry in matched:
         cost = estimate_tokens(entry.get("content") or "")
         if cost > budget:
@@ -161,7 +163,7 @@ def match_lore(entries: list[dict], messages: list[dict], rules: int = 1,
     cards were read whole, are kept as they were, so that an older card gives the prompt it
     gave; rules 2 are those the cards are written for (lorebook.py)."""
     if rules != 2:
-        return _match_lore_before_cards(entries, messages)
+        return _match_lore_before_cards(entries, messages, budget)
     if not entries:
         return []
     recent = sorted(messages, key=lambda m: m.get("position", 0))[-_LORE_SCAN_MESSAGES:]
@@ -186,11 +188,15 @@ def _build_system(character: dict, persona: dict | None, summary: str,
                   facts_budget: int = _FACTS_TOKEN_BUDGET,
                   relevance_scores: dict[str, float] | None = None,
                   passages: list[dict] | None = None,
-                  card_text: Callable[[str], str] = lambda text: text) -> str:
-    """``card_text`` is what the card's own fields go through first: their markers resolved on
-    the rules of community cards, left as they are on Evermind's own."""
+                  card_text: Callable[[str], str] = lambda text: text,
+                  max_facts: int | None = _MAX_FACTS) -> tuple[str, int]:
+    """The system prompt, and what its reminders cost (the lorebook, the facts, the past
+    passages), each as it is written there. ``card_text`` is what the card's own fields go
+    through first: their markers resolved on the rules of community cards, left as they are on
+    Evermind's own."""
     is_scenario = character.get("kind") == "scenario"
     sections: list[str] = []
+    reminders: list[str] = []
 
     if is_scenario:
         sections.append(
@@ -203,7 +209,8 @@ def _build_system(character: dict, persona: dict | None, summary: str,
 
     if lore_before:
         block = "\n\n".join((entry.get("content") or "").strip() for entry in lore_before)
-        sections.append(f"### WORLD KNOWLEDGE (background)\n{block}")
+        reminders.append(f"### WORLD KNOWLEDGE (background)\n{block}")
+        sections.append(reminders[-1])
 
     identity: list[str] = []
     description = card_text(character.get("description") or "")
@@ -231,15 +238,17 @@ def _build_system(character: dict, persona: dict | None, summary: str,
 
     if lore:
         lore_block = "\n\n".join((entry.get("content") or "").strip() for entry in lore)
-        sections.append(f"### WORLD KNOWLEDGE (relevant to the current scene)\n{lore_block}")
+        reminders.append(f"### WORLD KNOWLEDGE (relevant to the current scene)\n{lore_block}")
+        sections.append(reminders[-1])
 
     if memories:
-        facts = _format_facts(memories, facts_budget, relevance_scores)
+        facts = _format_facts(memories, facts_budget, relevance_scores, max_facts)
         if facts:
-            sections.append(
+            reminders.append(
                 "### ESTABLISHED FACTS (hard canon — never contradict these, "
                 f"{char_name} never forgets them)\n{facts}"
             )
+            sections.append(reminders[-1])
 
     if passages:
         lines = []
@@ -247,10 +256,11 @@ def _build_system(character: dict, persona: dict | None, summary: str,
             speaker = char_name if p.get("role") == "assistant" else user_name
             pos = p.get("position") or 0
             lines.append(f"(turn {pos}) {speaker}: {(p.get('content') or '').strip()}")
-        sections.append(
+        reminders.append(
             "### RELEVANT PAST (verbatim excerpts retrieved from earlier in this "
             f"story — may repeat; {char_name} recalls these)\n" + "\n".join(lines)
         )
+        sections.append(reminders[-1])
 
     if examples:
         sections.append(_EXAMPLES_HEADER + examples)
@@ -271,7 +281,9 @@ def _build_system(character: dict, persona: dict | None, summary: str,
         sections.append(f"### PLAYER'S STANDING INSTRUCTIONS\n{global_instructions.strip()}")
 
     system = "\n\n".join(sections)
-    return substitute(system, char_name=char_name, user_name=user_name)
+    cost = sum(estimate_tokens(substitute(text, char_name=char_name, user_name=user_name))
+               for text in reminders)
+    return substitute(system, char_name=char_name, user_name=user_name), cost
 
 
 def _texts_at_depths(note: str, note_depth: int, entries: list[dict],
@@ -356,10 +368,17 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                        relevance_scores: dict[str, float] | None = None,
                        retrieved_passages: list[dict] | None = None,
                        fold_leading_assistant: bool = False,
-                       insertions: bool = True) -> PromptPayload:
+                       insertions: bool = True,
+                       reminders: dict | None = None) -> PromptPayload:
     """``insertions`` False leaves out what the card says to the character among the turns
     (its note, its entries at a depth): the ghostwriter, who writes as the player, has no use
-    for them."""
+    for them. ``reminders`` is a way of playing's six reminder fields (ways.py); None gives the
+    figures from before ways existed. Given, the stats also say what the card, the reminders
+    and the story each take of what is used ("parts").
+
+    ``connection`` may also carry the margin kept under the window (200 when absent) and the
+    ratio of the server's count to the engine's estimate (1.0 when absent): dividing the budget
+    by it counts every estimate in the server's tokens, without touching anything else."""
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     summary = (conversation or {}).get("summary") or ""
@@ -383,7 +402,11 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
 
     context_size = int(connection.get("context_size") or 8192)
     max_tokens = int(connection.get("max_tokens") or 1024)
-    budget = max(512, context_size - max_tokens - _BUDGET_MARGIN)
+    margin = connection.get("margin")
+    if margin is None:
+        margin = _BUDGET_MARGIN
+    ratio = connection.get("token_ratio") or 1.0
+    budget = max(512, int((context_size - max_tokens - margin) / ratio))
 
     # A card keeps the rules it was made with until its owner agrees to have it read again.
     # On those of community cards the lorebook has a share of the prompt, not a fixed amount,
@@ -410,7 +433,7 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                 note_depth = _NOTE_DEPTH
             depth_texts = _texts_at_depths(note, note_depth, at_depth, char_name, user_name)
     else:
-        lore = match_lore(lore_entries or [], messages)
+        lore = match_lore(lore_entries or [], messages, budget=ways.lore_budget(reminders, budget))
     # Said among the turns or in the closing block, these texts take their room from the story.
     depth_cost = sum(estimate_tokens(text) for text in depth_texts.values())
 
@@ -424,11 +447,15 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     if card_note and not card_rules:
         post_bits.append(card_note)
     pinned = [m for m in (memories or []) if m.get("is_pinned")]
+    restated_cost = 0
     if pinned:
         lines = "\n".join(f"- {(m.get('content') or '').strip()}" for m in pinned[:_MAX_PINNED_RESTATED])
         post_bits.append(
             f"[Still true, and {char_name} has not forgotten any of it:\n{lines}]"
         )
+        # A fact said again is still a reminder, wherever it is said.
+        restated_cost = estimate_tokens(substitute(post_bits[-1], char_name=char_name,
+                                                   user_name=user_name))
     scene_directive = ((conversation or {}).get("author_note") or "").strip()
     if scene_directive:
         post_bits.append(f"[Scene directive from {user_name}]: {scene_directive}")
@@ -446,8 +473,8 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
     post_history = substitute("\n\n".join(post_bits),
                               char_name=char_name, user_name=user_name)
 
-    facts_budget = min(_MAX_FACTS_TOKEN_BUDGET,
-                       max(_FACTS_TOKEN_BUDGET, int(budget * _FACTS_BUDGET_SHARE)))
+    facts_budget = ways.facts_budget(reminders, budget)
+    max_facts = ways.max_facts(reminders)
 
     def render_turns(remaining: int) -> list[dict]:
         ordered = sorted(messages, key=lambda m: m.get("position", 0))
@@ -488,20 +515,20 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         blocks = []
         examples = character.get("example_dialogues") or ""
 
-    def system_with(sent: str, shown: list[dict] | None) -> str:
+    def system_with(sent: str, shown: list[dict] | None) -> tuple[str, int]:
         return _build_system(character, persona, summary, global_instructions,
                              examples=sent, char_name=char_name, user_name=user_name,
                              memories=shown, lore=lore, lore_before=lore_before,
                              facts_budget=facts_budget,
                              relevance_scores=relevance_scores, passages=retrieved_passages,
-                             card_text=card_text)
+                             card_text=card_text, max_facts=max_facts)
 
     def fits(system: str) -> bool:
         return estimate_tokens(system) <= budget * _SYSTEM_SHARE_BEFORE_DROPPING_EXAMPLES
 
     # A fact the model drew from a turn it still sees is left out unless pinned: an echo feeds
     # repetition loops. Which turns stay is first estimated with every fact in the system prompt.
-    static = system_with(examples, memories)
+    static, _ = system_with(examples, memories)
     provisional = render_turns(budget - estimate_tokens(static) - estimate_tokens(post_history)
                                - depth_cost)
     oldest_visible = min((t["position"] for t in provisional), default=0)
@@ -510,9 +537,9 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         if m.get("is_pinned") or m.get("source") == "user"
         or (m.get("source_position") or 0) < oldest_visible
     ]
-    facts_shown = select_facts(relevant_memories, facts_budget, relevance_scores)
+    facts_shown = select_facts(relevant_memories, facts_budget, relevance_scores, max_facts)
 
-    system = system_with(examples, relevant_memories)
+    system, reminders_cost = system_with(examples, relevant_memories)
     if not fits(system):
         # On Evermind's own rules the examples go whole or not at all. On those of community
         # cards they are kept a block at a time, in order, for as long as the system prompt fits:
@@ -521,11 +548,12 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         kept, over = 0, len(blocks)
         while over - kept > 1:
             middle = (kept + over) // 2
-            if fits(system_with(_EXAMPLE_SEPARATOR.join(blocks[:middle]), relevant_memories)):
+            if fits(system_with(_EXAMPLE_SEPARATOR.join(blocks[:middle]), relevant_memories)[0]):
                 kept = middle
             else:
                 over = middle
-        system = system_with(_EXAMPLE_SEPARATOR.join(blocks[:kept]), relevant_memories)
+        system, reminders_cost = system_with(_EXAMPLE_SEPARATOR.join(blocks[:kept]),
+                                             relevant_memories)
 
     turns = render_turns(budget - estimate_tokens(system) - estimate_tokens(post_history)
                          - depth_cost)
@@ -547,6 +575,9 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
                       f"({char_name} has already said this aloud; carry on from it "
                       f"rather than repeating it)\n{block}")
 
+    # The story as sent, before what the card says among its turns is placed in it.
+    history = sum(estimate_tokens(t["content"]) + 4 for t in turns)
+
     # Placed in the turns as sent, cut and folded, so that a depth counts what the model reads.
     closing = _place_at_depths(turns, depth_texts)
     if closing:
@@ -565,6 +596,14 @@ def build_chat_payload(character: dict, persona: dict | None, conversation: dict
         "oldest_visible": visible_oldest,
         "fact_positions": [m.get("source_position") for m in facts_shown],
     }
+    if reminders is not None:
+        # The entries said among the turns are reminders too; the character's note is the card's.
+        among_turns = sum(estimate_tokens(substitute((entry.get("content") or "").strip(),
+                                                     char_name=char_name, user_name=user_name))
+                          for entry in at_depth)
+        reminder_cost = reminders_cost + restated_cost + among_turns
+        stats["parts"] = {"card": used - reminder_cost - history, "reminders": reminder_cost,
+                          "history": history}
     return PromptPayload(system=system, messages=turns, stop=stop,
                          post_history=post_history, stats=stats)
 

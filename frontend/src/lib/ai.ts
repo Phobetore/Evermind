@@ -1,25 +1,16 @@
 import type { Translate as T } from "@/i18n/I18nProvider";
 import { translate } from "@/i18n/translate";
-import type { Ai, ProbeModel, Settings } from "@/types";
+import type { Ai, ProbeModel } from "@/types";
+import { pages } from "./estimate";
 import { timeAgo } from "./utils";
 
-/** About 1 750 characters at the engine's 3.5 per token. */
-export const PAGE_TOKENS = 500;
+// Pages are worked out beside the estimate, which the browser suite reads without the language
+// files; offered here still, where every line of an AI finds them.
+export { PAGE_TOKENS, pages } from "./estimate";
 
-/** The room a reply needs, as the server's ai_call.reply_room counts it until the ways of playing
- *  exist: plan 3 replaces this one function, as it replaces the server's. */
-export const REPLY_ROOM = { short: 512, medium: 1024, long: 2048 } as const;
-
-export function roomFor(settings: Pick<Settings, "reply_length">): number {
-  return REPLY_ROOM[settings.reply_length];
-}
-
-/** Tokens as pages: from 100 pages up to the nearest 10, which is all the figure is worth there;
- *  below, rounded and never less than one, so a small window does not read as nothing. */
-export function pages(tokens: number): number {
-  const exact = tokens / PAGE_TOKENS;
-  return exact >= 100 ? Math.round(exact / 10) * 10 : Math.max(1, Math.round(exact));
-}
+/** What Evermind keeps for the reply of an AI sent no ceiling, whatever the way asks
+ *  (engine/reserve.ts, ai_call.UNSENT_RESERVE). */
+export const UNSENT_ROOM = 1024;
 
 const SEPARATOR = /[ \-_/:]/;
 const WHOLE_NAME = 14;
@@ -177,16 +168,6 @@ function reads(row: ProbeModel): number | null {
   return row.context.served ?? row.context.configured ?? row.context.max;
 }
 
-/** The weight of a message of the reference story of the design (about 9 000 tokens read for 450
- *  written): until plan 3 replaces this one function with its estimate, which ranks a model that
- *  thinks on its fuller figure, such a row is ranked on this floor. Null when the price is not read
- *  or varies. */
-export function cheapestKey(row: ProbeModel): number | null {
-  const { input, output, varies } = row.price;
-  if (varies || input === null || output === null) return null;
-  return input + output * 0.05;
-}
-
 /** Ascending, a missing value after every present one. */
 function ascending(a: number | null, b: number | null): number {
   if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
@@ -194,17 +175,23 @@ function ascending(a: number | null, b: number | null): number {
 }
 
 /** Hits by score first, then the key, then its second key (a sort alone would list 98 rows that
- *  read alike in the server's order), then the server's order. */
-export function sortRows(hits: Hit[], key: SortKey, collator: Intl.Collator): ProbeModel[] {
+ *  read alike in the server's order), then the server's order. `cheapest` is what a row costs, the
+ *  estimate's cheapestKey under the way offered (lib/estimate.ts); null sorts last. */
+export function sortRows(
+  hits: Hit[],
+  key: SortKey,
+  collator: Intl.Collator,
+  cheapest: (row: ProbeModel) => number | null,
+): ProbeModel[] {
   const keyed = hits.map((hit, index) => ({ hit, index }));
   const byKey = (a: ProbeModel, b: ProbeModel): number => {
     switch (key) {
       case "newest":
         return ascending(negate(a.created), negate(b.created));
       case "cheapest":
-        return ascending(cheapestKey(a), cheapestKey(b)) || ascending(negate(reads(a)), negate(reads(b)));
+        return ascending(cheapest(a), cheapest(b)) || ascending(negate(reads(a)), negate(reads(b)));
       case "reads":
-        return ascending(negate(reads(a)), negate(reads(b))) || ascending(cheapestKey(a), cheapestKey(b));
+        return ascending(negate(reads(a)), negate(reads(b))) || ascending(cheapest(a), cheapest(b));
       case "name":
         return collator.compare(a.name, b.name);
       default:
@@ -270,6 +257,12 @@ export function ageLine(readAt: string, now: number, t: T): string {
 export function serviceLine(ai: Ai, t: T): string {
   const { name, local, loopback } = ai.service;
   return t(loopback ? "ai.serviceOnThisPc" : local ? "ai.serviceOnYourNetwork" : "ai.serviceOnline", { name });
+}
+
+/** Whether the AI's reading capacity was typed or read. A size nobody told is a figure Evermind
+ *  counts with, not one the model has: no line says it as one, in pages or in tokens. */
+export function sizeTold(ai: Ai): boolean {
+  return ai.context.source === "own" || ai.context.source === "read";
 }
 
 export function readsLine(tokens: number | null, t: T): string {

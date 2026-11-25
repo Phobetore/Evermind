@@ -84,6 +84,7 @@ describe("a missing thing", () => {
     ["connection", "errors.notFound.connection"],
     ["fact", "errors.notFound.fact"],
     ["model", "errors.notFound.model"],
+    ["way", "errors.notFound.way"],
   ])("a %s is said as %s", (resource, key) => {
     const error = new DataError("English words", { kind: "not_found", resource, status: 404 });
     expect(describeError(error, t)).toBe(key);
@@ -327,5 +328,14 @@ describe("a failure that tells the person what to change", () => {
 
   test("nor is a fault of the interface", () => {
     expect(isAdvice(new Error("model_only_thought"))).toBe(false);
+  });
+});
+
+describe("a prompt the model's server refused as too long, twice", () => {
+  test.each(["en", "fr", "de", "es"] as const)("in %s, says the next try sends less", (locale) => {
+    const sentence = describeError(new DataError("This model's maximum context length is 2000 tokens.",
+      { kind: "model_too_long", status: 502 }), (k, vars) => translate(locale, k, vars));
+    expect(sentence).toBe(translate(locale, "errors.modelTooLong"));
+    expect(sentence).not.toContain("errors.");
   });
 });

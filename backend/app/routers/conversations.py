@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
+from typing import Literal
 
 import aiosqlite
 from fastapi import APIRouter, Depends, UploadFile
@@ -13,7 +14,8 @@ from ..repositories import characters as characters_repo
 from ..repositories import conversations as repo
 from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
-from ..services import media, memory_service, turns
+from ..repositories import ways as ways_repo
+from ..services import media, memory_service, outlook, turns
 
 router = APIRouter(prefix="/api", tags=["conversations"])
 
@@ -60,6 +62,8 @@ async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn
         raise NotFoundError("Character not found.", "character")
 
     fields = payload.model_dump()
+    # Kept for good: a way offered later does not change how this one plays.
+    fields["play_style"] = await ways_repo.offered(db, payload.play_style)
     # A persona or an AI gone since the page listed it counts as none asked for, rather than
     # failing the insert on its foreign key.
     persona = await personas_repo.for_conversation(db, fields)
@@ -103,6 +107,14 @@ async def get_conversation(convo_id: str, messages: bool = True,
     return {**convo, "memory_error": memory_service.failure_of(convo_id),
             "memory_running": memory_service.is_running(convo_id),
             "memory_operation": memory_service.operation_of(convo_id)}
+
+
+@router.get("/conversations/{convo_id}/outlook")
+async def conversation_outlook(convo_id: str, only: Literal["current"] | None = None,
+                               db: aiosqlite.Connection = Depends(get_db)):
+    """What the next turn would read, worked out without asking a model: for the page's
+    counts, and what another AI or another way would read."""
+    return await outlook.outlook(db, convo_id, only_current=only == "current")
 
 
 @router.patch("/conversations/{convo_id}")
@@ -171,12 +183,18 @@ async def patch_message(message_id: str, payload: MessagePatch,
         variants[index] = payload.content
         # Words of the person's are not where the max tokens cut the model's. Cut short by a stop
         # or a failure, it stays so: the rewrite may only have put a typo right.
-        ceiling = dict((message["meta"] or {}).get("ceiling") or {})
-        if str(index) in ceiling:
-            del ceiling[str(index)]
-            meta = {k: v for k, v in message["meta"].items() if k != "ceiling"}
-            if ceiling:
-                meta["ceiling"] = ceiling
+        # Nor why they cut it (``cut``), which goes with the mark.
+        marks = {key: dict((message["meta"] or {}).get(key) or {}) for key in ("ceiling", "cut")}
+        if any(str(index) in mark for mark in marks.values()):
+            meta = {k: v for k, v in message["meta"].items() if k not in marks}
+            for key, mark in marks.items():
+                mark.pop(str(index), None)
+                if mark:
+                    meta[key] = mark
+        # Nor what the server read of the words it was sent, for the version it names.
+        truncated = (message["meta"] or {}).get("truncated")
+        if isinstance(truncated, dict) and truncated.get("version") == index:
+            meta = {k: v for k, v in (meta or message["meta"]).items() if k != "truncated"}
     # A swipe shows other words; not an edit, where a typo put right would undo every pass since.
     return await repo.update_message(db, message_id, variants=variants,
                                      active_index=payload.active_index, meta=meta,
