@@ -68,6 +68,9 @@ def _entry(story: dict, convo: dict, ai: tuple[dict, dict] | None, way: dict) ->
             # A way that leaves the room to the AI: what the prompt keeps for the reply.
             reply_room=room if room is not None else connection["max_tokens"],
             cap_short=cap_short),
+        # What the turn would keep for the reply (its meta.context.reply_room): the way's room
+        # as this AI is given it, its thinking, a ceiling it is sent or none.
+        "reply_kept": connection["max_tokens"],
     }
 
 

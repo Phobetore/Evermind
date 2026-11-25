@@ -223,6 +223,33 @@ async def test_a_way_that_leaves_the_room_to_the_ai_counts_the_room_the_turn_kee
     assert kept == {"auto": 4096, "fixed": 600, "unsent": 1024}
 
 
+async def test_what_is_kept_for_the_reply_is_what_the_next_turn_keeps(client, monkeypatch):
+    no_passages(monkeypatch)
+    await no_memory_pass(client)
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    found = {}
+    for name, fields, way in (
+            ("reasons", {"read": {"reasons": True}, "reply_cap": {"mode": "auto"}}, "balanced"),
+            ("unsent", {"reply_cap": {"mode": "unsent"}}, "light"),
+            ("fixed", {"reply_cap": {"mode": "fixed", "tokens": 300}}, "balanced")):
+        ai = await an_ai(client, model=f"model-{name}", **fields)
+        convo = await conversation_on(client, ai["id"], play_style=way)
+        await story(convo["id"], 9)  # the person's last: it waits for its reply
+
+        outlook = await outlook_of(client, convo["id"])
+        context = await next_turn_context(client, convo["id"], model)
+
+        current = outlook["current"]
+        assert current["reply_kept"] == context["reply_room"], name
+        # Every entry says it, for its own AI and its own way.
+        assert next(e for e in outlook["models"] if e["model_id"] == ai["id"])["reply_kept"] == (
+            context["reply_room"]), name
+        assert way_entry(outlook, way)["reply_kept"] == context["reply_room"], name
+        found[name] = (current["reply_room"], current["reply_kept"])
+    # The way's room stays what the way asks.
+    assert found == {"reasons": (1024, 4096), "unsent": (512, 1024), "fixed": (1024, 300)}
+
+
 async def test_passages_are_counted_at_their_budget(client, monkeypatch):
     async def embed(texts, kind):
         return None
