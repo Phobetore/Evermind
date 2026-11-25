@@ -39,6 +39,7 @@ from .test_requests_before import (
     call_each,
     lent_to_every_provider,
     put_seed,
+    without_usage_asked,
 )
 from .test_requests_before import RECORDED as BEFORE
 
@@ -138,8 +139,23 @@ async def sent_in(variant: str, folder: Path) -> dict:
 
 
 def same_request(recorded: dict, sent: dict) -> bool:
-    """Whether a body is the one 3.7.0 sent."""
+    """Whether a body is the one 3.7.0 sent, but for what the plan lets change: an
+    OpenAI-compatible server asked for its counts."""
+    sent = without_usage_asked(recorded, sent)
     return json.dumps(recorded, sort_keys=True) == json.dumps(sent, sort_keys=True)
+
+
+def test_the_first_exception_is_include_usage_alone():
+    openai = {"model": "brume:12b", "messages": [], "stream": True}
+    anthropic = {"model": "aurore-3", "system": "You are Serana.", "messages": [], "stream": True}
+    asked = {"stream_options": {"include_usage": True}}
+    assert same_request(openai, {**openai, **asked})
+    assert same_request(openai, openai)  # a server that refused it is asked without
+    assert not same_request(openai, {**openai, "stream_options": {"include_usage": False}})
+    assert not same_request(openai, {**openai, "stream_options": {"include_usage": True,
+                                                                   "continuous_usage_stats": True}})
+    assert not same_request(openai, {**openai, **asked, "temperature": 0.8})
+    assert not same_request(anthropic, {**anthropic, **asked})
 
 
 def same_context(recorded: dict, sent: dict) -> bool:

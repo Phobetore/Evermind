@@ -240,11 +240,11 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     others = set(_cut_short(target)) - {index} if target else set()
     written = False
 
-    async def read_model() -> None:
+    async def read_model(provider) -> None:
         """Touches no database, so that a stop, which cancels it, cannot land in a write."""
         nonlocal usage, first_token_at, stop, thought
         stop, thought = None, 0
-        async with aclosing(get_provider(call).stream_chat(payload)) as stream:
+        async with aclosing(provider.stream_chat(payload)) as stream:
             async for event in stream:
                 if event.type == "done":
                     usage, stop = event.usage, event.stop
@@ -305,7 +305,10 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     for attempt in (0, 1):
         if turn.stopped:
             break
-        turn.reading = asyncio.create_task(read_model())
+        # Built out here so that what its server said, in provider.figures, outlives the read,
+        # which a stop cancels.
+        provider = get_provider(call)
+        turn.reading = asyncio.create_task(read_model(provider))
         while not turn.reading.done():
             await asyncio.wait({turn.reading}, timeout=_FLUSH_SECONDS)
             if not turn.reading.done():

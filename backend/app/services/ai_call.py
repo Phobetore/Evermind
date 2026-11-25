@@ -153,6 +153,8 @@ def call_for(model: dict, service: dict, *, room: int) -> dict:
         "reserve": cap.reserve,
         "model_id": model["id"],
         "model_name": model["name"],
+        # Whose server it is: what a server refused is kept per service, not per address alone.
+        "service_id": service.get("id"),
         "reasons": model.get("reasons"),
     }
 

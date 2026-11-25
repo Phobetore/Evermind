@@ -64,6 +64,7 @@ def _nothing_learned_of_models_by_another_test():
     # What a server's models accept, and the room a model needed, live in the process's memory.
     openai_compat._failed_lists.clear()
     openai_compat._refused.clear()
+    openai_compat._usage_refused.clear()
     memory_service._learned.clear()
     limits.forget()
 

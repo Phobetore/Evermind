@@ -207,7 +207,7 @@ def test_call_for_carries_what_a_provider_and_the_services_take():
              "reply_cap_tokens": 700, "reasons": 1, "output_read": None, "context_own": 20000,
              "context_read": None, "context_read_kind": None, "temperature": 0.7, "top_p": 0.9,
              "frequency_penalty": 0.1, "presence_penalty": None}
-    service = {"provider": "anthropic", "base_url": "https://api.anthropic.com/v1",
+    service = {"id": "s1", "provider": "anthropic", "base_url": "https://api.anthropic.com/v1",
                "api_key": "secret", "family": "anthropic", "family_url": None}
     call = call_for(model, service, room=1024)
     assert call == {
@@ -215,7 +215,7 @@ def test_call_for_carries_what_a_provider_and_the_services_take():
         "api_key": "secret", "model": "claude-x", "temperature": 0.7, "top_p": 0.9,
         "frequency_penalty": 0.1, "presence_penalty": None, "max_tokens": 700,
         "context_size": 20000, "reserve": 700, "model_id": "m1", "model_name": "Mine",
-        "reasons": 1,
+        "service_id": "s1", "reasons": 1,
     }
 
 

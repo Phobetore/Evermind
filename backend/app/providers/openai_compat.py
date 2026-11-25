@@ -34,6 +34,11 @@ _now = time.monotonic
 _failed_lists: dict[tuple[str, str, catalog.Family, str], float] = {}
 # The (base_url, model) pairs whose server refused a "reasoning" field: never sent again to them.
 _refused: set[tuple[str, str]] = set()
+# The (service id, base_url) pairs whose server refused to be asked for its counts: not asked
+# again until the next start, which may follow an update of the server.
+_usage_refused: set[tuple[str | None, str]] = set()
+# What asks a server for its counts on the last piece of its stream.
+USAGE_ASKED = {"include_usage": True}
 
 
 def least_reasoning(reasoning: object) -> dict | None:
@@ -93,7 +98,13 @@ class OpenAICompatProvider(Provider):
         # OpenAI's newest models refuse it; trim_reply cuts the saved reply there instead.
         if payload.stop and "api.openai.com" not in self.base_url:
             body["stop"] = payload.stop[:4]
+        # The server's own count of what it read and wrote, rather than an estimate.
+        if self._usage_key() not in _usage_refused:
+            body["stream_options"] = dict(USAGE_ASKED)
         return body
+
+    def _usage_key(self) -> tuple[str | None, str]:
+        return self.connection.get("service_id"), self.base_url
 
     async def _reasoning_field(self) -> dict | None:
         """What to send as "reasoning" for a caller that wants the least of it.
@@ -150,34 +161,61 @@ class OpenAICompatProvider(Provider):
         body = self._build_body(payload)
         if reasoning := await self._reasoning_field():
             body["reasoning"] = reasoning
-        arrived = False
-        try:
-            async with aclosing(self._read(body)) as events:
-                async for event in events:
-                    arrived = True
-                    yield event
-            return
-        except ProviderError as exc:
-            if "reasoning" not in body or arrived or exc.status not in REFUSED_AS_WRITTEN:
-                raise
-            refusal = exc.message
-        # Asked again without the field. Only an answer then says the field was why: the same
-        # refusal again was about something else (the context, the max tokens), and the field,
-        # which keeps the bill down, is still sent next time.
-        del body["reasoning"]
-        async with aclosing(self._read(body)) as events:
-            async for event in events:
-                if (self.base_url, self.model) not in _refused:
-                    _refused.add((self.base_url, self.model))
-                    logger.warning("%s refused to be told how much %s should reason (%s), and "
-                                   "answered without: it is not told again", self.base_url,
-                                   self.model, refusal)
-                yield event
+        refusal = None  # what the server said when it refused the "reasoning" field
+        # Each field it may refuse is taken out once at most, so this asks three times at most.
+        while True:
+            arrived = False
+            try:
+                async with aclosing(self._read(body)) as events:
+                    async for event in events:
+                        if not arrived and refusal is not None:
+                            self._reasoning_refused(refusal)
+                        arrived = True
+                        yield event
+                return
+            except ProviderError as exc:
+                if arrived or exc.status not in REFUSED_AS_WRITTEN:
+                    raise
+                said = exc.message.lower()
+                if "stream_options" in body and ("stream_options" in said
+                                                 or "include_usage" in said):
+                    # It named the field: asked again without it, and not told again.
+                    del body["stream_options"]
+                    self._usage_refused(exc.message)
+                elif "reasoning" in body:
+                    # Only an answer then says the field was why: the same refusal again was about
+                    # something else (the context, the max tokens), and the field, which keeps the
+                    # bill down, is still sent next time.
+                    del body["reasoning"]
+                    refusal = exc.message
+                else:
+                    raise
+
+    def _usage_refused(self, refusal: str) -> None:
+        key = self._usage_key()
+        if key not in _usage_refused:
+            _usage_refused.add(key)
+            logger.info("%s refused to be asked for its counts with stream_options (%s), and is "
+                        "asked without until the next start", self.base_url, refusal)
+
+    def _reasoning_refused(self, refusal: str) -> None:
+        if (self.base_url, self.model) not in _refused:
+            _refused.add((self.base_url, self.model))
+            logger.warning("%s refused to be told how much %s should reason (%s), and "
+                           "answered without: it is not told again", self.base_url,
+                           self.model, refusal)
 
     async def _read(self, body: dict) -> AsyncIterator[ProviderEvent]:
         usage = stop = None
+        figures = self.figures
         async with aclosing(self._sse("/chat/completions", body)) as events:
             async for event in events:
+                figures.take_names(event.get("id"), event.get("model"), event.get("provider"))
+                # These servers send their count on the last piece only; Groq under its own key.
+                counted = event.get("usage")
+                if not counted and isinstance(event.get("x_groq"), dict):
+                    counted = event["x_groq"].get("usage")
+                figures.take_usage(counted, final=True)
                 if event.get("error"):
                     raise ProviderError(words_of(event, self.api_key))
                 usage = event.get("usage") or usage
@@ -185,6 +223,8 @@ class OpenAICompatProvider(Provider):
                 if not isinstance(choice, dict):
                     continue
                 stop = choice.get("finish_reason") or stop
+                if stop is not None:
+                    figures.stop = str(stop)
                 delta = choice.get("delta") or {}
                 # Servers that show a model's reasoning do not agree on where they put it.
                 thought = delta.get("reasoning_content") or delta.get("reasoning")

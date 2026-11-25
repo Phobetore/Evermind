@@ -30,6 +30,7 @@ from .test_requests_before import (
     call_each,
     lent_to_every_provider,
     put_seed,
+    without_usage_asked,
 )
 
 KEY = "sk-test-SECRET-4f2a"
@@ -183,7 +184,9 @@ async def test_an_update_sends_each_model_the_request_it_sent_before(tmp_path, m
     assert len(server.bodies) == 20 and all(server.bodies)
     for conn_id, calls in recorded["requests"].items():
         for call in CALLS:
-            assert (json.dumps(sent[conn_id][call], sort_keys=True)
+            # The one field 3.8.0 adds: an OpenAI-compatible server is asked for its counts.
+            body = without_usage_asked(calls[call], sent[conn_id][call])
+            assert (json.dumps(body, sort_keys=True)
                     == json.dumps(calls[call], sort_keys=True)), (conn_id, call)
         assert sent[conn_id]["turn_context"] == calls["turn_context"], conn_id
     assert sent["c-openrouter"]["memory_pass"]["reasoning"] == {"effort": "none"}
