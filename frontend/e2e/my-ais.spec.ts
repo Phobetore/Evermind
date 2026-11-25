@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { API } from "../playwright.config";
-import { MOCK_ROOT, answer, boxHears, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
+import { MOCK_ROOT, answer, boxHears, chat, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
 
 /**
  * My AIs in Settings, and the page of each AI. The suite's server started on a database from the
@@ -342,6 +342,34 @@ test.describe("my ais", () => {
     await expect(page.getByText("This AI no longer exists.")).toBeVisible();
     await page.getByRole("link", { name: "Back to settings" }).click();
     await expect(page.getByRole("heading", { name: "My AIs" })).toBeVisible();
+  });
+
+  test("a server that does not say what it counts is said on the ai's page, and one that does is not", async ({ page, request }) => {
+    const NO_USAGE = "This server does not say what it counts: Evermind keeps a wider margin.";
+    const quiet = await lmstudioAi(request, "Quiet");
+    const told = await lmstudioAi(request, "Told");
+    try {
+      const character = await makeCharacter(request);
+      // The mock leaves its counts out of a reply whose request says MOCK_NO_USAGE.
+      for (const [ai, content] of [[quiet, "MOCK_NO_USAGE The rain comes down."], [told, "The rain comes down."]] as const) {
+        const convo = await (await request.post(`${API}/api/conversations`, {
+          data: { character_id: character.id, model_id: ai.id },
+        })).json();
+        await chat(request, { conversation_id: convo.id, mode: "send", content });
+      }
+      const seen = async (id: string) => ((await aiOf(request, id)) as Ai & { usage_seen: boolean | null }).usage_seen;
+      expect(await seen(quiet.id)).toBe(false);
+      expect(await seen(told.id)).toBe(true);
+
+      await openPage(page, quiet.id);
+      await expect(page.getByText(NO_USAGE)).toBeVisible();
+      await openPage(page, told.id);
+      await expect(page.getByRole("switch", { name: "Default AI" })).toBeVisible();
+      await expect(page.getByText(NO_USAGE)).toHaveCount(0);
+    } finally {
+      await request.delete(`${API}/api/models/${quiet.id}`);
+      await request.delete(`${API}/api/models/${told.id}`);
+    }
   });
 
   test("the default switch makes the ai the default", async ({ page, request }) => {
