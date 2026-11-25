@@ -6,7 +6,8 @@ import { data, DataError, type AiSaved } from "@/data";
 import { useT } from "@/i18n/useT";
 import { answering, cappedUnder, sizeTold, splitName } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
-import { pages, readerOfAi } from "@/lib/estimate";
+import { readerOfAi } from "@/lib/estimate";
+import { sheetRow } from "@/lib/ways";
 import type { Ai, Conversation, Outlook } from "@/types";
 import { clsx } from "clsx";
 import { Bot, Check, ChevronDown, Loader2, Plus, RefreshCw } from "lucide-react";
@@ -165,11 +166,7 @@ export function AiSheet({ conversation, ais, outlook, onPick, onGone, onAddOther
                       {reading && (
                         <span className="mt-0.5 block text-xs leading-relaxed text-mist">
                           {/* No pages for a capacity nobody told, as its line above says. */}
-                          {sizeTold(ai)
-                            ? t("ways.sheet.row", {
-                              read: reading.messages_included, total: reading.messages_total, pages: pages(reading.used_tokens),
-                            })
-                            : t("ways.sheet.rowNoSize", { read: reading.messages_included, total: reading.messages_total })}
+                          {sheetRow(reading.messages_included, reading.messages_total, sizeTold(ai) ? reading.used_tokens : null, t)}
                         </span>
                       )}
                       {/* Under the conversation's way as it plays it, as its row in the sheet of the ways. */}

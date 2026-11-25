@@ -130,8 +130,8 @@ function Lines({ reading, window, name }: { reading: Reading; window: number; na
       {reading.full && (
         <p className="text-sm text-parchment-dim">
           {reading.asked === null
-            ? t("ways.card.fullAll", { read: reading.reread ?? 0 })
-            : t("ways.card.full", { read: reading.reread ?? 0, asked: reading.asked })}
+            ? t("ways.card.fullAll", { read: reading.reread ?? 0, count: reading.reread ?? 0 })
+            : t("ways.card.full", { read: reading.reread ?? 0, count: reading.reread ?? 0, asked: reading.asked })}
         </p>
       )}
     </>

@@ -149,6 +149,11 @@ test("the current ai costs the same in both sheets", async ({ page, request }) =
 
     // The way as it is, then adjusted: longer replies cost more, and both sheets count the adjusted.
     let sheet = await openSheet(page);
+    // A story of its greeting alone: one message, said as one, and no "1 pages" anywhere.
+    await expect(sheet).toContainText(`What ${priced.name} reads: ≈ `);
+    await expect(sheet).toContainText("rereads 1 message, all it was asked");
+    await expect(rowOf(page, "Balanced")).toContainText(/Rereads the only message · ≈ \d+ pages? sent/);
+    expect(await sheet.innerText()).not.toMatch(/\b1 (messages|pages)\b/);
     const plain = await rowOf(page, "Balanced").locator("[data-estimate]").textContent();
     expect(plain).toContain("per 100 messages");
     await sheet.getByText("Adjust for this conversation").click();
@@ -162,7 +167,7 @@ test("the current ai costs the same in both sheets", async ({ page, request }) =
     await aiChipOf(page).click();
     const aiRow = aiSheetOf(page).getByRole("radio", { name: new RegExp(`^${priced.name}`) });
     // Under the conversation's way: the row also says what this AI rereads of it.
-    await expect(aiRow).toContainText(/Rereads 1 of the 1 messages · ≈ \d+ pages? sent/);
+    await expect(aiRow).toContainText(/Rereads the only message · ≈ \d+ pages? sent/);
     await expect(aiRow.locator("[data-estimate]")).toHaveText(adjusted!);
     await aiSheetOf(page).getByRole("button", { name: "Close" }).click();
 
@@ -186,12 +191,13 @@ test("an ai whose capacity is not said is given no pages in either sheet", async
     await expect(aiChipOf(page)).toHaveAccessibleName(`AI: ${untold.name}. Change.`);
 
     const sheet = await openSheet(page);
-    await expect(sheet).toContainText("Rereads 1 messages, all it was asked");
+    await expect(sheet).toContainText("Rereads 1 message, all it was asked");
+    expect(await sheet.innerText()).not.toMatch(/\b1 (messages|pages)\b/);
     await expect(sheet).not.toContainText(`What ${untold.name} reads`);
     await expect(sheet.locator("[data-reading-bar]")).toHaveCount(0);
     await expect(sheet).not.toContainText("capacity");
     for (const name of WAYS) {
-      await expect(rowOf(page, name)).toContainText("Rereads 1 of the 1 messages");
+      await expect(rowOf(page, name)).toContainText("Rereads the only message");
       await expect(rowOf(page, name)).not.toContainText("pages");
     }
     await sheet.getByRole("button", { name: "Close" }).click();
@@ -200,7 +206,7 @@ test("an ai whose capacity is not said is given no pages in either sheet", async
     const aiRow = aiSheetOf(page).getByRole("radio", { checked: true });
     await expect(aiRow).toContainText(untold.name);
     await expect(aiRow).toContainText("reading capacity not given");
-    await expect(aiRow).toContainText("Rereads 1 of the 1 messages");
+    await expect(aiRow).toContainText("Rereads the only message");
     await expect(aiRow).not.toContainText("pages");
   } finally {
     await removeAi(request, untold.id);

@@ -45,8 +45,16 @@ export function wayLabel(entry: Outlook["current"], t: T): { text: string; aria:
   const full = isFull(entry);
   if (!full) return { text: label, aria: t("ways.chip.aria", { label }), full };
   const counts = { label, read: entry.messages_included, asked: asked(entry) };
-  return { text: t("ways.chip.full", counts), aria: t("ways.chip.fullAria", counts), full };
+  return { text: t("ways.chip.full", counts), aria: t("ways.chip.fullAria", { ...counts, count: counts.read }), full };
 }
+
+/** The pages a prompt takes, "sent" for a row that says what goes with each message. */
+export function pagesPart(tokens: number, t: T, sent = false): string {
+  return t(sent ? "ways.reading.pagesSent" : "ways.reading.pages", { count: pages(tokens) });
+}
+
+/** None, one and more each have their own sentence when the AI rereads all it was asked. */
+const howMany = (read: number) => (read === 0 ? "None" : read === 1 ? "One" : "");
 
 /** French writes "qu'" before a name that begins with a vowel; the other languages hold the same
  *  sentence under both keys. */
@@ -57,9 +65,18 @@ const ELIDED = /^[aeiouyàâäéèêëîïôöùûü]/i;
 export function readingLine(entry: OutlookEntry, name: string | null, t: T): string {
   const full = isFull(entry);
   const counts = { read: entry.messages_included, asked: asked(entry) };
-  if (name === null) return t(full ? "ways.reading.lineNoSizeFull" : "ways.reading.lineNoSize", counts);
-  const key = `ways.reading.${full ? "lineFull" : "line"}${ELIDED.test(name) ? "Vowel" : ""}`;
-  return t(key, { ...counts, name, pages: pages(entry.used_tokens) });
+  if (name === null) return t(full ? "ways.reading.lineNoSizeFull" : `ways.reading.lineNoSize${howMany(counts.read)}`, counts);
+  const messages = t(`ways.reading.reread${full ? "Some" : howMany(counts.read) || "All"}`, counts);
+  return t(`ways.reading.line${ELIDED.test(name) ? "Vowel" : ""}`, { name, pages: pagesPart(entry.used_tokens, t), messages });
+}
+
+/** A way's row in a sheet: the messages it rereads of the conversation's, then, when the AI's
+ *  capacity is told (`tokens`), the pages sent. */
+export function sheetRow(read: number, total: number, tokens: number | null, t: T): string {
+  const messages = total === 0 ? t("ways.sheet.rowNone")
+    : total === 1 && read === 1 ? t("ways.sheet.rowOnly")
+      : t("ways.sheet.rowNoSize", { read, total });
+  return tokens === null ? messages : t("ways.sheet.row", { messages, pages: pagesPart(tokens, t, true) });
 }
 
 /** What Light would reread with the conversation's AI, when that is more than it rereads now. */

@@ -1,7 +1,6 @@
 import { HATCHED, PART_CLASS } from "@/components/ways/ReadingCard";
 import { useT } from "@/i18n/useT";
-import { pages } from "@/lib/estimate";
-import { isFull, lighterSaying, readingLine } from "@/lib/ways";
+import { isFull, lighterSaying, pagesPart, readingLine } from "@/lib/ways";
 import type { Outlook } from "@/types";
 import { ChevronDown } from "lucide-react";
 
@@ -39,7 +38,7 @@ export function ReadingBlock({ entry, name, outlook, compact, part }: {
         <>
           {full && (
             <p className="text-sm leading-relaxed text-parchment-dim">
-              {t("ways.reading.full", { capacity: pages(entry.context_size), sent: pages(entry.used_tokens) })}
+              {t("ways.reading.full", { capacity: pagesPart(entry.context_size, t), sent: pagesPart(entry.used_tokens, t, true) })}
             </p>
           )}
           {/* The words are in the key under it and in the fold: the bar only draws them. */}

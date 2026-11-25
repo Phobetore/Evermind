@@ -5,8 +5,8 @@ import { data, type ConversationPatch } from "@/data";
 import { useI18n } from "@/i18n/I18nProvider";
 import { UNSENT_ROOM, sizeTold } from "@/lib/ai";
 import { describeError } from "@/lib/errors";
-import { estimateOf, estimateText, pages, readerOfAi } from "@/lib/estimate";
-import { wayName } from "@/lib/ways";
+import { estimateOf, estimateText, readerOfAi } from "@/lib/estimate";
+import { sheetRow, wayName } from "@/lib/ways";
 import type { Ai, Conversation, Outlook, WayFields } from "@/types";
 import { clsx } from "clsx";
 import { Check, ChevronRight, Loader2 } from "lucide-react";
@@ -118,7 +118,6 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
               // The way played: as the conversation plays it, adjustments in, as the AI's sheet counts it.
               const shown = chosen ? current : entry;
               const estimate = priced(shown.way);
-              const counts = { read: shown.messages_included, total: shown.messages_total };
               return (
                 <button
                   key={entry.way.id}
@@ -140,9 +139,7 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
                       {estimate && <span data-estimate className="text-xs text-mist">{estimate}</span>}
                     </span>
                     <span className="mt-0.5 block text-xs leading-relaxed text-mist">
-                      {name !== null
-                        ? t("ways.sheet.row", { ...counts, pages: pages(shown.used_tokens) })
-                        : t("ways.sheet.rowNoSize", counts)}
+                      {sheetRow(shown.messages_included, shown.messages_total, name !== null ? shown.used_tokens : null, t)}
                     </span>
                   </span>
                   <span className="mt-0.5 size-[18px] shrink-0" aria-hidden>
