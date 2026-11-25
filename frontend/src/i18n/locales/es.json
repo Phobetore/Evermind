@@ -229,8 +229,23 @@
       "nextVariantAriaLabel": "Variante siguiente o regenerar",
       "confirmDeleteFrom": "¿Eliminar este mensaje y todos los siguientes?",
       "confirmBranch": "¿Ramificar la historia desde aquí?",
-      "branchAction": "Crear la rama"
+      "branchAction": "Crear la rama",
+      "cutRoom": {
+        "short": "Respuesta cortada: llenó el espacio reservado para una respuesta corta.",
+        "medium": "Respuesta cortada: llenó el espacio reservado para una respuesta media.",
+        "long": "Respuesta cortada: llenó el espacio reservado para una respuesta larga."
+      },
+      "cutThought": "La IA razonó mucho tiempo y no le quedó espacio para escribir.",
+      "extend": "Prolongar",
+      "retry": "Reintentar",
+      "longHere": "Respuestas largas aquí",
+      "longHereDone": "Respuestas largas en esta conversación."
     },
+    "truncated": {
+      "text": "{name} solo ha leído el final de la historia. Lee menos de lo previsto: ≈ {read:grouped} tokens, no {window:grouped}.",
+      "button": "Reducir y reintentar"
+    },
+    "tooLong": "{name} dice que es demasiado largo para ella.",
     "panel": {
       "closeAriaLabel": "Cerrar el panel",
       "kindScenario": "Escenario",
@@ -665,6 +680,7 @@
     "modelUnreadable": "No se ha podido leer la respuesta del modelo. Inténtelo de nuevo.",
     "modelOnlyThought": "El modelo ha gastado toda su respuesta en pensar y no ha escrito nada. Inténtelo de nuevo: Evermind sabe ahora que razona y le deja sitio, salvo que su tope de respuesta esté fijado a mano (Mis IA, en Avanzado). Si vuelve a pasar, use una IA que razone menos tiempo.",
     "modelWithheld": "El servidor del modelo ha retenido la respuesta («{reason}»). Inténtelo de nuevo o cambie de modelo o de proveedor.",
+    "modelTooLong": "La IA dice que es demasiado largo para ella. Vuelva a intentarlo: Evermind enviará menos.",
     "modelAuthRefused": "El servicio ha rechazado la clave. Compruébela en Mis IA. Ha indicado: {message}",
     "modelNotFound": "El servicio no reconoce esta dirección ni este modelo. Compruébelos en Mis IA. Ha indicado: {message}",
     "modelRateLimited": "El servidor del modelo ha alcanzado su límite de peticiones. Inténtelo de nuevo en un momento. El servidor indicó: {message}",
@@ -826,7 +842,7 @@
       "sizeSome": "Medio · ≈ {count:grouped} páginas",
       "sizeMany": "Mucho · ≈ {count:grouped} páginas",
       "sizeUnknown": "No lo sé",
-      "sizeUnknownHint": "Evermind cuenta entonces {tokens:grouped} tokens (≈ {count:grouped} páginas), como hasta ahora.",
+      "sizeUnknownHint": "Evermind cuenta entonces {tokens:grouped} tokens (≈ {count:grouped} páginas), como hasta ahora, y le avisa si la IA en realidad solo lee una parte.",
       "sizeNoted": "Anotado. Se puede cambiar en cualquier momento en la ficha de la IA.",
       "priceTitle": "Su precio, si lo conoce ($ por millón de tokens)",
       "priceIn": "Leídos",

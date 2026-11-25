@@ -317,6 +317,66 @@ async def test_rewriting_a_cut_version_by_hand_clears_its_mark_and_a_swipe_does_
     assert "ceiling" not in edited["meta"]
 
 
+# Why a reply was cut, beside where: what its AI's ceiling was, the way's length, and whether its
+# thinking took the room.
+
+async def test_a_cut_says_its_cause(client, model):
+    model.scripts = [ends("She opens her mouth to", stop="length")]
+    convo = await setup_conversation(client)
+    await set_ai(client, reply_cap={"mode": "auto"})
+    await send(client, convo["id"])
+    assert (await last_reply(client, convo))["meta"]["cut"] == {
+        "0": {"mode": "auto", "length": "medium", "thought": False}}
+
+    model.scripts, model.asked = [ends("She nods and", stop="length")], 0
+    await set_ai(client, max_tokens=1024)
+    await send(client, convo["id"], content=None, mode="regenerate")
+    assert (await last_reply(client, convo))["meta"]["cut"] == {
+        "0": {"mode": "auto", "length": "medium", "thought": False},
+        "1": {"mode": "fixed", "length": "medium", "thought": False}}
+
+    # Fifty characters after a long thought: the thinking took the room, not the reply.
+    model.scripts, model.asked = [ends("x" * 50, thought=3000, stop="length")], 0
+    await set_ai(client, reply_cap={"mode": "auto"})
+    await send(client, convo["id"], content=None, mode="regenerate")
+    assert (await last_reply(client, convo))["meta"]["cut"]["2"] == {
+        "mode": "auto", "length": "medium", "thought": True}
+
+
+async def test_a_long_reply_after_a_thought_is_not_said_to_be_the_thought_s(client, model):
+    model.scripts = [ends("x" * 200, thought=3000, stop="length")]
+    convo = await setup_conversation(client)
+    await set_ai(client, reply_cap={"mode": "unsent"})
+    await send(client, convo["id"])
+    assert (await last_reply(client, convo))["meta"]["cut"] == {
+        "0": {"mode": "unsent", "length": "medium", "thought": False}}
+
+
+async def test_a_reply_that_ends_on_its_own_says_no_cause(client, model):
+    convo = await setup_conversation(client)
+    await send(client, convo["id"])
+    assert "cut" not in (await last_reply(client, convo))["meta"]
+
+
+async def test_a_rewritten_version_loses_its_cut(client, model):
+    model.scripts = [ends("She opens", stop="length"), ends("her mouth.", stop="stop"),
+                     ends("She nods", stop="length")]
+    convo = await with_ceiling(client)
+    await send(client, convo["id"])
+
+    # Carried to its end, the version is no longer cut.
+    await send(client, convo["id"], content=None, mode="continue")
+    assert "cut" not in (await last_reply(client, convo))["meta"]
+
+    # A new version cut has its own; rewritten by hand, it loses it, and the other keeps nothing.
+    await send(client, convo["id"], content=None, mode="regenerate")
+    reply = await last_reply(client, convo)
+    assert set(reply["meta"]["cut"]) == {"1"}
+    edited = (await client.patch(f"/api/messages/{reply['id']}",
+                                 json={"content": "She nods.", "active_index": 1})).json()
+    assert "cut" not in edited["meta"]
+
+
 # Every other place that asks a model.
 
 WITHHELD = {"error": "The model's server withheld the answer (\"content_filter\").",

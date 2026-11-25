@@ -7,8 +7,8 @@ Modes:
   continue    — extend the version of the last reply that is on screen.
 
 A version is cut short (``meta.interrupted``) from its first write until its last says it is whole;
-one whose model stopped at the connection's max tokens is cut by its ceiling (``meta.ceiling``),
-which is no one's doing, and says so until it is continued to its end or rewritten. The person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists
+one whose model stopped at the connection's max tokens is cut by its ceiling (``meta.ceiling``,
+and why in ``meta.cut``), which is no one's doing, and says so until it is continued to its end or rewritten. The person's message is ``unanswered`` (``true``, or how the model failed) until its reply exists
 or the person stops the turn.
 """
 
@@ -166,6 +166,16 @@ def _cut_at_ceiling(message: dict) -> dict[str, int | None]:
     with the max tokens it was written under, or None when none was sent and the server's own
     limit applied."""
     return (message.get("meta") or {}).get("ceiling") or {}
+
+
+# Under this many characters written, a cut reply that thought first was cut by its thinking.
+_THOUGHT_TOOK_THE_ROOM = 200
+
+
+def _cut_why(message: dict) -> dict[str, dict]:
+    """Why each version ``meta.ceiling`` marks was cut, by the same index: ``mode``, the AI's
+    ceiling then, ``length``, the way's, and ``thought``, whether its thinking took the room."""
+    return (message.get("meta") or {}).get("cut") or {}
 
 
 async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict | None:
@@ -329,7 +339,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         marks = sorted(others if ending is not None else others | {index})
         # What the server counted of a version, and whether it read it whole, are that version's.
         meta = {k: v for k, v in (target["meta"] if target else {}).items()
-                if k not in ("interrupted", "ceiling", "usage", "truncated")}
+                if k not in ("interrupted", "ceiling", "cut", "usage", "truncated")}
         meta.update(ending or {})
         if marks:
             meta["interrupted"] = marks
@@ -341,6 +351,16 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
             ceilings[str(index)] = max_tokens_sent(call)
         if ceilings:
             meta["ceiling"] = ceilings
+        # Why it was cut, by the same version's index: the AI's ceiling as it was, the way's
+        # length, and whether its thinking took the room from a reply that barely began.
+        cuts = {k: v for k, v in _cut_why(target).items() if k != str(index)} if target else {}
+        if at_ceiling:
+            stored = (existing + body) if continue_mode else body
+            cuts[str(index)] = {"mode": ai[0].get("reply_cap_mode") or "auto",
+                                "length": way["reply_length"],
+                                "thought": thought > 0 and len(stored) < _THOUGHT_TOOK_THE_ROOM}
+        if cuts:
+            meta["cut"] = cuts
         if target:
             variants = list(target["variants"])
             if continue_mode:

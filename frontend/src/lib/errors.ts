@@ -52,6 +52,8 @@ const KIND_KEYS: Record<string, string> = {
   model_only_thought: "errors.modelOnlyThought",
   // A reply with nothing in it, which the model's server ended with `reason`, a word of its own.
   model_withheld: "errors.modelWithheld",
+  // The model's server refused the prompt as too long, twice: the next try sends less.
+  model_too_long: "errors.modelTooLong",
   empty_message: "errors.emptyMessage",
   nothing_to_regenerate: "errors.nothingToRegenerate",
   nothing_to_continue: "errors.nothingToContinue",

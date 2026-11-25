@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { addModel, chat, conversationWithReply, MOCK, replyEnds } from "./fixtures";
+import { addModel, chat, conversationWithReply, makeConversation, misfits, MOCK, replyEnds, rootAt } from "./fixtures";
 
 /**
  * A reply that ends without what was asked for says why, as a person on a phone reads it
@@ -213,4 +213,158 @@ test("the pen's advice is gone once a reply is asked for another way", { tag: "@
   await ends;
 
   await expect(hint).not.toContainText("wrote nothing");
+});
+
+/** Why a reply was cut, with the button that helps, and what the AI did not read, said where it is
+ *  seen. No amount on any of these lines. */
+
+const statusChip = (page: Page) => page.locator("[data-status-row]").getByRole("button", { name: /^Way to play:/ });
+
+/** An AI of its own on the mock, as the page adds it, then given `changes`. */
+async function aiOfItsOwn(request: APIRequestContext, name: string, changes: Record<string, unknown>) {
+  return addModel(request, {
+    base_url: MOCK, name, model: `reply-ends-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, changes,
+  });
+}
+
+test("a reply cut by its room offers long replies here", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "auto" } });
+  await sendFromTheBox(page, convo.id);
+
+  const reply = page.locator("[data-message-id]").last();
+  await expect(reply.locator("[data-ceiling]")).toHaveText("Reply cut: it filled the room kept for a medium reply.");
+  await expect(reply.getByRole("button", { name: "Let Evermind set it" })).toHaveCount(0);
+  await expect(reply.locator("[data-cut-actions]")).not.toContainText("$");
+  await noSidewaysScroll(page);
+
+  await reply.getByRole("button", { name: "Long replies here" }).click();
+  await expect(page.locator("[data-chat-toast]")).toContainText("Long replies in this conversation.");
+  const read = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(read.play_overrides.reply_length).toBe("long");
+  await expect(statusChip(page)).toContainText("· adjusted");
+  // Asked once: the conversation already asks for long replies.
+  await expect(reply.getByRole("button", { name: "Long replies here" })).toHaveCount(0);
+
+  // Continue ends the reply as a reply ends.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+  await page.waitForLoadState("networkidle");
+  const before = (await reply.locator(".min-w-0 > .mt-1").innerText()).trim();
+  const ends = replyEnds(page, convo.id);
+  await reply.getByRole("button", { name: "Continue", exact: true }).click();
+  await ends;
+  await expect(reply.locator("[data-ceiling]")).toHaveCount(0);
+  expect((await reply.locator(".min-w-0 > .mt-1").innerText()).trim().length).toBeGreaterThan(before.length);
+  const after = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(after.messages.at(-1).meta.cut).toBeUndefined();
+});
+
+/** A conversation answered by `aiId`, with `turns` long messages of the person's and their replies:
+ *  far more than the 4,090 tokens the mock then says it read. */
+async function longStory(request: APIRequestContext, aiId: string, turns: number) {
+  const convo = await makeConversation(request);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { model_id: aiId } });
+  const long = "The rain kept on over the harbour and nobody spoke of the ship. ".repeat(60);
+  for (let turn = 0; turn < turns; turn++) {
+    await chat(request, { conversation_id: convo.id, mode: "send", content: `${turn}. ${long}` });
+  }
+  return convo;
+}
+
+test("a story read only from its end says so and shrinks", { tag: "@desktop" }, async ({ page, request }) => {
+  const name = `Short reader ${Date.now()}`;
+  const ai = await aiOfItsOwn(request, name, { context_own: 16384 });
+  const convo = await longStory(request, ai.id, 8);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "MOCK_READS_4090" } });
+  await sendFromTheBox(page, convo.id);
+
+  const line = page.locator("[data-truncated]");
+  await expect(line).toContainText(
+    `${name} only read the end of the story. It reads less than expected: ≈ 4,090 tokens, not 16,384.`,
+  );
+  // Over the input, out of the story that scrolls.
+  expect(await line.evaluate((el) => el.closest("[data-story]") === null)).toBe(true);
+  await noSidewaysScroll(page);
+
+  const ends = replyEnds(page, convo.id);
+  await line.getByRole("button", { name: "Shrink and try again" }).click();
+  await ends;
+  const ais = await (await request.get(`${API}/api/models`)).json();
+  const context = ais.find((one: { id: string }) => one.id === ai.id).context;
+  expect([context.read, context.read_kind]).toEqual([4090, "observed"]);
+  const after = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(after.messages.at(-1).variants).toHaveLength(2);
+  expect(after.messages.at(-1).meta.truncated).toBeUndefined();
+  // It goes with the reply that read it.
+  await expect(line).toHaveCount(0);
+});
+
+test("too long is said with its button", { tag: "@desktop" }, async ({ page, request }) => {
+  const name = `Narrow ${Date.now()}`;
+  const convo = await conversationWithReply(request);
+  const ai = await aiOfItsOwn(request, name, {});
+  await request.patch(`${API}/api/conversations/${convo.id}`, {
+    // Read as 5,000 tokens whatever is sent, and refused past 2,000: refused again once learned.
+    data: { model_id: ai.id, author_note: "MOCK_TOO_LONG_2000 MOCK_READS_5000" },
+  });
+  await sendFromTheBox(page, convo.id);
+
+  const said = page.getByRole("alert");
+  await expect(said).toHaveText(`${name} says this is too long for it.`);
+  const button = page.getByRole("button", { name: "Shrink and try again" });
+  await expect(button).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
+  await noSidewaysScroll(page);
+
+  // Its button asks for the turn again, which the server now answers.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+  await page.waitForLoadState("networkidle");
+  const ends = replyEnds(page, convo.id);
+  await button.click();
+  await ends;
+  await expect(said).toHaveCount(0);
+  const after = await (await request.get(`${API}/api/conversations/${convo.id}`)).json();
+  expect(after.messages.at(-1).role).toBe("assistant");
+});
+
+/** The cause stored with the last reply, as the server would have stored it for another AI. */
+function withCause(page: Page, id: string, meta: Record<string, unknown>) {
+  return page.route(`**/api/conversations/${id}`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    const response = await route.fetch();
+    const body = await response.json();
+    Object.assign(body.messages.at(-1).meta, meta);
+    await route.fulfill({ response, json: body });
+  });
+}
+
+test("the lines of a cut reply and of a story read from its end fit a phone, whatever the size of its text", async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "What now?" });
+  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  const ceiling = { "0": 1024 };
+  const cases = {
+    fixed: { ceiling, cut: { "0": { mode: "fixed", length: "medium", thought: false } } },
+    thought: { ceiling, cut: { "0": { mode: "auto", length: "medium", thought: true } } },
+    room: {
+      ceiling, cut: { "0": { mode: "auto", length: "short", thought: false } },
+      // Beside it, the line over the input.
+      truncated: { read: 4090, window: 131072 }, usage: { prompt: 4090, completion: 40, model_id: aiId },
+    },
+  };
+  await page.addInitScript(rootAt, "32px");
+  for (const [cause, meta] of Object.entries(cases)) {
+    await page.unrouteAll();
+    await withCause(page, convo.id, meta);
+    for (const size of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
+      await page.setViewportSize(size);
+      await page.goto("about:blank");
+      await page.goto(`/#/chat/${convo.id}`);
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+      const reply = page.locator("[data-message-id]").last();
+      await expect(reply.locator("[data-cut-actions] button").first()).toBeVisible();
+      if (cause === "room") await expect(page.locator("[data-truncated]")).toBeVisible();
+      await reply.locator("[data-ceiling]").scrollIntoViewIfNeeded();
+      expect(await misfits(page), `${cause} at ${size.width}`).toEqual([]);
+    }
+  }
 });

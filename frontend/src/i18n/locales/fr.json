@@ -229,8 +229,23 @@
       "nextVariantAriaLabel": "Variante suivante ou régénérer",
       "confirmDeleteFrom": "Supprimer ce message et tous les suivants\u202f?",
       "confirmBranch": "Créer une branche de l'histoire à partir d'ici\u202f?",
-      "branchAction": "Créer la branche"
+      "branchAction": "Créer la branche",
+      "cutRoom": {
+        "short": "Réponse coupée\u00a0: elle a rempli la place gardée pour une réponse courte.",
+        "medium": "Réponse coupée\u00a0: elle a rempli la place gardée pour une réponse moyenne.",
+        "long": "Réponse coupée\u00a0: elle a rempli la place gardée pour une réponse longue."
+      },
+      "cutThought": "L'IA a réfléchi longtemps et n'a plus eu la place d'écrire.",
+      "extend": "Prolonger",
+      "retry": "Réessayer",
+      "longHere": "Réponses longues ici",
+      "longHereDone": "Réponses longues dans cette conversation."
     },
+    "truncated": {
+      "text": "{name} n'a lu que la fin de l'histoire. Elle lit moins que prévu\u00a0: ≈ {read:grouped} tokens, et non {window:grouped}.",
+      "button": "Réduire et réessayer"
+    },
+    "tooLong": "{name} dit que c'est trop long pour elle.",
     "panel": {
       "closeAriaLabel": "Fermer le panneau",
       "kindScenario": "Scénario",
@@ -665,6 +680,7 @@
     "modelUnreadable": "La réponse du modèle n'a pas pu être lue. Réessayez.",
     "modelOnlyThought": "L'IA a passé toute sa réponse à réfléchir et n'a rien écrit. Réessayez\u00a0: Evermind sait maintenant qu'elle réfléchit et lui laisse la place, sauf si son plafond de réponse est fixé à la main (Mes IA, sous Avancé). Si cela recommence, prenez une IA qui réfléchit moins longtemps.",
     "modelWithheld": "Le serveur du modèle a retenu la réponse (« {reason} »). Réessayez, ou changez de modèle ou de fournisseur.",
+    "modelTooLong": "L'IA dit que c'est trop long pour elle. Réessayez\u00a0: Evermind en enverra moins.",
     "modelAuthRefused": "Le service a refusé la clé. Vérifiez-la dans Mes IA. Il a indiqué\u00a0: {message}",
     "modelNotFound": "Le service ne connaît ni cette adresse ni ce modèle. Vérifiez-les dans Mes IA. Il a indiqué\u00a0: {message}",
     "modelRateLimited": "Le serveur du modèle a atteint sa limite de requêtes. Réessayez dans un instant. Le serveur a indiqué\u00a0: {message}",
@@ -826,7 +842,7 @@
       "sizeSome": "Moyen · ≈ {count:grouped} pages",
       "sizeMany": "Beaucoup · ≈ {count:grouped} pages",
       "sizeUnknown": "Je ne sais pas",
-      "sizeUnknownHint": "Evermind compte alors {tokens:grouped} tokens (≈ {count:grouped} pages), comme aujourd'hui.",
+      "sizeUnknownHint": "Evermind compte alors {tokens:grouped} tokens (≈ {count:grouped} pages), comme aujourd'hui, et vous prévient si l'IA n'en lit en fait qu'une partie.",
       "sizeNoted": "C'est noté. Modifiable à tout moment dans la fiche de l'IA.",
       "priceTitle": "Son prix, si vous le connaissez ($ par million de tokens)",
       "priceIn": "Lus",

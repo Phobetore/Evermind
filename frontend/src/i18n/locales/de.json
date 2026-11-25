@@ -229,8 +229,23 @@
       "nextVariantAriaLabel": "Nächste Variante oder neu generieren",
       "confirmDeleteFrom": "Diese Nachricht und alle folgenden löschen?",
       "confirmBranch": "Die Geschichte ab hier verzweigen?",
-      "branchAction": "Abzweigen"
+      "branchAction": "Abzweigen",
+      "cutRoom": {
+        "short": "Antwort abgeschnitten: Die KI hat den Platz gefüllt, der für eine kurze Antwort freigehalten wird.",
+        "medium": "Antwort abgeschnitten: Die KI hat den Platz gefüllt, der für eine mittlere Antwort freigehalten wird.",
+        "long": "Antwort abgeschnitten: Die KI hat den Platz gefüllt, der für eine lange Antwort freigehalten wird."
+      },
+      "cutThought": "Die KI hat lange nachgedacht und hatte keinen Platz mehr zum Schreiben.",
+      "extend": "Fortsetzen",
+      "retry": "Erneut versuchen",
+      "longHere": "Hier lange Antworten",
+      "longHereDone": "Lange Antworten in dieser Unterhaltung."
     },
+    "truncated": {
+      "text": "{name} hat nur das Ende der Geschichte gelesen. Die KI liest weniger als erwartet: ≈ {read:grouped} Tokens, nicht {window:grouped}.",
+      "button": "Verkleinern und erneut versuchen"
+    },
+    "tooLong": "{name} sagt, dass das zu lang für sie ist.",
     "panel": {
       "closeAriaLabel": "Panel schließen",
       "kindScenario": "Szenario",
@@ -665,6 +680,7 @@
     "modelUnreadable": "Die Antwort des Modells ließ sich nicht lesen. Versuchen Sie es noch einmal.",
     "modelOnlyThought": "Die KI hat ihre ganze Antwort mit Nachdenken verbraucht und nichts geschrieben. Versuchen Sie es noch einmal: Evermind weiß jetzt, dass sie nachdenkt, und lässt ihr Platz, außer ihre Obergrenze für Antworten ist von Hand festgelegt (Meine KIs, unter Erweitert). Wenn es wieder passiert, nehmen Sie eine KI, die nicht so lange nachdenkt.",
     "modelWithheld": "Der Server des Modells hat die Antwort zurückgehalten („{reason}“). Versuchen Sie es noch einmal oder wechseln Sie das Modell oder den Anbieter.",
+    "modelTooLong": "Die KI sagt, dass das zu lang für sie ist. Versuchen Sie es erneut: Evermind sendet dann weniger.",
     "modelAuthRefused": "Der Dienst hat den Schlüssel abgelehnt. Prüfen Sie ihn unter Meine KIs. Er meldet: {message}",
     "modelNotFound": "Der Dienst kennt diese Adresse oder dieses Modell nicht. Prüfen Sie beides unter Meine KIs. Er meldet: {message}",
     "modelRateLimited": "Der Server des Modells hat sein Anfragelimit erreicht. Versuchen Sie es gleich noch einmal. Der Server meldet: {message}",
@@ -826,7 +842,7 @@
       "sizeSome": "Mittel · ≈ {count:grouped} Seiten",
       "sizeMany": "Viel · ≈ {count:grouped} Seiten",
       "sizeUnknown": "Ich weiß es nicht",
-      "sizeUnknownHint": "Evermind rechnet dann mit {tokens:grouped} Tokens (≈ {count:grouped} Seiten), wie bisher.",
+      "sizeUnknownHint": "Evermind rechnet dann mit {tokens:grouped} Tokens (≈ {count:grouped} Seiten), wie bisher, und sagt Ihnen Bescheid, wenn die KI tatsächlich nur einen Teil davon liest.",
       "sizeNoted": "Notiert. Jederzeit auf der Seite der KI änderbar.",
       "priceTitle": "Sein Preis, falls Sie ihn kennen ($ pro Million Tokens)",
       "priceIn": "Gelesen",

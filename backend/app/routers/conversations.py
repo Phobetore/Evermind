@@ -183,12 +183,14 @@ async def patch_message(message_id: str, payload: MessagePatch,
         variants[index] = payload.content
         # Words of the person's are not where the max tokens cut the model's. Cut short by a stop
         # or a failure, it stays so: the rewrite may only have put a typo right.
-        ceiling = dict((message["meta"] or {}).get("ceiling") or {})
-        if str(index) in ceiling:
-            del ceiling[str(index)]
-            meta = {k: v for k, v in message["meta"].items() if k != "ceiling"}
-            if ceiling:
-                meta["ceiling"] = ceiling
+        # Nor why they cut it (``cut``), which goes with the mark.
+        marks = {key: dict((message["meta"] or {}).get(key) or {}) for key in ("ceiling", "cut")}
+        if any(str(index) in mark for mark in marks.values()):
+            meta = {k: v for k, v in message["meta"].items() if k not in marks}
+            for key, mark in marks.items():
+                mark.pop(str(index), None)
+                if mark:
+                    meta[key] = mark
     # A swipe shows other words; not an edit, where a typo put right would undo every pass since.
     return await repo.update_message(db, message_id, variants=variants,
                                      active_index=payload.active_index, meta=meta,

@@ -21,7 +21,7 @@ import { useT } from "@/i18n/useT";
 import { answering } from "@/lib/ai";
 import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
-import { describeCeiling } from "@/lib/cutShort";
+import { describeCut } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
 import { holdSizes, wantSizes } from "@/lib/portraitSizes";
@@ -48,6 +48,15 @@ const headerSquare =
 export function ChatPage() {
   const { id = "" } = useParams();
   return <ChatView key={id} id={id} />;
+}
+
+/** What the server counted the AI read of a reply, when it read only the end of the story
+ *  (`meta.truncated`), and the AI it counted it for; null for any other reply. */
+function readOnlyTheEnd(message: Message): { read: number; window: number; modelId: string | null } | null {
+  const said = message.meta?.truncated as { read?: unknown; window?: unknown } | undefined;
+  if (!said || typeof said.read !== "number" || typeof said.window !== "number") return null;
+  const usage = message.meta?.usage as { model_id?: unknown } | undefined;
+  return { read: said.read, window: said.window, modelId: typeof usage?.model_id === "string" ? usage.model_id : null };
 }
 
 /** The reply being written: the only thing on screen that follows its words. */
@@ -416,7 +425,7 @@ function ChatView({ id }: { id: string }) {
   if (heard.writing !== writing) {
     const said = writing !== null ? "typing" : heard.said && !outcome ? "replied" : "";
     const newest = messages.at(-1);
-    const cut = said === "replied" && newest?.role === "assistant" ? describeCeiling(newest, t) : null;
+    const cut = said === "replied" && newest?.role === "assistant" ? (describeCut(newest, t)?.text ?? null) : null;
     setHeard({ writing, said, cut });
   }
 
@@ -636,6 +645,37 @@ function ChatView({ id }: { id: string }) {
     }
   }
 
+  /** Long replies in this conversation alone, for a reply that filled the room its way keeps: the
+   *  conversation as the server saved it, what the next turn reads read again, then said. */
+  async function longHere() {
+    try {
+      const saved = await data.conversations.update(id, {
+        play_overrides: { ...(conversation?.play_overrides ?? {}), reply_length: "long" },
+      });
+      playing(saved);
+      toast(t("chat.message.longHereDone"));
+    } catch (error) {
+      toast(describeError(error, t));
+    }
+  }
+
+  // What the server counted that the AI read of the last reply, when it read only the end of the
+  // story: it reads less than it is counted to.
+  const [shrinking, setShrinking] = useState(false);
+  /** The size the server showed, kept on the AI, then the reply written again within it. */
+  async function shrink(ai: Ai, read: number) {
+    setShrinking(true);
+    try {
+      tookAi(await data.connections!.models.observed(ai.id, read));
+    } catch (error) {
+      toast(describeError(error, t));
+      return;
+    } finally {
+      setShrinking(false);
+    }
+    void ask({ mode: "regenerate" });
+  }
+
   async function seeLost() {
     if (await write(() => data.conversations.update(id, { model_lost_seen: true }))) {
       setConversation((c) => (c ? { ...c, model_lost: null } : c));
@@ -657,27 +697,32 @@ function ChatView({ id }: { id: string }) {
   }
 
   const character = conversation.character;
+  // What answers it, where the edition keeps AIs of its own; drawn once they are read.
+  const chipShown = data.connections !== undefined && ais !== null;
+  const answeringAi = ais ? answering(conversation.model_id, ais) : null;
   const silent = failure?.kind === "unreachable";
   // That another reply is being written, only as long as it is.
   const refusal = refused instanceof DataError && refused.kind === "turn_running" && !busy ? null : refused;
+  // Refused as too long twice: said with the AI's name where the page knows it, and asked again,
+  // which sends less now that the server has said how much it reads.
+  const tooLong = !lost && !refusal && failure?.kind === "model_too_long";
   const problem = lost || refusal
     ? describeError(lost || refusal, t, t("chat.errors.connectionFailed"))
-    : failure?.kind === "nothing_added"
-      ? t("chat.errors.nothingAdded")
-      : failure && !silent
-        ? describeFailure(failure, t)
-        : unanswered === true
-          ? t("chat.errors.noReply")
-          : null;
+    : tooLong && answeringAi
+      ? t("chat.tooLong", { name: answeringAi.name })
+      : failure?.kind === "nothing_added"
+        ? t("chat.errors.nothingAdded")
+        : failure && !silent
+          ? describeFailure(failure, t)
+          : unanswered === true
+            ? t("chat.errors.noReply")
+            : null;
   // The message being written is drawn from its words as they arrive.
   const visibleMessages = messages.filter((m) => m.id !== writing);
   const shown = backdropOf(conversation, character, display);
   // The plate under the text, only where a picture is drawn: with none, nothing changes.
   const veiled = shown.src !== null && shown.strength > 0;
   const drawnMessages = visibleMessages.slice(-drawn);
-  // What answers it, where the edition keeps AIs of its own; drawn once they are read.
-  const chipShown = data.connections !== undefined && ais !== null;
-  const answeringAi = ais ? answering(conversation.model_id, ais) : null;
   const lostLine = chipShown && conversation.model_lost && (
     <div
       data-model-lost
@@ -690,6 +735,29 @@ function ChatView({ id }: { id: string }) {
       </span>
       <button type="button" className="btn btn-ghost touch-target !py-1 text-xs" onClick={seeLost}>
         {t("chat.ai.seen")}
+      </button>
+    </div>
+  );
+  // The last reply was read by an AI that saw only the end of the story: said over the input, where
+  // it is seen, until the next reply. Only for the AI that answers now, the one it was counted for.
+  const truncated = !busy && last?.role === "assistant" ? readOnlyTheEnd(last) : null;
+  const truncatedAi = truncated && answeringAi
+    && (truncated.modelId === null || truncated.modelId === answeringAi.id) ? answeringAi : null;
+  const truncatedLine = truncated && truncatedAi && data.connections && (
+    <div
+      data-truncated
+      className="mx-auto mb-2.5 flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-parchment-dim"
+    >
+      <span className="min-w-0 [overflow-wrap:anywhere]">
+        {t("chat.truncated.text", { name: truncatedAi.name, read: truncated.read, window: truncated.window })}
+      </span>
+      <button
+        type="button"
+        className="btn btn-ghost touch-target max-w-full whitespace-normal !py-1 text-xs"
+        disabled={shrinking}
+        onClick={() => void shrink(truncatedAi, truncated.read)}
+      >
+        {t("chat.truncated.button")}
       </button>
     </div>
   );
@@ -838,6 +906,10 @@ function ChatView({ id }: { id: string }) {
                   onLetEvermind={message.id === last?.id && answeringAi?.reply_cap.mode === "fixed"
                     ? () => letEvermind(answeringAi)
                     : undefined}
+                  // Not once this conversation already asks for long replies.
+                  onLongHere={message.id === last?.id && conversation.play_overrides?.reply_length !== "long"
+                    ? longHere
+                    : undefined}
                 />
               ))}
 
@@ -854,8 +926,8 @@ function ChatView({ id }: { id: string }) {
                 <div className="chat-banner mx-1 my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-blood/40 px-4 py-3">
                   <p role="alert" className="min-w-0 flex-[1_1_12rem] text-sm text-blood">{problem}</p>
                   {!busy && !lost && !refusal && (
-                    <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
-                      {t("chat.errors.retryButton")}
+                    <button className="btn btn-ghost max-w-full shrink-0 whitespace-normal !py-1.5 text-xs" onClick={retry}>
+                      {t(tooLong ? "chat.truncated.button" : "chat.errors.retryButton")}
                     </button>
                   )}
                 </div>
@@ -884,7 +956,7 @@ function ChatView({ id }: { id: string }) {
           characterName={character.name}
           stopRef={stopButton}
           say={toast}
-          above={<>{toastNode}{lostLine}</>}
+          above={<>{toastNode}{lostLine}{truncatedLine}</>}
           status={
             // On a touch screen the chips take the place of the keyboard's sentence.
             <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null}>

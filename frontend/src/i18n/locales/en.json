@@ -229,8 +229,23 @@
       "nextVariantAriaLabel": "Next variant or regenerate",
       "confirmDeleteFrom": "Delete this message and all that follow?",
       "confirmBranch": "Branch the story from here?",
-      "branchAction": "Branch"
+      "branchAction": "Branch",
+      "cutRoom": {
+        "short": "Reply cut: it filled the room kept for a short reply.",
+        "medium": "Reply cut: it filled the room kept for a medium reply.",
+        "long": "Reply cut: it filled the room kept for a long reply."
+      },
+      "cutThought": "The AI thought for a long time and had no room left to write.",
+      "extend": "Continue",
+      "retry": "Try again",
+      "longHere": "Long replies here",
+      "longHereDone": "Long replies in this conversation."
     },
+    "truncated": {
+      "text": "{name} only read the end of the story. It reads less than expected: ≈ {read:grouped} tokens, not {window:grouped}.",
+      "button": "Shrink and try again"
+    },
+    "tooLong": "{name} says this is too long for it.",
     "panel": {
       "closeAriaLabel": "Close panel",
       "kindScenario": "Scenario",
@@ -665,6 +680,7 @@
     "modelUnreadable": "The model's answer could not be read. Try again.",
     "modelOnlyThought": "The model spent its whole answer thinking and wrote nothing. Try again: Evermind now knows it thinks first and leaves it room, unless its reply ceiling is set by hand (My AIs, under Advanced). If it happens again, use an AI that does not think as long.",
     "modelWithheld": "The model's server withheld the answer (\"{reason}\"). Try again, or change the model or the provider.",
+    "modelTooLong": "The AI says this is too long for it. Try again: Evermind will send less.",
     "modelAuthRefused": "The service refused the key. Check it in My AIs. It said: {message}",
     "modelNotFound": "The service does not know this address or this model. Check them in My AIs. It said: {message}",
     "modelRateLimited": "The model's server has reached its rate limit. Try again shortly. The server said: {message}",
@@ -826,7 +842,7 @@
       "sizeSome": "Medium · ≈ {count:grouped} pages",
       "sizeMany": "A lot · ≈ {count:grouped} pages",
       "sizeUnknown": "I don't know",
-      "sizeUnknownHint": "Evermind then counts {tokens:grouped} tokens (≈ {count:grouped} pages), as today.",
+      "sizeUnknownHint": "Evermind then counts {tokens:grouped} tokens (≈ {count:grouped} pages), as today, and tells you if the AI actually reads only part of it.",
       "sizeNoted": "Noted. Can be changed at any time on the AI's page.",
       "priceTitle": "Its price, if you know it ($ per million tokens)",
       "priceIn": "Read",
