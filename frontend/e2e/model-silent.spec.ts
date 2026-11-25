@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, replyEnds } from "./fixtures";
+import { addModel, conversationWithReply, replyEnds } from "./fixtures";
 
 /** A conversation with something already in it, then pointed at an address
  *  where nothing is listening — which is what a stopped AI server looks like.
@@ -8,14 +8,9 @@ import { conversationWithReply, replyEnds } from "./fixtures";
  *  conversation fails for its own reason, and would test that instead. */
 async function conversationWithNoModel(request: import("@playwright/test").APIRequestContext) {
   const convo = await conversationWithReply(request);
-  const off = await (await request.post(`${API}/api/connections`, {
-    data: {
-      name: "off", provider: "openai-compatible",
-      base_url: "http://127.0.0.1:5999/v1", api_key: "x", model: "absent",
-    },
-  })).json();
+  const off = await addModel(request, { base_url: "http://127.0.0.1:5999/v1", api_key: "x", model: "absent", name: "off" });
   await request.patch(`${API}/api/conversations/${convo.id}`, {
-    data: { connection_id: off.id },
+    data: { model_id: off.id },
   });
   return convo;
 }

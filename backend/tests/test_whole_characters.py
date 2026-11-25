@@ -31,6 +31,7 @@ from .conftest import (
     stored_facts,
     within,
 )
+from .helpers import add_model
 
 HIGH, LOW = "\ud83d", "\ude00"  # the two halves of U+1F600
 SMILE = "\U0001f600"
@@ -262,9 +263,7 @@ async def test_an_error_event_with_half_an_emoji_in_its_words_is_told(client, ch
 
 
 async def test_the_card_assistant_keeps_a_name_split_inside_an_emoji(client, monkeypatch):
-    await client.post("/api/connections", json={
-        "name": "Mock", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test"})
+    await add_model(client, base_url="http://localhost:1234/v1", model="test")
     name = f"Nyra {SMILE}"
     card = json.dumps({"name": name, "description": "A cartographer."}, ensure_ascii=False)
     monkeypatch.setattr("app.services.card_assistant.get_provider", replying(*halves(card)))

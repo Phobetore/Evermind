@@ -9,13 +9,16 @@ from typing import Literal
 
 import httpx
 
-from ..errors import MODEL_ERROR, MODEL_ONLY_THOUGHT, MODEL_UNREADABLE, MODEL_WITHHELD, AppError
+from ..errors import MODEL_ERROR, MODEL_NO_CREDIT, MODEL_ONLY_THOUGHT, MODEL_WITHHELD, AppError
 from ..prompting.engine import PromptPayload
 
 # Local generation can be slow: generous read timeout, snappy connect timeout.
 # read is per-chunk, but the FIRST token after a long prompt-eval on big
 # CPU-offloaded models (70B hybrid) can take many minutes — hence 900s.
 DEFAULT_TIMEOUT = httpx.Timeout(connect=10.0, read=900.0, write=30.0, pool=30.0)
+# A list of models is not a generation: no first word to wait minutes for, so 30s between two
+# pieces is already a server that has stopped sending. The whole read has its own bound (catalog).
+LIST_DELAYS = httpx.Timeout(connect=10.0, read=30.0, write=30.0, pool=30.0)
 
 # How a model's server failed, besides MODEL_ERROR, which is its own complaint.
 UNREACHABLE = "unreachable"
@@ -24,6 +27,8 @@ AUTH_REFUSED = "model_auth_refused"
 MODEL_NOT_FOUND = "model_not_found"
 RATE_LIMITED = "model_rate_limited"
 NO_TEXT = "model_no_text"
+# A list of models that kept arriving past the whole delay, which "unreachable" would misname.
+LIST_TIMEOUT = "list_timeout"
 # What a server says of a request it will not take as written, as opposed to a key or a limit.
 REFUSED_AS_WRITTEN = (400, 404, 422)
 
@@ -87,21 +92,25 @@ class ProviderError(AppError):
         self.status = status
 
 
-def words_of(said: object) -> str:
-    """What a model's server said of an error, from the JSON it sent: its message, if it gave one.
+def words_of(said: object, api_key: str | None) -> str:
+    """What a model's server said of an error, from the JSON it sent: its message, if it gave one,
+    without the key it was asked with.
 
-    Its words are shown and saved like the reply, so they leave whole too: a half of a character
-    it sent with no pair becomes U+FFFD.
+    The key is taken out of the whole text before it is cut: cut first, a key that straddles the
+    cut would leave most of itself behind, out of scrub's reach. Its words are shown and saved
+    like the reply, so they leave whole too: a half of a character it sent with no pair becomes
+    U+FFFD.
     """
     if isinstance(said, dict):
         said = said.get("error", said)
     host = _host_said(said) if isinstance(said, dict) and said.get("message") else ""
     if isinstance(said, dict):
         said = said.get("message") or said
-    words = str(said)[:300] if said else ""
+    words = scrub(str(said), api_key)[:300] if said else ""
     room = 300 - len(words) - len(" ()")
     if host and room > 0:
-        words += f" ({host[:room]})"
+        # A host can write the key it was passed into its own words, as a gateway does.
+        words += f" ({scrub(host, api_key)[:room]})"
     return well_formed(words)
 
 
@@ -131,19 +140,39 @@ def _host_said(error: dict) -> str:
     return ": ".join(part for part in parts if part)
 
 
-def _refusal(status: int, body: bytes) -> ProviderError:
+def scrub(message: str, api_key: str | None) -> str:
+    """The message with the key it was asked with cut down to its end, as the page shows it.
+
+    A gateway can write the key it was sent into its error, and every error leaves: to the page,
+    and, for a 5xx or a list that failed, into evermind.log."""
+    if not api_key or api_key not in message:
+        return message
+    return message.replace(api_key, f"…{api_key[-4:]}")
+
+
+def _refusal(status: int, body: bytes, api_key: str | None = None) -> ProviderError:
     try:
-        words = words_of(json.loads(body))
-    except ValueError:
+        words = words_of(json.loads(body), api_key)
+    except (ValueError, RecursionError):
+        # Not JSON, or nested deeper than the parser follows: the status alone.
         words = ""
-    kind = {401: AUTH_REFUSED, 404: MODEL_NOT_FOUND, 429: RATE_LIMITED}.get(status, MODEL_ERROR)
+    kind = {401: AUTH_REFUSED, 402: MODEL_NO_CREDIT, 404: MODEL_NOT_FOUND,
+            429: RATE_LIMITED}.get(status, MODEL_ERROR)
     return ProviderError(words or f"HTTP {status}", kind, status)
+
+
+def lost(exc: Exception, base_url: str) -> ProviderError:
+    """A request that never reached the server at ``base_url``, or that broke off on the way."""
+    if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout
+                  | httpx.UnsupportedProtocol | httpx.InvalidURL):
+        return ProviderError(base_url, UNREACHABLE)
+    message = str(exc) or (
+        "The model took too long to answer, or the connection to its server broke.")
+    return ProviderError(message, CONNECTION_LOST)
 
 
 class Provider:
     """Built from a connection's settings for each use of it."""
-
-    MODELS = "/models"  # where the server lists its models, after base_url
 
     def __init__(self, connection: dict):
         self.connection = connection
@@ -185,22 +214,12 @@ class Provider:
         yield  # pragma: no cover
 
     async def list_models(self) -> list[str]:
-        return [well_formed(str(m["id"])) for m in await self._model_objects()]
+        # Imported here: the catalog builds on this module.
+        from .catalog import read_catalog
 
-    async def _model_objects(self) -> list[dict]:
-        """The models the server lists, each as it describes itself, all of them with an id."""
-        try:
-            async with self._client_factory() as client:
-                response = await client.get(self.base_url + self.MODELS, headers=self._headers())
-        except (httpx.HTTPError, httpx.InvalidURL) as exc:
-            raise self._lost(exc)
-        if response.status_code >= 400:
-            raise _refusal(response.status_code, response.content)
-        try:
-            models = response.json().get("data") or []
-            return [m for m in models if isinstance(m, dict) and m.get("id")]
-        except (ValueError, AttributeError, TypeError):
-            raise ProviderError("The list of models could not be read.", MODEL_UNREADABLE)
+        read = await read_catalog(self.connection, probes=False,
+                                  client_factory=self._client_factory)
+        return [m.id for m in read.models]
 
     async def _sse(self, path: str, body: dict) -> AsyncIterator[dict]:
         """The objects of the server's event stream, until it says [DONE] or ends."""
@@ -209,7 +228,7 @@ class Provider:
                 "POST", self.base_url + path, headers=self._headers(), json=body,
             ) as response:
                 if response.status_code >= 400:
-                    raise _refusal(response.status_code, await response.aread())
+                    raise _refusal(response.status_code, await response.aread(), self.api_key)
                 async for line in response.aiter_lines():
                     data = line[5:].strip() if line.startswith("data:") else ""
                     if data == "[DONE]":
@@ -224,13 +243,7 @@ class Provider:
             raise self._lost(exc)
 
     def _lost(self, exc: Exception) -> ProviderError:
-        """A request that never reached the server, or that broke off on the way."""
-        if isinstance(exc, httpx.ConnectError | httpx.ConnectTimeout
-                      | httpx.UnsupportedProtocol | httpx.InvalidURL):
-            return ProviderError(self.base_url, UNREACHABLE)
-        message = str(exc) or (
-            "The model took too long to answer, or the connection to its server broke.")
-        return ProviderError(message, CONNECTION_LOST)
+        return lost(exc, self.base_url)
 
 
 @dataclass
@@ -244,8 +257,8 @@ class Answer:
 
 # How a model stops when it simply has nothing more to say, whatever its server calls it.
 _ORDINARY_ENDS = ("stop", "end_turn", "stop_sequence")
-ONLY_THOUGHT = ("The model spent its whole answer thinking and wrote nothing. Raise the "
-                "connection's max tokens, or use a model that does not think as long.")
+ONLY_THOUGHT = ("The model spent its whole answer thinking and wrote nothing. Raise this AI's "
+                "reply ceiling, or use a model that does not think as long.")
 
 
 def unwritten(answer: Answer, only_thought: str = ONLY_THOUGHT) -> AppError | None:

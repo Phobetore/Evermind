@@ -14,6 +14,8 @@ import re
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlsplit
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 5599
 # Seconds between words. The end-to-end suite sets its own, a little over the
@@ -40,6 +42,40 @@ THOUGHTS = 40
 # Words a reply in a conversation that says MOCK_HITS_CEILING gets before its room runs out.
 CEILING_AFTER = 6
 
+# The list of models the add flow is tried on, under the addresses /many/, /slow/ and /locked/:
+# OpenRouter's shape, as large as its list was on 14 November 2026 (made up, never copied).
+CATALOG = Path(__file__).resolve().parent.parent / "backend/tests/fixtures/catalog/openrouter_471.json"
+# The day the list's dates are counted from (REFERENCE in make_openrouter_471.py): served moved to
+# today, so that a model "new" there is new whatever day the suite runs.
+CATALOG_REFERENCE = 1794614400
+# Seconds /slow/ takes over its list: time for a test to give up on it.
+SLOW_LIST_FOR = 4.0
+# The one key /locked/ takes.
+GOOD_KEY = "sk-e2e-good"
+# What the LM Studio under /lmstudio/ has loaded brume-12b with; a test changes it by a POST to
+# /lmstudio/loaded, and puts it back.
+LMSTUDIO_LOADED = 32768
+
+
+def _lmstudio_native() -> dict:
+    """LM Studio's own list (/api/v1/models), which says the size a model is loaded with."""
+    return {"models": [{
+        "type": "llm", "publisher": "brume", "key": "brume-12b", "display_name": "Brume 12B",
+        "max_context_length": 131072,
+        "loaded_instances": [{"id": "brume-12b", "config": {"context_length": LMSTUDIO_LOADED}}],
+    }]}
+
+
+def _catalog() -> dict:
+    listed = json.loads(CATALOG.read_text(encoding="utf-8"))
+    shift = int(time.time()) - CATALOG_REFERENCE
+    for entry in listed["data"]:
+        if isinstance(entry.get("created"), int):
+            entry["created"] += shift
+    # All of it in one page, as OpenRouter's own list on 14 November.
+    return {**listed, "links": {"next": None}, "total_count": len(listed["data"])}
+
+
 REPLIES = [
     "*{char} watches you for a moment, weighing something.* Now that is an interesting "
     "way to put it. *A pause.* Go on. I would rather hear the rest before I decide.",
@@ -58,16 +94,47 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        if self.path.rstrip("/").endswith("/models"):
+        # The path alone: a list of models is asked with ?limit=1000&offset=0.
+        path = urlsplit(self.path).path.rstrip("/")
+        if path in ("/many/api/v1/models", "/locked/api/v1/models"):
+            self._json(json.dumps(_catalog()))
+        elif path == "/slow/api/v1/models":
+            time.sleep(SLOW_LIST_FOR)
+            self._json(json.dumps(_catalog()))
+        elif path == "/broken/v1/models":
+            self._json(json.dumps({"error": {"message": "The mock list is broken."}}), status=500)
+        elif path == "/empty/v1/models":
+            self._json(json.dumps({"data": []}))
+        elif path == "/lmstudio/v1/models":
+            # The list where an AI's model is looked for, and LM Studio's own beside it.
+            self._json(json.dumps({"data": [{"id": "brume-12b"}]}))
+        elif path == "/lmstudio/api/v1/models":
+            self._json(json.dumps(_lmstudio_native()))
+        elif path.startswith("/lmstudio/"):
+            # No other family's route: its probes find nothing of their own here.
+            self._json(json.dumps({"error": "Unexpected endpoint or method."}), status=404)
+        elif path in ("/many/api/v1/key", "/locked/api/v1/key"):
+            # /many/ takes any key; /locked/ only the good one.
+            good = path.startswith("/many/") or self.headers.get("Authorization") == f"Bearer {GOOD_KEY}"
+            if good:
+                self._json(json.dumps({"data": {"label": "e2e"}}))
+            else:
+                self._json(json.dumps({"error": {"message": "No auth credentials found"}}), status=401)
+        elif path.endswith("/models"):
             body = json.dumps({"data": [{"id": "evermind-demo"}, {"id": "evermind-demo-fast"}]})
             self._json(body)
         else:
             self._json(json.dumps({"ok": True}))
 
     def do_POST(self):
+        global LMSTUDIO_LOADED
         length = int(self.headers.get("Content-Length", 0))
         payload = json.loads(self.rfile.read(length) or b"{}")
-        if not self.path.rstrip("/").endswith("/chat/completions"):
+        if urlsplit(self.path).path.rstrip("/") == "/lmstudio/loaded":
+            LMSTUDIO_LOADED = int(payload["context_length"])
+            self._json(json.dumps({"context_length": LMSTUDIO_LOADED}))
+            return
+        if not urlsplit(self.path).path.rstrip("/").endswith("/chat/completions"):
             self._json(json.dumps({"error": {"message": "unknown endpoint"}}), status=404)
             return
 

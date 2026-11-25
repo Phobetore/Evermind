@@ -58,24 +58,89 @@ export interface Persona {
   updated_at: string;
 }
 
-export interface Connection {
+/** Who serves models: the chips of the add flow, or "generic" for any other address. */
+export type Family = "ollama" | "lmstudio" | "llamacpp" | "koboldcpp" | "openrouter" | "openai"
+  | "anthropic" | "groq" | "mistral" | "generic";
+
+/** A server and its key, kept once for every AI on it. The key never leaves the server. */
+export interface Service {
   id: string;
   name: string;
   provider: ProviderType;
+  family: Family;
   base_url: string;
+  /** At home rather than a paid service, as its address says. */
+  local: boolean;
+  /** On this PC rather than elsewhere on the network. */
+  loopback: boolean;
+  api_key_set: boolean;
+  api_key_hint: string;
+  model_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An AI: one model chosen on a service, as the server describes it. */
+export interface Ai {
+  id: string;
+  service: Pick<Service, "id" | "name" | "family" | "local" | "loopback" | "provider" | "base_url"
+    | "api_key_set" | "api_key_hint">;
+  /** The server's own id of the model. */
   model: string;
-  context_size: number;
+  name: string;
+  is_default: boolean;
+  context: {
+    /** Typed by the person; null follows what was read. */
+    own: number | null;
+    read: number | null;
+    read_kind: "served" | "configured" | "observed" | "max" | null;
+    /** What Evermind counts it reads at once, and where that figure comes from. */
+    used: number;
+    source: "own" | "read" | "size_untold" | "assumed";
+  };
+  output_read: number | null;
+  /** Whether it reasons before it writes; null while nothing has said. */
+  reasons: boolean | null;
+  /** USD per million tokens, read from the server or typed. */
+  price: { read_in: number | null; read_out: number | null; own_in: number | null; own_out: number | null; varies: boolean };
+  /** The server's own word: read, never worked out again here. */
+  free: boolean;
+  limits_read_at: string | null;
+  reply_cap: { mode: "auto" | "unsent" | "fixed"; tokens: number | null };
   /** Null leaves a setting to the model: it is not sent. */
-  max_tokens: number | null;
   temperature: number | null;
   top_p: number | null;
   frequency_penalty: number | null;
   presence_penalty: number | null;
-  is_default: boolean;
-  api_key_set: boolean;
-  api_key_hint: string;
+  /** Made from a connection by the update to AIs. */
+  migrated: boolean;
+  notices: ("follow_server" | "let_evermind")[];
+  conversation_count: number;
   created_at: string;
   updated_at: string;
+}
+
+/** A model as the server's list gives it, field for field what the probe relays. */
+export interface ProbeModel {
+  id: string;
+  name: string;
+  vendor: string | null;
+  created: number | null;
+  context: { served: number | null; configured: number | null; max: number | null };
+  max_output: number | null;
+  price: { input: number | null; output: number | null; varies: boolean; cache_read: number | null; cache_write: number | null };
+  reasons: boolean | null;
+}
+
+/** Every model a service's server lists, as it was read. */
+export interface ProbeResult {
+  family: Family;
+  local: boolean;
+  read_at: string;
+  /** The saved service this one is, if it is one: its models are then already among the AIs. */
+  service_id: string | null;
+  dropped: { batch: number };
+  models: ProbeModel[];
 }
 
 export interface Message {
@@ -94,7 +159,10 @@ export interface Conversation {
   id: string;
   character_id: string;
   persona_id: string | null;
-  connection_id: string | null;
+  /** The AI that answers it; null when there is none. */
+  model_id: string | null;
+  /** The name of an AI removed while it answered this conversation, until that is seen. */
+  model_lost: string | null;
   title: string;
   summary: string;
   author_note?: string;

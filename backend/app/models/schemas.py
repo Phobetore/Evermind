@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..prompting.text import is_writable
 
@@ -10,6 +10,10 @@ Kind = Literal["character", "scenario"]
 ProviderType = Literal["openai-compatible", "anthropic"]
 Role = Literal["system", "user", "assistant"]
 WHOLE = 2**53 - 1  # the largest whole number JSON and JavaScript both hold exactly
+Family = Literal["ollama", "lmstudio", "llamacpp", "koboldcpp", "openrouter", "openai",
+                 "anthropic", "groq", "mistral", "generic"]
+# A page from before AIs names a connection, which is now an AI or the service holding it.
+_AI = AliasChoices("model_id", "connection_id")
 
 
 def _texts(value) -> list[str]:
@@ -129,10 +133,10 @@ OriginalCardIn.model_rebuild()  # its reading is a CharacterIn, declared after i
 
 
 class CardAssistRequest(Input):
-    # No upper bound here: what bounds a brief is the context of the connection that reads it.
+    # No upper bound here: what bounds a brief is the context of the AI that reads it.
     prompt: str = Field(min_length=3)
     kind: Kind = "character"
-    connection_id: str | None = None
+    model_id: str | None = Field(default=None, validation_alias=_AI)
     existing: dict = {}
     # Sent again by a page that never heard the answer: it names the card that is already being written.
     client_id: str | None = Field(default=None, min_length=1, max_length=64)
@@ -150,34 +154,105 @@ class PersonaUpdate(Input):
     is_default: bool | None = None
 
 
-class ConnectionIn(Input):
-    name: str = Field(min_length=1, max_length=200)
+class ServiceRef(Input):
+    """A service as the page names it: a saved one by its id alone, or a draft that says its
+    API and address (with the id of the saved one it was started from, if any). A key left out
+    (None) is the saved one's, lent only to the address it was given for; "" is no key."""
+    id: str | None = Field(default=None, min_length=1)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    provider: ProviderType | None = None
+    base_url: str | None = None
+    api_key: str | None = None
+    family: Family | None = None
+
+    @model_validator(mode="after")
+    def _saved_or_draft(self):
+        draft = self.provider is not None and self.base_url is not None
+        if not draft and (self.id is None or self.provider is not None or self.base_url is not None):
+            raise ValueError("a service is named by its id, or drafted with its API and address")
+        return self
+
+    @property
+    def draft(self) -> bool:
+        return self.provider is not None
+
+
+class ProbeIn(ServiceRef):
+    fresh: bool = False  # past the list kept for ten minutes
+
+
+class ConnectionBefore(Input):
+    """What a page from before AIs sends to test a connection: its form, of which only the
+    service is read."""
+    id: str | None = None
     provider: ProviderType = "openai-compatible"
     base_url: str = ""
-    api_key: str = ""
-    model: str = ""
-    context_size: int = Field(default=16384, ge=1024, le=2_000_000)
-    max_tokens: int | None = Field(default=None, ge=16, le=128_000)
+    api_key: str | None = None
+
+
+class ServiceUpdate(Input):
+    # Anything else is what a page from before AIs sends of a whole connection, and refused whole.
+    model_config = ConfigDict(extra="allow")
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    provider: ProviderType | None = None
+    base_url: str | None = None
+    api_key: str | None = None  # None keeps the key, "" clears it
+
+
+class NewModel(Input):
+    model: str = Field(min_length=1)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    context_own: int | None = Field(default=None, ge=512, le=WHOLE)
+    price_own_in: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    price_own_out: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    # The model as the probe relayed it, sent back: read again by catalog.whole and amount, so
+    # that a field of an odd shape is not told rather than refused.
+    read: dict | None = None
+
+
+class ModelsCreate(Input):
+    service: ServiceRef
+    models: list[NewModel] = Field(min_length=1)
+    conversation_id: str | None = None
+
+
+class ReplyCap(Input):
+    mode: Literal["auto", "unsent", "fixed"]
+    tokens: int | None = Field(default=None, ge=1, le=WHOLE)
+
+    @model_validator(mode="after")
+    def _fixed_has_tokens(self):
+        if self.mode == "fixed" and self.tokens is None:
+            raise ValueError("a fixed ceiling needs its number of tokens")
+        return self
+
+
+class ModelUpdate(Input):
+    # No maximum of Evermind's own: the bounds are what JSON holds whole, the floor of the
+    # engine's budget (512) and the ranges the APIs take for the four settings.
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    model: str | None = Field(default=None, min_length=1)
+    is_default: Literal[True] | None = None  # another is made the default by marking it
+    context_own: int | None = Field(default=None, ge=512, le=WHOLE)
+    reply_cap: ReplyCap | None = None
     temperature: float | None = Field(default=None, ge=0, le=2)
     top_p: float | None = Field(default=None, gt=0, le=1)
     frequency_penalty: float | None = Field(default=None, ge=-2, le=2)
     presence_penalty: float | None = Field(default=None, ge=-2, le=2)
-    is_default: bool = False
+    price_own_in: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    price_own_out: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    notices_kept: bool | None = None
 
 
-class ConnectionUpdate(ConnectionIn):
-    """The whole connection, as for a new one."""
-    api_key: str | None = None  # None = keep stored key, "" = clear it
-
-
-class ConnectionDraft(ConnectionUpdate):
-    id: str | None = None  # the saved connection whose key is used when none is typed
+class RefreshIn(Input):
+    fresh: bool = False
 
 
 class ConversationIn(Input):
     character_id: str
     persona_id: str | None = None
-    connection_id: str | None = None
+    model_id: str | None = Field(default=None, validation_alias=_AI)
     # Chosen by the page, as a message's: asked for again under it, it is the conversation made.
     client_id: str | None = Field(default=None, min_length=1, max_length=64)
 
@@ -191,7 +266,8 @@ class ConversationPatch(Input):
     summary: str | None = None
     summary_was: str | None = None  # the summary the new one was typed over
     author_note: str | None = None
-    connection_id: str | None = None
+    model_id: str | None = Field(default=None, validation_alias=_AI)
+    model_lost_seen: Literal[True] | None = None  # the line saying an AI was removed was seen
     backdrop: Literal["auto", "none", "image"] | None = None
     backdrop_strength: float | None = Field(default=None, ge=0, le=1)  # null: the device's
     # The strength of the chosen picture. A page opened before backdrops still sends it.

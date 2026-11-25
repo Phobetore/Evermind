@@ -1,0 +1,7 @@
+{
+ "object": "list",
+ "data": [
+  {"id": "brume-12b-q4_k_m.gguf", "object": "model", "owned_by": "llamacpp",
+   "meta": {"vocab_type": 2, "n_vocab": 131072, "n_ctx_train": 131072, "n_embd": 5120}}
+ ]
+}

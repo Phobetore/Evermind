@@ -15,6 +15,7 @@ from app.providers.base import NO_TEXT, Answer, ProviderError, ProviderEvent, un
 from app.services import turns
 
 from .conftest import assist, messages_of, send, setup_conversation
+from .helpers import add_model, set_ai
 
 
 @pytest.mark.parametrize(("answer", "kind", "reason"), [
@@ -29,6 +30,11 @@ def test_an_answer_with_nothing_written_says_why_when_how_it_ended_tells(answer,
     assert error.kind == kind
     assert error.status_code == 502
     assert error_body(error).get("reason") == reason
+
+
+def test_an_only_thought_answer_points_to_this_ai_s_ceiling_not_a_connection():
+    message = unwritten(Answer("", 500, "length")).message
+    assert "this AI's reply ceiling" in message and "connection" not in message
 
 
 def test_the_server_s_own_word_is_quoted():
@@ -158,9 +164,7 @@ async def test_a_continuation_with_no_clue_still_has_nothing_to_add(client, mode
 
 async def with_ceiling(client, max_tokens=1024):
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}",
-                     json={**connection, "max_tokens": max_tokens})
+    await set_ai(client, max_tokens=max_tokens)
     return convo
 
 
@@ -271,9 +275,7 @@ async def test_an_anthropic_ceiling_left_unset_is_marked_with_the_one_sent(clien
     and that is what cut the reply, not a limit of the server's."""
     model.scripts = [ends("She opens her mouth to", stop="length")]
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}",
-                     json={**connection, "provider": "anthropic", "max_tokens": None})
+    await set_ai(client, provider="anthropic", max_tokens=None)
     await send(client, convo["id"])
     assert (await last_reply(client, convo))["meta"]["ceiling"] == {"0": 4096}
 
@@ -346,13 +348,11 @@ async def test_a_ghost_written_message_with_nothing_in_it_says_why(client, model
 ])
 async def test_a_connection_test_that_produced_nothing_says_why(client, model, monkeypatch,
                                                                script, kind):
-    monkeypatch.setattr("app.routers.connections.get_provider", Scripted)
+    monkeypatch.setattr("app.routers.models.get_provider", Scripted)
     model.scripts = [script]
-    connection = (await client.post("/api/connections", json={
-        "name": "Mock", "provider": "openai-compatible", "base_url": "http://mock/v1",
-        "model": "test-model"})).json()
+    ai = await add_model(client, base_url="http://mock/v1", model="test-model")
 
-    resp = await client.post("/api/connections/benchmark", json=connection)
+    resp = await client.post(f"/api/models/{ai['id']}/benchmark")
 
     assert resp.status_code == 502
     assert resp.json()["kind"] == kind
@@ -362,12 +362,10 @@ async def test_a_connection_test_that_produced_nothing_says_why(client, model, m
 
 async def test_a_connection_test_that_reasons_then_writes_measures_from_the_first_word(
         client, model, monkeypatch):
-    monkeypatch.setattr("app.routers.connections.get_provider", Scripted)
+    monkeypatch.setattr("app.routers.models.get_provider", Scripted)
     model.scripts = [ends("Rain on a quiet street.", thought=500, stop="stop")]
-    connection = (await client.post("/api/connections", json={
-        "name": "Mock", "provider": "openai-compatible", "base_url": "http://mock/v1",
-        "model": "test-model"})).json()
-    resp = await client.post("/api/connections/benchmark", json=connection)
+    ai = await add_model(client, base_url="http://mock/v1", model="test-model")
+    resp = await client.post(f"/api/models/{ai['id']}/benchmark")
     assert resp.status_code == 200, resp.text
     assert resp.json()["tokens"] > 0
 

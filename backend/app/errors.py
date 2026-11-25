@@ -23,6 +23,8 @@ MODEL_ONLY_THOUGHT = "model_only_thought"
 # A reply with nothing in it, which the model's server ended with a word of its own, in `reason`.
 MODEL_WITHHELD = "model_withheld"
 NO_CONNECTION = "no_connection"
+# What it says in English, wherever an AI is wanted and none is set up: the page says it in its own words.
+NO_AI_MESSAGE = "No AI is set up. Add one in Settings, My AIs."
 NOT_FOUND = "not_found"
 # A turn was asked for while a different one was being written.
 TURN_RUNNING = "turn_running"
@@ -36,12 +38,22 @@ TOO_FEW_FACTS = "too_few_facts"
 # A text refused for its length, with the bound and its own length in `params`.
 TEXT_TOO_LONG = "text_too_long"
 TEXT_TOO_SHORT = "text_too_short"
-# A brief for the card assistant that the connection's context cannot hold with the card.
+# A brief for the card assistant that the AI's reading capacity cannot hold with the card.
 BRIEF_TOO_LONG = "brief_too_long"
 # The same, where the card's own fields sent along outgrow the context whatever the brief.
 CARD_TOO_LONG = "card_too_long"
 # The same, where the instructions and the room for a card alone outgrow it, on an empty card.
 CONTEXT_TOO_SMALL = "context_too_small"
+# A service's address changed with no key typed: its key is only ever lent where it was given.
+KEY_NEEDED = "key_needed"
+# A service removed while it still holds AIs, which only a page from before AIs asks for.
+SERVICE_IN_USE = "service_in_use"
+# What only a page opened before the update sends: its message says to reload, in English, as
+# such a page has no sentence of its own for a kind it does not know.
+PAGE_OUTDATED = "page_outdated"
+# A model's server that refused for want of credit (402).
+MODEL_NO_CREDIT = "model_no_credit"
+RELOAD = "Evermind has been updated: reload this page."
 
 _LENGTH_BOUNDS = {"string_too_long": (TEXT_TOO_LONG, "max_length"),
                   "string_too_short": (TEXT_TOO_SHORT, "min_length")}

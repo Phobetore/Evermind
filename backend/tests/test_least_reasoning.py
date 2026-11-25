@@ -4,6 +4,7 @@ its own list of models says each one accepts, and no other server is asked anyth
 import asyncio
 import json
 import logging
+import re
 import time
 
 import httpx
@@ -13,6 +14,7 @@ from app.providers import complete_answer
 from app.providers.openai_compat import OpenAICompatProvider
 
 from .conftest import PAYLOAD, send, setup_conversation, sse
+from .helpers import set_ai
 
 OPENROUTER = "https://openrouter.ai/api/v1"
 MODEL = "deepseek/deepseek-v4.1-flash"
@@ -28,17 +30,28 @@ class OpenRouter:
         self.refuse = refuse
         self.refuse_all: int | None = None  # a refusal of every request, the field or not
         self.list_takes = 0.0  # seconds the list takes to come
+        self.per_page: int | None = None  # models a page, each page linking to the next
         self.lists = 0
+        self.gets: list[str] = []  # every GET, kept before it is judged: a refusal may be swallowed
         self.bodies: list[dict] = []
 
     async def handler(self, request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
+            self.gets.append(request.url.path)
             assert request.url.path.endswith("/models")
             self.lists += 1
             await asyncio.sleep(self.list_takes)
             if self.models is None:
                 return httpx.Response(503, json={"error": {"message": "busy"}})
-            return httpx.Response(200, json={"data": self.models})
+            if self.per_page is None:
+                # As OpenRouter answers: every model on one page, and no page after it.
+                return httpx.Response(200, json={"data": self.models, "links": {"next": None}})
+            offset = int(request.url.params.get("offset", 0))
+            end = offset + self.per_page
+            following = (f"{request.url.path}?offset={end}&limit={self.per_page}"
+                         if end < len(self.models) else None)
+            return httpx.Response(200, json={"data": self.models[offset:end],
+                                             "links": {"next": following}})
         body = json.loads(request.content)
         self.bodies.append(body)
         if self.refuse_all:
@@ -77,6 +90,8 @@ def listed(reasoning: dict | None, model: str = MODEL) -> list[dict]:
 def clock(monkeypatch):
     now = [1000.0]
     monkeypatch.setattr("app.providers.openai_compat._now", lambda: now[0])
+    # The list itself is kept by the catalog, on its own clock.
+    monkeypatch.setattr("app.providers.catalog._now", lambda: now[0])
     return now
 
 
@@ -123,6 +138,8 @@ async def test_the_list_is_read_once_and_again_after_six_hours(clock):
     clock[0] += 2
     assert (await server.ask())["reasoning"] == {"effort": "none"}
     assert server.lists == 2
+    # One request for each read, as before the catalog: the pass does not check the key.
+    assert server.gets == ["/api/v1/models"] * 2
 
 
 async def test_a_list_that_cannot_be_read_adds_nothing_and_is_read_again_later(clock):
@@ -193,6 +210,37 @@ async def test_a_list_slow_to_come_adds_nothing_and_does_not_hold_the_request(cl
     assert server.lists == 1
 
 
+async def test_an_odd_entry_beside_the_model_does_not_take_its_least_reasoning_away(clock):
+    odd = [{"id": "x/painter", "architecture": {"output_modalities": [{"x": 1}]}},
+           {"id": "x/priced", "pricing": {"prompt": "1e999999", "completion": {"x": 1}}}]
+    server = OpenRouter([*odd, *listed(THE_OWNERS)])
+    assert (await server.ask())["reasoning"] == {"effort": "none"}
+
+
+async def test_a_read_that_fails_in_any_way_adds_nothing_and_waits_five_minutes(
+        clock, monkeypatch, caplog):
+    """Whatever breaks the read of the list, the pass goes out as it did before the list was read,
+    says so once, and does not ask again for five minutes."""
+    reads = []
+
+    async def broken(*_, **__):
+        reads.append(1)
+        raise TypeError("unhashable type: 'dict'")
+
+    monkeypatch.setattr("app.providers.catalog.read_catalog", broken)
+    server = OpenRouter(listed(THE_OWNERS))
+    with caplog.at_level(logging.WARNING):
+        assert "reasoning" not in await server.ask()
+        assert "reasoning" not in await server.ask()
+    assert len(reads) == 1
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and "TypeError" in warnings[0]
+    assert re.search(r"\.py:\d+ in \w+", warnings[0])
+    clock[0] += 5 * 60
+    assert "reasoning" not in await server.ask()
+    assert len(reads) == 2
+
+
 async def test_a_refusal_of_another_kind_is_not_asked_again(clock):
     from app.providers.base import ProviderError
 
@@ -209,6 +257,7 @@ async def test_another_server_is_asked_nothing_and_sent_nothing(clock, base_url)
     body = await server.ask(base_url=base_url)
     assert "reasoning" not in body
     assert server.lists == 0
+    assert server.gets == []
 
 
 async def test_a_subdomain_of_openrouter_is_openrouter(clock):
@@ -216,19 +265,28 @@ async def test_a_subdomain_of_openrouter_is_openrouter(clock):
     assert (await server.ask(base_url="https://eu.openrouter.ai/api/v1"))["reasoning"]
 
 
+async def test_a_subdomain_of_openrouter_is_read_page_after_page(clock):
+    # The model is on the second page: only a list read as OpenRouter's follows its links.
+    server = OpenRouter(listed(THE_OWNERS))
+    server.per_page = 1
+    body = await server.ask(base_url="https://eu.openrouter.ai/api/v1")
+    assert body["reasoning"] == {"effort": "none"}
+    assert server.gets == ["/api/v1/models"] * 2
+
+
 async def test_a_caller_that_did_not_ask_is_sent_nothing(clock):
     server = OpenRouter(listed(THE_OWNERS))
     assert "reasoning" not in await server.ask(least=False)
     assert server.lists == 0
+    assert server.gets == []
 
 
 async def test_a_chat_turn_sends_no_reasoning_field(client, monkeypatch, clock):
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}",
-                     json={**connection, "base_url": OPENROUTER, "model": MODEL})
+    await set_ai(client, base_url=OPENROUTER, model=MODEL)
     server = OpenRouter(listed(THE_OWNERS))
     monkeypatch.setattr("app.services.chat_service.get_provider", server.provider)
     await send(client, convo["id"])
     assert server.bodies and all("reasoning" not in body for body in server.bodies)
     assert server.lists == 0
+    assert server.gets == []

@@ -1,0 +1,7 @@
+{
+ "models": [
+  {"name": "brume:12b", "model": "brume:12b", "size": 9876543210, "digest": "0a1b2c",
+   "details": {"family": "llama", "parameter_size": "12B", "quantization_level": "Q4_K_M"},
+   "expires_at": "2026-11-14T00:05:00Z", "size_vram": 9876543210, "context_length": 8192}
+ ]
+}

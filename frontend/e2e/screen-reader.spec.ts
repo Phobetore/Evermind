@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { API } from "../playwright.config";
-import { conversationWithReply, replyEnds } from "./fixtures";
+import { addModel, conversationWithReply, replyEnds } from "./fixtures";
 
 /** What a screen reader is told, which hears nothing of what is only drawn. */
 
@@ -29,10 +29,8 @@ test("a reply that fails is told at once", async ({ page, request }) => {
 
 /** As a stopped AI server looks: an address where nothing listens. */
 async function noModel(request: APIRequestContext, id: string) {
-  const off = await (await request.post(`${API}/api/connections`, {
-    data: { name: "off", provider: "openai-compatible", base_url: "http://127.0.0.1:5999/v1", api_key: "x", model: "absent" },
-  })).json();
-  await request.patch(`${API}/api/conversations/${id}`, { data: { connection_id: off.id } });
+  const off = await addModel(request, { base_url: "http://127.0.0.1:5999/v1", api_key: "x", model: "absent", name: "off" });
+  await request.patch(`${API}/api/conversations/${id}`, { data: { model_id: off.id } });
 }
 
 test("a model that does not answer is told at once", async ({ page, request }) => {

@@ -133,8 +133,8 @@ from the labs (Claude, GPT, Gemini) write beautifully and arrive with their
 provider's rules attached. OpenRouter also carries the same community
 storytelling finetunes you would otherwise run at home, in sizes no home machine
 can hold. That is the practical way to get good prose and a free hand at the same
-time without buying hardware. Any model there can be named in your connection, so
-you can try several and keep the one you like.
+time without buying hardware. Any model there can be added as an AI, so you can try
+several and keep the one you like.
 
 ---
 
@@ -196,9 +196,10 @@ your computer, until you stop it with `docker compose down`.
 
 > **One thing to remember with Docker.** Your AI is running on your computer, but
 > Evermind is running inside its box, and inside that box "localhost" means the
-> box itself. So in Step 3, wherever this guide says `localhost`, type
+> box itself. So in Step 3, wherever an address says `localhost`, type
 > `host.docker.internal` instead. For LM Studio that means
-> `http://host.docker.internal:1234/v1`.
+> `http://host.docker.internal:1234/v1`: the first try fails, and Step 3 says where
+> to change it.
 >
 > On Linux, if Evermind still cannot reach it, your AI is listening for this
 > computer alone, which leaves the box out: let it listen on the network
@@ -249,22 +250,31 @@ To start again without rebuilding the interface, run `.venv\Scripts\python -m ap
 
 ## Step 3: introduce Evermind to your AI
 
-In Evermind, go to **Settings**, then **LLM connections**, then **Add**.
+In Evermind, go to **Settings**, then **My AIs**, then **Add**.
 
-1. Click the preset that matches what you set up in Step 1 (LM Studio, Ollama,
-   OpenRouter, and so on). The address fills itself in.
-2. If you used Docker, change `localhost` in that address to
-   `host.docker.internal`.
-3. If you chose an online service, paste your API key. For a local model, leave
-   the key empty.
-4. Click **Test connection**. If it works, it says how many models it found and
-   shows the first few just below. Click the one you want, or type its name in
-   **Model**.
-5. Open **Generation settings** and set **Context (tokens)** to match what your
-   AI actually offers. LM Studio shows this when you load a model; 16384 is a
-   common, comfortable value. This one matters: set it too high and your
-   conversations get cut off without warning.
-6. Save.
+1. Click the button that matches what you set up in Step 1 (**LM Studio**,
+   **Ollama**, **OpenRouter**, and so on). Local ones are listed first, free.
+2. For a local model, Evermind asks the server at once. For an online service,
+   it first asks for your API key: paste it (on a phone, long press in the
+   field, then **Paste**) and click **See the models**. The key is asked once
+   for the whole service, however many models you add from it.
+3. If you used Docker, the first try fails, with a sentence like "LM Studio does
+   not answer at http://localhost:1234/v1". Inside the box, `localhost` is the
+   box itself. Under that sentence, change the **Server address** to
+   `http://host.docker.internal:1234/v1` and click **Try again**.
+4. Evermind then shows the whole list of the server's models (a search field
+   appears above it when it is long, 12 models or more). Tick the ones you
+   want. You do not type the model's name, and you do not set its size:
+   Evermind reads what the server says about each model, among other things
+   how much it can read at once (the size loaded, for LM Studio).
+5. Click **Add 1 AI** (**Add 2 AIs**, and so on, as many as you ticked). They
+   appear under **My AIs**. Your first AI answers new conversations; you can
+   change that on an AI's page.
+
+If the list does not have a model you know exists, and your server is a local
+one, load that model in the server first (in LM Studio, load it, then start the
+server), then click **Read again** under the list: Evermind asks the server
+afresh.
 
 ---
 
@@ -377,10 +387,10 @@ that file along when you report a problem.
 
 | What you see | What it usually means |
 |---|---|
-| "Evermind cannot reach the model's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. On Docker, check you used `host.docker.internal` instead of `localhost`, and on Linux read **One thing to remember with Docker**, in Step 2. |
-| "No LLM connection is set up" | Step 3 has not been done, or the connection was not saved. |
-| Replies are cut off mid-sentence | The **Max response (tokens)** value on your connection is too low. Raise it. |
-| The character forgets things, or repeats itself | Your **Context (tokens)** is probably set higher than your AI really offers. Match it to the real value. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
+| "Evermind cannot reach the AI's server at http://localhost:1234/v1" | Your AI is not running. Go back to LM Studio and check the server is started. If it is, the address may be wrong: change it on the AI's page, under **Advanced**, **Service**, **Edit**. On Docker, check you used `host.docker.internal` instead of `localhost`, and on Linux read **One thing to remember with Docker**, in Step 2. |
+| "No AI is set up" | Step 3 has not been done, or no AI was added. |
+| Replies are cut off mid-sentence | The **Reply ceiling** of the AI is too low. Open it in **Settings**, **My AIs**, and under **Advanced** choose **Set by Evermind**. |
+| The character forgets things, or repeats itself | The **Reading capacity** of the AI is probably set higher than your AI really offers. Open it in **Settings**, **My AIs**, and under **Advanced** choose **Follow the server**. Also try lowering **Recent messages sent to the model** in Settings to 16 or 24. |
 | Replies are very slow | Normal for a large model on a modest machine. Try a smaller one, or an online service. |
 | "The model returned an empty reply" | Try again. If every reply comes back empty, that model's chat template does not work for roleplay here, whatever you write: pick another model. |
 | `docker compose` complains about `env_file`, a variable that "contains whitespaces", "invalid utf8", "Invalid template" or "unexpected character" | Write that line of `.env` as `NAME=value`, with no `export` and no spaces around `=`, and save the file as UTF-8 (Windows PowerShell 5.1 writes UTF-16 with `>`). A value holding `${` with no `}` after it cannot be used with Docker: pick another. Otherwise your Docker is older than November 2024: update it; on Debian or Ubuntu, install Docker from Docker's own packages rather than the distribution's. |

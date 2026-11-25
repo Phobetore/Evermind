@@ -21,8 +21,14 @@ export function isCutAtCeiling(message: Pick<Message, "meta" | "active_index">):
  *  or none when the connection set none. Null for any other version. */
 export function describeCeiling(message: Pick<Message, "meta" | "active_index">, t: Translate): string | null {
   if (!isCutAtCeiling(message)) return null;
+  const tokens = ceilingTokens(message);
+  return tokens !== null ? t("chat.message.cutAtCeiling", { tokens }) : t("chat.message.cutAtCeilingUnset");
+}
+
+/** The max tokens the version on screen was cut at, when the server knows it: only a figure of the
+ *  person's own can be lifted. */
+export function ceilingTokens(message: Pick<Message, "meta" | "active_index">): number | null {
+  if (!isCutAtCeiling(message)) return null;
   const tokens = (message.meta!.ceiling as Record<string, unknown>)[String(message.active_index)];
-  return typeof tokens === "number" && tokens > 0
-    ? t("chat.message.cutAtCeiling", { tokens })
-    : t("chat.message.cutAtCeilingUnset");
+  return typeof tokens === "number" && tokens > 0 ? tokens : null;
 }

@@ -2,7 +2,7 @@ import { RpText } from "@/components/chat/RpText";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { useT } from "@/i18n/useT";
-import { describeCeiling, isCutAtCeiling, isCutShort } from "@/lib/cutShort";
+import { ceilingTokens, describeCeiling, isCutAtCeiling, isCutShort } from "@/lib/cutShort";
 import { copyText, nothingFocused, smallPortrait } from "@/lib/utils";
 import type { Character, Message, Persona } from "@/types";
 import { clsx } from "clsx";
@@ -25,6 +25,7 @@ export function ChatMessage({
   onEdit,
   onDeleteFrom,
   onBranch,
+  onLetEvermind,
 }: {
   message: Message;
   character: Character;
@@ -40,6 +41,8 @@ export function ChatMessage({
   onEdit: (content: string, index: number) => Promise<boolean>;
   onDeleteFrom: () => Promise<unknown>;
   onBranch: () => Promise<unknown>;
+  /** Given while the AI answering keeps a ceiling of its own: lifts it, for a reply cut at a figure. */
+  onLetEvermind?: () => Promise<unknown>;
 }) {
   const t = useT();
   // The version being rewritten: a swipe that lands meanwhile changes the one shown, not this.
@@ -48,6 +51,7 @@ export function ChatMessage({
   const [copied, setCopied] = useState(false);
   // A branch or a cut on its way: seen to be, and not asked for a second time meanwhile.
   const [working, setWorking] = useState<"branch" | "delete" | null>(null);
+  const [lifting, setLifting] = useState(false);
 
   const confirm = useConfirm();
 
@@ -76,6 +80,8 @@ export function ChatMessage({
   // Said in full on the last reply, where Continue is; an older one keeps a mark, as "interrupted".
   const ceiling = isLast ? describeCeiling(message, t) : null;
   const cutAtCeiling = !isLast && isCutAtCeiling(message);
+  // The gesture that was missing the day a reply is cut at 1,024: nobody has to know where the setting is.
+  const canLift = ceiling !== null && ceilingTokens(message) !== null && onLetEvermind !== undefined;
   const messageMode = message.meta?.mode as "narrate" | "ooc" | undefined;
 
   const editButton = useRef<HTMLButtonElement>(null);
@@ -244,7 +250,27 @@ export function ChatMessage({
 
         {/* Not live: the page says it once, as the reply comes in, and a screen reader finds it here. */}
         {ceiling && editing === null && (
-          <p data-ceiling className="mt-1.5 text-xs leading-snug text-mist-dim">{ceiling}</p>
+          <div className="mt-1.5 flex flex-col items-start gap-1.5">
+            <p data-ceiling className="text-xs leading-snug text-mist-dim">{ceiling}</p>
+            {canLift && (
+              <button
+                type="button"
+                className="btn btn-ghost !py-1.5 text-xs"
+                disabled={lifting}
+                onClick={async () => {
+                  setLifting(true);
+                  try {
+                    await onLetEvermind?.();
+                  } finally {
+                    setLifting(false);
+                  }
+                }}
+              >
+                {lifting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {t("ai.notice.letEvermind")}
+              </button>
+            )}
+          </div>
         )}
 
         {/* Swipes. 44px buttons on a touch screen, and the row gives the height back. */}

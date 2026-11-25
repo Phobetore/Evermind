@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Request } from "@playwright/test";
 import { API, GATE_PASSWORD, GATED } from "../playwright.config";
 import {
-  answer, conversationWithReply, makeCharacter, makeConversation, PNG, policyViolations, replyEnds, watchPolicy,
+  answer, conversationWithReply, makeCharacter, makeConversation, MOCK_ROOT, PNG, policyViolations, replyEnds, watchPolicy,
 } from "./fixtures";
 
 /** The policy the server sends with every page, and what the app itself does under it: a page that
@@ -59,6 +59,22 @@ test("no page of the app breaks the policy it is served with @desktop", async ({
   await expect(page.getByText("Evermind 99.0.0 is out.")).toBeVisible();
   expect(asked, "the update check never reached the page's route").not.toHaveLength(0);
   await noViolations(page, "the settings");
+
+  // My AIs, adding one up to its service's list, and an AI's page. The list is read by the server,
+  // never from the page: nothing here calls another origin.
+  await expect(page.getByRole("heading", { name: "My AIs" })).toBeVisible();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  const adding = page.getByRole("dialog", { name: "Add an AI" });
+  await adding.getByRole("button", { name: "Other address…" }).click();
+  await adding.getByLabel("Server address").fill(`${MOCK_ROOT}/many/api/v1`);
+  await adding.getByRole("button", { name: "See the models" }).click();
+  await expect(adding.getByPlaceholder("Search models…")).toBeVisible();
+  await noViolations(page, "the list of a service's models");
+  await adding.getByRole("button", { name: "Close" }).click();
+  await page.locator("main").getByRole("link", { name: /^e2e/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "e2e" })).toBeVisible();
+  await expect(page.getByText(/^Read from the server|^Not read yet/)).toBeVisible();
+  await noViolations(page, "an AI's page");
 
   await page.goto("/#/personas");
   await expect(page.getByRole("button", { name: "New persona" })).toBeVisible();

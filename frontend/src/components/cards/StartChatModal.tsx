@@ -5,7 +5,7 @@ import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
 import { newId } from "@/lib/utils";
-import type { Character, Connection, Persona } from "@/types";
+import type { Ai, Character, Persona } from "@/types";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -20,9 +20,9 @@ export function StartChatModal({
   const t = useT();
   // Null until the list has come, which is when the choice can be made.
   const [personas, setPersonas] = useState<Persona[] | null>(null);
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const [ais, setAis] = useState<Ai[]>([]);
   const [personaId, setPersonaId] = useState<string>("");
-  const [connectionId, setConnectionId] = useState<string>("");
+  const [aiId, setAiId] = useState<string>("");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
@@ -33,13 +33,13 @@ export function StartChatModal({
   useEffect(() => {
     Promise.all([
       data.personas.list(),
-      data.connections ? data.connections.list() : Promise.resolve<Connection[]>([]),
+      data.connections ? data.connections.models.list() : Promise.resolve<Ai[]>([]),
     ])
       .then(([p, c]) => {
         setPersonas(p);
-        setConnections(c);
+        setAis(c);
         setPersonaId(p.find((x) => x.is_default)?.id ?? "");
-        setConnectionId(c.find((x) => x.is_default)?.id ?? "");
+        setAiId(c.find((x) => x.is_default)?.id ?? "");
       })
       // An empty list would say there is no persona to play, when there may be one
       // that a conversation started now would be played as.
@@ -58,7 +58,7 @@ export function StartChatModal({
       const convo = await data.conversations.create({
         character_id: character.id,
         persona_id: personaId || null,
-        connection_id: connectionId || null,
+        model_id: aiId || null,
         client_id: clientId,
       });
       navigate(`/chat/${convo.id}`);
@@ -99,31 +99,31 @@ export function StartChatModal({
             </Field>
 
             {data.connections && (
-              <Field label={t("connections.modelLabel")}>
+              <Field label={t("cards.startChatModal.aiLabel")}>
                 <select
                   className="field"
-                  value={connectionId}
+                  value={aiId}
                   onChange={(e) => {
-                    setConnectionId(e.target.value);
+                    setAiId(e.target.value);
                     setClientId(newId());
                   }}
                 >
-                  {/* The connections come with the personas: null personas is loading. */}
-                  {connections.length === 0 && (
+                  {/* The AIs come with the personas: null personas is loading. */}
+                  {ais.length === 0 && (
                     <option value="">
                       {personas === null ? t("common.loading") : t("cards.startChatModal.noConnectionOption")}
                     </option>
                   )}
-                  {connections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.model ? `· ${c.model}` : ""}
+                  {ais.map((ai) => (
+                    <option key={ai.id} value={ai.id}>
+                      {ai.name}
                     </option>
                   ))}
                 </select>
               </Field>
             )}
 
-            {personas !== null && data.connections && connections.length === 0 && (
+            {personas !== null && data.connections && ais.length === 0 && (
               <p className="rounded-lg border border-ember-600/40 bg-ember-glow px-4 py-2.5 text-sm text-ember-300">
                 {t("cards.startChatModal.noConnectionWarning")}
               </p>

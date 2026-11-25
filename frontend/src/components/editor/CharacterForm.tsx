@@ -15,10 +15,11 @@ import {
 } from "@/lib/assist";
 import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard, type RereadMode } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
+import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { savePortrait } from "@/lib/portraitSizes";
 import { describeError, isUnanswered } from "@/lib/errors";
 import { downloadBlob, newId } from "@/lib/utils";
-import type { CharacterWithLore, Connection, LoreEntry, NoteRole } from "@/types";
+import type { Ai, CharacterWithLore, LoreEntry, NoteRole } from "@/types";
 import { clsx } from "clsx";
 import {
   BookOpenText, ChevronDown, FileDown, ImagePlus, Loader2, Plus, Sparkles, Trash2,
@@ -84,8 +85,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const [seen, setSeen] = useState<{ state: AssistState | null; at: number } | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [stopping, setStopping] = useState(false);
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [assistConnectionId, setAssistConnectionId] = useState("");
+  const [ais, setAis] = useState<Ai[]>([]);
+  const [assistAiId, setAssistAiId] = useState("");
   const [loreEntries, setLoreEntries] = useState<LoreEntry[]>(initial?.lore_entries ?? []);
   // A card made before cards were kept whole: the card it came from, looked for once (undefined
   // until then), and what a choice made in the banner leaves for the save to keep.
@@ -104,7 +105,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const lostStart = useRef<{ clientId: string; brief: string } | null>(null);
 
   useEffect(() => {
-    data.connections?.list().then(setConnections).catch(() => {});
+    data.connections?.models.list().then(setAis).catch(() => {});
   }, []);
 
   // Bumped by the banner's "try again": a failure of the road says nothing of the card.
@@ -261,7 +262,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
         prompt: brief,
         kind: draft.kind,
         existing,
-        connection_id: assistConnectionId || null,
+        model_id: assistAiId || null,
         client_id: clientId,
       });
       // Written down before anything else: from here the job is the server's, and a page that is
@@ -328,6 +329,11 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       setExportError(`${t("characters.form.exportError")} ${describeError(e, t)}`);
     }
   }
+
+  const briefPlaceholder = draft.kind === "scenario"
+    ? t("characters.assist.briefPlaceholderScenario")
+    : t("characters.assist.briefPlaceholderCharacter");
+  const briefRoom = usePlaceholderRoom(briefPlaceholder);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -415,23 +421,21 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             </span>
           </div>
           <textarea
+            ref={briefRoom}
             className="field min-h-20"
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
             disabled={generating}
-            placeholder={
-              draft.kind === "scenario"
-                ? t("characters.assist.briefPlaceholderScenario")
-                : t("characters.assist.briefPlaceholderCharacter")
-            }
+            placeholder={briefPlaceholder}
           />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
-              {connections.length > 1 && (
+            {/* The sentence takes the width; the select goes above it when both do not fit side by side. */}
+            <div className="flex min-w-0 flex-[1_1_16rem] flex-wrap items-center gap-2">
+              {ais.length > 1 && (
                 <select
                   className="field !w-auto max-w-52 !py-1.5 text-xs"
-                  value={assistConnectionId}
-                  onChange={(e) => setAssistConnectionId(e.target.value)}
+                  value={assistAiId}
+                  onChange={(e) => setAssistAiId(e.target.value)}
                   disabled={generating}
                   title={t("characters.assist.connectionSelectTitle")}
                   // The control is deliberately unlabelled on screen, so a
@@ -439,14 +443,14 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
                   aria-label={t("characters.assist.connectionSelectTitle")}
                 >
                   <option value="">{t("settings.defaultConnectionLabel")}</option>
-                  {connections.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
+                  {ais.map((ai) => (
+                    <option key={ai.id} value={ai.id}>
+                      {ai.name}
                     </option>
                   ))}
                 </select>
               )}
-              <p className="text-xs text-mist-dim">
+              <p className="min-w-0 flex-[1_1_10rem] text-xs text-mist-dim">
                 {t("characters.assist.fieldsKeptHint")}
               </p>
             </div>

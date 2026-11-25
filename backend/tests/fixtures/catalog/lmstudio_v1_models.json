@@ -1,0 +1,14 @@
+{
+ "models": [
+  {"type": "llm", "publisher": "brume", "key": "brume-12b", "display_name": "Brume 12B",
+   "architecture": "mistral", "quantization": {"name": "Q4_K_M"}, "size_bytes": 7477073920,
+   "params_string": "12B", "max_context_length": 131072,
+   "loaded_instances": [{"id": "brume-12b", "config": {"context_length": 8192}}],
+   "capabilities": {"vision": false, "trained_for_tool_use": true}},
+  {"type": "llm", "publisher": "givre", "key": "givre-r1-8b", "display_name": "Givre R1 8B",
+   "max_context_length": 32768, "loaded_instances": [],
+   "capabilities": {"reasoning": {"allowed_options": ["off", "on"], "default": "on"}}},
+  {"type": "embedding", "publisher": "nomic-ai", "key": "text-embedding-nomic-embed-text-v1.5",
+   "display_name": "Nomic Embed Text v1.5", "max_context_length": 2048, "loaded_instances": []}
+ ]
+}

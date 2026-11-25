@@ -10,8 +10,8 @@ from ..models.schemas import BranchIn, ConversationIn, ConversationPatch, Messag
 from ..prompting.engine import on_card_rules, speaking_name
 from ..prompting.macros import expand_macros, substitute
 from ..repositories import characters as characters_repo
-from ..repositories import connections as connections_repo
 from ..repositories import conversations as repo
+from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
 from ..services import media, memory_service, turns
 
@@ -60,13 +60,15 @@ async def _create_conversation(db: aiosqlite.Connection, payload: ConversationIn
         raise NotFoundError("Character not found.", "character")
 
     fields = payload.model_dump()
-    # A persona or a connection gone since the page listed it counts as none asked for, rather
-    # than failing the insert on its foreign key.
+    # A persona or an AI gone since the page listed it counts as none asked for, rather than
+    # failing the insert on its foreign key.
     persona = await personas_repo.for_conversation(db, fields)
     fields["persona_id"] = persona["id"] if persona else None
 
-    if fields.get("connection_id") and not await connections_repo.get(db, fields["connection_id"]):
-        fields["connection_id"] = None
+    # Fixed on the AI of this moment: a default changed later does not change who answers it.
+    asked = await models_repo.by_any_id(db, fields.get("model_id"))
+    resolved = await models_repo.resolve(db, asked["id"] if asked else None)
+    fields["model_id"] = resolved[0]["id"] if resolved else None
 
     convo = await repo.create(db, fields)
 
@@ -106,7 +108,14 @@ async def get_conversation(convo_id: str, messages: bool = True,
 @router.patch("/conversations/{convo_id}")
 async def patch_conversation(convo_id: str, payload: ConversationPatch,
                              db: aiosqlite.Connection = Depends(get_db)):
-    updated = await repo.update(db, convo_id, payload.model_dump(exclude_unset=True))
+    fields = payload.model_dump(exclude_unset=True)
+    if fields.get("model_id") is not None:
+        # A page from before AIs names a service: its first AI. Nothing is never chosen.
+        asked = await models_repo.by_any_id(db, fields["model_id"])
+        if asked is None:
+            raise NotFoundError("AI not found.", "model")
+        fields["model_id"] = asked["id"]
+    updated = await repo.update(db, convo_id, fields)
     if not updated:
         raise NotFoundError("Conversation not found.", "conversation")
     return updated

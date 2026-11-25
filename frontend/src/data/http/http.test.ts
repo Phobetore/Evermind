@@ -91,7 +91,7 @@ describe("what is sent", () => {
 
   test("the card assistant starts a job under the id the page drew, asks how it stands past any cache, and stops it", async () => {
     replies.push(json({ id: "j1" }, 202), json({ id: "j1", running: true }), json({ id: "j1", running: false }));
-    const input = { prompt: "A tired lighthouse keeper", kind: "character" as const, existing: {}, connection_id: null, client_id: "c1" };
+    const input = { prompt: "A tired lighthouse keeper", kind: "character" as const, existing: {}, model_id: null, client_id: "c1" };
     await expect(data.characters.assist.start(input)).resolves.toEqual({ id: "j1" });
     await data.characters.assist.state("j/1");
     await data.characters.assist.stop("j1");
@@ -101,6 +101,49 @@ describe("what is sent", () => {
       ["api/characters/assist/j1", "DELETE", undefined],
     ]);
     expect(JSON.parse(calls[0].init.body as string)).toEqual(input);
+  });
+
+  test("services and their AIs are each read and written at their own address", async () => {
+    replies.push(...Array.from({ length: 9 }, () => json({})));
+    replies.splice(2, 1, new Response(null, { status: 204 }));
+    replies.splice(6, 1, new Response(null, { status: 204 }));
+    const sources = data.connections!;
+    await sources.services.list();
+    await sources.services.update("s/1", { name: "Home" });
+    await sources.services.remove("s1");
+    await sources.models.list();
+    await sources.models.create({ service: { id: "s1" }, models: [{ model: "a/b" }] });
+    await sources.models.update("m/1", { is_default: true });
+    await sources.models.remove("m1");
+    await sources.models.refresh("m1");
+    await sources.models.benchmark("m1");
+    expect(calls.map((c) => [c.url, c.init.method ?? "GET"])).toEqual([
+      ["api/connections", "GET"],
+      ["api/connections/s%2F1", "PUT"],
+      ["api/connections/s1", "DELETE"],
+      ["api/models", "GET"],
+      ["api/models", "POST"],
+      ["api/models/m%2F1", "PUT"],
+      ["api/models/m1", "DELETE"],
+      ["api/models/m1/refresh", "POST"],
+      ["api/models/m1/benchmark", "POST"],
+    ]);
+    expect(JSON.parse(calls[4].init.body as string)).toEqual({ service: { id: "s1" }, models: [{ model: "a/b" }] });
+    expect(JSON.parse(calls[7].init.body as string)).toEqual({ fresh: false });
+  });
+
+  test("a read again past the server's cache says so", async () => {
+    await data.connections!.models.refresh("m1", { fresh: true });
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ fresh: true });
+  });
+
+  test("a probe sends the service as the page holds it, and the signal it was given", async () => {
+    const { signal } = new AbortController();
+    const draft = { provider: "openai-compatible" as const, base_url: "http://192.168.1.20:1234/v1" };
+    await data.connections!.probe(draft, { fresh: true, asking: { signal } });
+    expect(calls[0]).toMatchObject({ url: "api/connections/probe", init: { method: "POST" } });
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ ...draft, fresh: true });
+    expect(calls[0].init.signal).toBe(signal);
   });
 
   test("asks for the card a character was read from", async () => {

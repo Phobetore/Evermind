@@ -11,11 +11,13 @@ import httpx
 import pytest
 
 from app.prompting.engine import PromptPayload
-from app.providers import openai_compat
+from app.providers import catalog, openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import card_assistant, memory_service, turns
+from app.services import card_assistant, limits, memory_service, turns
+
+from .helpers import add_model
 
 # A 1x1 image, for the tests that send one.
 PNG = base64.b64decode(
@@ -60,9 +62,31 @@ def _no_card_drafts_from_another_test():
 @pytest.fixture(autouse=True)
 def _nothing_learned_of_models_by_another_test():
     # What a server's models accept, and the room a model needed, live in the process's memory.
-    openai_compat._model_lists.clear()
+    openai_compat._failed_lists.clear()
     openai_compat._refused.clear()
     memory_service._learned.clear()
+    limits.forget()
+
+
+@pytest.fixture(autouse=True)
+async def _no_read_left_running():
+    # A read of an AI's limits after a reply runs in the background, on the test's database: it
+    # ends before the test's folder goes.
+    yield
+    await limits.drain()
+
+
+def _unreachable(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("no test reaches a real address", request=request)
+
+
+@pytest.fixture(autouse=True)
+def _no_list_read_from_a_real_server(monkeypatch):
+    # Every list the catalog reads goes through its one door: here it opens on nothing, and a test
+    # that wants an answer sets its own transport. The lists it keeps live in the process's memory.
+    monkeypatch.setattr(catalog, "client_factory",
+                        lambda: httpx.AsyncClient(transport=httpx.MockTransport(_unreachable)))
+    catalog._cache.clear()
 
 
 @pytest.fixture()
@@ -130,10 +154,7 @@ class FakeProvider:
 async def setup_conversation(client, greeting="*She stirs.* Hi {{user}}."):
     char = (await client.post("/api/characters", json={"name": "Serana", "greeting": greeting})).json()
     (await client.post("/api/personas", json={"name": "Alex"})).json()
-    (await client.post("/api/connections", json={
-        "name": "Local", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test",
-    })).json()
+    await add_model(client, base_url="http://localhost:1234/v1", model="test", name="Local")
     convo = (await client.post("/api/conversations", json={"character_id": char["id"]})).json()
     return convo
 

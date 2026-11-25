@@ -48,16 +48,76 @@ describe("a sentence reads right where it is shown", () => {
   it.each([
     ["es", "settings.about.updateAvailable", "Evermind {version} ya está disponible."],
     ["de", "cards.startChatModal.title", "Mit {name} spielen"],
-    ["de", "errors.notSent", "Diese Nachricht wurde nicht gesendet. Drücke auf Senden, um sie noch einmal zu schicken."],
+    ["de", "errors.notSent", "Diese Nachricht wurde nicht gesendet. Drücken Sie auf Senden, um sie noch einmal zu schicken."],
     // The colon after a word that ends a line stays with it, in French.
     ["fr", "characters.assist.statusWriting", "Écriture : {field}…"],
     ["fr", "characters.assist.missing", "Il manque encore : {fields}. Appuyez de nouveau sur Générer pour écrire seulement ce qui manque."],
+    // A feminine and a masculine noun together take the masculine plural.
+    ["es", "errors.modelNotFound", "El servicio no reconoce esta dirección ni este modelo. Compruébelos en Mis IA. Ha indicado: {message}"],
+    ["en", "settings.replyLengthHint", "Applies to every conversation. Evermind keeps the room needed by the AIs it sets itself; an AI with a fixed ceiling may cut long replies: see My AIs."],
     // Every command shown starts Evermind itself.
     ["en", "settings.about.updateHint", "Stop Evermind, then run this from the folder you installed it in."],
     ["fr", "settings.about.updateHint", "Arrêtez Evermind, puis lancez ceci depuis le dossier où vous l'avez installé."],
-    ["de", "settings.about.updateHint", "Halte Evermind an und führe dann das hier in dem Ordner aus, in dem du es installiert hast."],
-    ["es", "settings.about.updateHint", "Detén Evermind y luego ejecuta esto en la carpeta donde lo instalaste."],
+    ["de", "settings.about.updateHint", "Halten Sie Evermind an und führen Sie dann das hier in dem Ordner aus, in dem Sie es installiert haben."],
+    ["es", "settings.about.updateHint", "Detenga Evermind y luego ejecute esto en la carpeta donde lo instaló."],
   ] as const)("in %s, %s", (locale, key, said) => {
     expect(new Map(flatten({ en, fr, de, es }[locale])).get(key)).toBe(said);
+  });
+});
+
+describe("who a sentence speaks to", () => {
+  // Evermind speaks to the person as "Sie" in German and "usted" in Spanish, as it says "vous" in
+  // French. What is given as an example of words for the AI, or as a line of sample dialogue, is
+  // not said to the person: those keys are named, and no other sentence may hold a familiar word.
+  const notToThePerson = [
+    "chat.input.modes.ooc.placeholder", "chat.panel.directive.description", "chat.panel.directive.placeholder",
+    "settings.globalInstructionsPlaceholder", "characters.form.exampleDialoguesPlaceholder",
+  ];
+  // A word, and an order that opens a sentence. The orders are the ones these files once gave: in
+  // Spanish only those that cannot be read as "it does", which a hint may well open on.
+  const familiar = {
+    de: [
+      /(?<!\p{L})(du|dich|dir|dein|deine|deinen|deinem|deiner|deines|euch|euer|eure|kannst|möchtest|hast|bist|willst|musst)(?!\p{L})/iu,
+      /(?:^|[.:!?…] )(Beschreibe|Denke|Drücke|Erhöhe|Erlaube|Erstelle|Füge|Gib|Halte|Hol|Installiere|Kürze|Lade|Melde|Nimm|Prüfe|Richte|Schreib|Sende|Setze|Sieh|Speichere|Trenne|Verbinde|Versuch|Versuche|Verwalte|Verwende|Warte|Wähle|Zeig|Ändere|Öffne)(?!\p{L})/u,
+    ],
+    es: [
+      /(?<!\p{L})(tú|tu|tus|te|ti|contigo|puedes|quieres|tienes|necesitas|estás|eres|debes)(?!\p{L})/iu,
+      /(?:^|[.:!?…] )(Detén|Mantén|Pon|Haz|Inténtalo|Acórtalo|Ábrelo|Compruébal[ao]s?|Revísal[ao]s?|Instálal[ao]s?)(?!\p{L})/u,
+    ],
+  };
+
+  it.each([["de", de], ["es", es]] as const)("is the formal address in %s", (name, locale) => {
+    const said = flatten(locale).filter(
+      ([k, v]) => typeof v === "string" && !notToThePerson.includes(k) && familiar[name].some((word) => word.test(v)),
+    );
+    expect(said.map(([k]) => k)).toEqual([]);
+  });
+});
+
+describe("the words that spoke of a connection", () => {
+  // What a person reads when an AI cannot be reached, is missing or refuses: each is about an AI
+  // or its service now, never about "the connection" of the form that no longer exists.
+  const words = /connexion|connection|verbindung|conexi/i;
+  const keys = [
+    "errors.noConnection", "errors.modelUnreachable", "errors.modelOnlyThought", "errors.modelAuthRefused",
+    "errors.modelNotFound", "errors.notFound.connection", "errors.briefTooLong", "errors.cardTooLong",
+    "errors.contextTooSmall", "chat.message.cutAtCeiling", "chat.modelSilent.settingsLink",
+    "cards.startChatModal.noConnectionOption", "cards.startChatModal.noConnectionWarning",
+    "settings.defaultConnectionLabel", "settings.replyLengthHint",
+  ];
+
+  it.each([["en", en], ["fr", fr], ["de", de], ["es", es]])("are gone from the sentences about an AI, in %s", (_name, locale) => {
+    const entries = new Map(flatten(locale));
+    expect(keys.filter((k) => words.test(String(entries.get(k))))).toEqual([]);
+  });
+
+  it("send the person to My AIs by that name", () => {
+    expect(new Map(flatten(en)).get("chat.modelSilent.settingsLink")).toBe("My AIs");
+    expect(new Map(flatten(fr)).get("chat.modelSilent.settingsLink")).toBe("Mes IA");
+  });
+
+  it("leave nothing of the old form behind", () => {
+    const left = flatten(en).map(([k]) => k).filter((k) => /^connections\.(benchmarkResult|temperatureHint)$|^settings\.(connectionsTitle|emptyState)/.test(k));
+    expect(left).toEqual([]);
   });
 });

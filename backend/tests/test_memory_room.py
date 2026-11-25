@@ -15,6 +15,7 @@ from app.providers.openai_compat import OpenAICompatProvider
 from app.services import memory_service
 
 from .conftest import send, setup_conversation, sse, within
+from .helpers import set_ai
 from .test_memory import EXTRACTION_JSON, Said, add_facts
 
 
@@ -76,8 +77,7 @@ async def story(client, monkeypatch):
         return server
 
     async def set_connection(**fields):
-        connection = (await client.get("/api/connections")).json()[0]
-        await client.put(f"/api/connections/{connection['id']}", json={**connection, **fields})
+        await set_ai(client, **fields)
 
     async def extract():
         return await client.post(f"/api/conversations/{convo['id']}/memories/extract")
@@ -140,14 +140,14 @@ async def test_a_model_that_only_thinks_twice_is_told_so_after_two_requests(stor
         resp = await story.extract()
     assert resp.status_code == 502
     assert resp.json()["kind"] == MODEL_ONLY_THOUGHT
-    assert "more max tokens" in resp.json()["error"]
+    assert "reply ceiling" in resp.json()["error"]
     assert len(server.bodies) == 2
     # A warning, as the server's console shows no less, and one that says what to change.
     lines = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert lines[0] == (
         "memory extraction: the model ran out of room (5120 characters of reasoning, stopped "
-        "with 'length', max_tokens 2048); asking again with 8192. Raising the connection's max "
-        "tokens avoids the second call.")
+        "with 'length', max_tokens 2048); asking again with 8192. Raising this AI's reply "
+        "ceiling avoids the second call.")
     failure = next(r.getMessage() for r in caplog.records if "unreadable answer" in r.getMessage())
     assert "9000 characters of reasoning" in failure and "'length'" in failure
 
@@ -205,8 +205,7 @@ async def test_an_empty_answer_that_ran_out_of_room_says_so(story):
 async def test_an_automatic_pass_that_only_thought_keeps_why(client, monkeypatch):
     monkeypatch.setattr("app.services.chat_service.get_provider", Said)
     convo = await setup_conversation(client)
-    connection = (await client.get("/api/connections")).json()[0]
-    await client.put(f"/api/connections/{connection['id']}", json={**connection, "max_tokens": 300})
+    await set_ai(client, max_tokens=300)
     server = Server(thinking(5120), thinking(5120))
     monkeypatch.setattr("app.services.memory_service.get_provider", server.provider)
     for n in range(memory_service.MAINTENANCE_EVERY):
@@ -264,6 +263,7 @@ async def test_a_learned_room_the_server_now_refuses_is_forgotten(story, caplog)
         resp = await story.extract()
     assert resp.status_code == 200, resp.text
     assert any("max_tokens is too large" in r.getMessage() for r in caplog.records)
+    assert any(r.getMessage().endswith("asking with this AI's own.") for r in caplog.records)
     await send(story.client, story.id, content="Again")
     assert (await story.extract()).status_code == 200
     assert server.asked() == [2048, 8192, 8192, 2048, 2048]
@@ -367,7 +367,7 @@ async def test_a_remember_whose_asker_left_wants_the_least_reasoning_and_more_ro
     server = story.serve(thinking(5120), thinking(9000))
     after = await asked_then_left(story, monkeypatch)
     assert after["memory_error"]["kind"] == MODEL_ONLY_THOUGHT
-    assert "more max tokens" in after["memory_error"]["error"]
+    assert "reply ceiling" in after["memory_error"]["error"]
     assert server.asked() == [2048, 8192]
     assert [c["least_reasoning"] for c in server.connections] == [True, True]
 

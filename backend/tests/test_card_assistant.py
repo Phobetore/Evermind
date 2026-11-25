@@ -13,6 +13,7 @@ from app.providers.base import ProviderError, ProviderEvent
 from app.services import card_assistant
 
 from .conftest import FakeProvider, assist, within
+from .helpers import add_model, cap
 
 CARD = {
     "name": "Nyra",
@@ -87,11 +88,10 @@ def clock(monkeypatch):
     return now
 
 
-async def add_connection(client, **fields):
-    return (await client.post("/api/connections", json={
-        "name": "Mock", "provider": "openai-compatible",
-        "base_url": "http://localhost:1234/v1", "model": "test", **fields,
-    })).json()
+async def add_connection(client, context_size: int = 16384, max_tokens: int | None = None):
+    """An AI as a connection with this window and these max tokens was."""
+    return await add_model(client, base_url="http://localhost:1234/v1", model="test",
+                           context_own=context_size, **cap(max_tokens))
 
 
 async def begin(client, **body) -> str:
@@ -226,7 +226,7 @@ async def test_assist_without_connection_fails_readably_at_the_start(client, fak
     resp = await client.post("/api/characters/assist", json={"prompt": "A pirate"})
     assert resp.status_code == 400
     assert resp.json()["kind"] == "no_connection"
-    assert "connection" in resp.json()["error"].lower()
+    assert resp.json()["error"] == "No AI is set up. Add one in Settings, My AIs."
     assert card_assistant._jobs == {}
 
 
@@ -346,6 +346,7 @@ async def test_a_brief_the_connections_context_cannot_hold_is_refused_before_the
     assert resp.status_code == 422, resp.text
     body = resp.json()
     assert body["kind"] == "brief_too_long"
+    assert "for this AI" in body["error"] and "connection" not in body["error"]
     # What the request would need: the brief, the assistant's instructions, and room for the card.
     assert body["params"]["context"] == 16_384
     assert body["params"]["needed"] > estimate_tokens("x" * 100_000)
@@ -376,6 +377,7 @@ async def test_what_the_card_already_holds_is_told_apart_from_the_brief(client, 
         "prompt": "A seller of maps", "existing": {"description": "y" * 60_000}})
     assert resp.status_code == 422, resp.text
     assert resp.json()["kind"] == "card_too_long"
+    assert "for this AI" in resp.json()["error"] and "connection" not in resp.json()["error"]
     assert resp.json()["params"]["context"] == 16_384
     # The same overflow from the brief alone is the brief's.
     resp = await client.post("/api/characters/assist", json={"prompt": "y" * 60_000})

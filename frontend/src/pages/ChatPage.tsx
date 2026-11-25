@@ -1,17 +1,22 @@
+import { AddAiFlow } from "@/components/ai/AddAiFlow";
+import { AiChip, AiSheet, AiUnread } from "@/components/chat/AiSheet";
 import { Backdrop } from "@/components/chat/Backdrop";
 import { CardSummary } from "@/components/chat/CardSummary";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ModelSilent } from "@/components/chat/ModelSilent";
 import { ChatSidePanel } from "@/components/chat/ChatSidePanel";
+import { ChatStatusRow } from "@/components/chat/ChatStatusRow";
+import { useChatToast } from "@/components/chat/ChatToast";
 import { RpText } from "@/components/chat/RpText";
 import { useConversationBackdrop } from "@/components/chat/useConversationBackdrop";
 import { DisplayControls } from "@/components/display/DisplayControls";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageWait } from "@/components/ui/PageWait";
 import { Sheet } from "@/components/ui/Sheet";
-import { DataError, data, type Asking, type TurnRequest } from "@/data";
+import { DataError, data, type AiSaved, type Asking, type TurnRequest } from "@/data";
 import { useT } from "@/i18n/useT";
+import { answering, roomFor } from "@/lib/ai";
 import { backdropOf, plateAlpha, useDisplay } from "@/lib/display";
 import { beginSending, type MessageMode } from "@/lib/drafts";
 import { describeCeiling } from "@/lib/cutShort";
@@ -19,9 +24,9 @@ import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
 import { holdSizes, wantSizes } from "@/lib/portraitSizes";
 import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
-import { newId, nothingFocused, smallPortrait } from "@/lib/utils";
+import { hasKeyboard, newId, nothingFocused, smallPortrait } from "@/lib/utils";
 import { clsx } from "clsx";
-import type { Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
+import type { Ai, Character, ContextStats, Conversation, Message, Persona, TurnFailure, TurnPerf } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -121,6 +126,54 @@ function ChatView({ id }: { id: string }) {
   // Counts what the person has done to the messages, so that a read sent before one of those
   // does not undo it.
   const changesByHand = useRef(0);
+  // The AIs, where the edition keeps its own: read with the page, and again when the sheet that
+  // changes them opens or the conversation names one the page does not hold (changed on another
+  // device). Null until read; `aisUnread` once a read failed with nothing read before it.
+  const [ais, setAis] = useState<Ai[] | null>(null);
+  const [aisUnread, setAisUnread] = useState(false);
+  const aisHeld = useRef<Ai[] | null>(null);
+  useEffect(() => {
+    aisHeld.current = ais;
+  }, [ais]);
+  // The last read sent is the one that counts: an earlier one answering late does not undo it.
+  const aisAsked = useRef(0);
+  const readAis = useCallback(() => {
+    const models = data.connections?.models;
+    if (!models) return;
+    const sent = ++aisAsked.current;
+    models.list().then(
+      (listed) => {
+        if (sent !== aisAsked.current) return;
+        setAis(listed);
+        setAisUnread(false);
+      },
+      // Caught: offline it rejects, and an unhandled rejection is noise in the console.
+      () => {
+        if (sent === aisAsked.current) setAisUnread(true);
+      },
+    );
+  }, []);
+  /** A change the page makes to its own list (a ceiling lifted, an AI added, a row dropped): a read
+   *  sent before it, answering late, would put back the list from before. */
+  const changeAis = useCallback((change: (now: Ai[] | null) => Ai[] | null) => {
+    aisAsked.current += 1;
+    setAis(change);
+  }, []);
+  // The room a reply needs, from the settings read once with the page: 0 until then, warning of nothing.
+  // Only where the edition keeps AIs of its own: nothing else here reads it.
+  const [room, setRoom] = useState(0);
+  const [aiSheet, setAiSheet] = useState(false);
+  const [addingAi, setAddingAi] = useState(false);
+  useEffect(() => {
+    if (!data.connections) return;
+    readAis();
+    data.settings.get().then((settings) => setRoom(roomFor(settings)), () => {});
+  }, [readAis]);
+  function openAiSheet() {
+    // What the page holds at once, and the list as it is now once it comes.
+    setAiSheet(true);
+    readAis();
+  }
 
   /** Whether the server took a change; given `landed`, a lost answer or a message gone shows what it holds. */
   async function write(change: () => Promise<unknown>, landed?: (messages: Message[]) => void) {
@@ -182,7 +235,14 @@ function ChatView({ id }: { id: string }) {
     };
   }, []);
 
-  // The messages, the title, which the server gives a new conversation, and the summary for a closed panel.
+  // What the page shows of the conversation, for a read to compare with what it brings.
+  const shownConversation = useRef<Conversation | null>(null);
+  useEffect(() => {
+    shownConversation.current = conversation;
+  }, [conversation]);
+
+  // The messages, the title, which the server gives a new conversation, the summary for a closed
+  // panel, and the AI that answers it, which another device may have changed or removed.
   const read = useCallback(async (asking: Asking) => {
     const changes = changesByHand.current;
     const takeSummary = summaryTaker();
@@ -190,12 +250,25 @@ function ChatView({ id }: { id: string }) {
     const show = () => {
       if (changesByHand.current !== changes) return false;
       takeSummary(conversation);
-      setConversation((shown) => (shown ? { ...shown, title: conversation.title } : conversation));
+      const before = shownConversation.current;
+      const held = aisHeld.current;
+      // An AI the page does not hold, or one just said removed: the list changed elsewhere. None
+      // named: the default answers, which another device may have changed. No list held: the read
+      // as the page opened failed. Not as the page opens, whose own read of the list is on its way.
+      if (before && (
+        held === null
+        || !conversation.model_id
+        || !held.some((ai) => ai.id === conversation.model_id)
+        || (conversation.model_lost && conversation.model_lost !== before.model_lost)
+      )) readAis();
+      setConversation((shown) => (shown
+        ? { ...shown, title: conversation.title, model_id: conversation.model_id, model_lost: conversation.model_lost }
+        : conversation));
       setMessages(conversation.messages ?? []);
       return true;
     };
     return { conversation, show };
-  }, [id, summaryTaker]);
+  }, [id, summaryTaker, readAis]);
 
   // The person's message as the server saved it, before the conversation is read again.
   const add = useCallback((sent: Message) => {
@@ -215,6 +288,23 @@ function ChatView({ id }: { id: string }) {
   const turn = useTurn(id, read, add, settled);
   const { writing, text, lost, outcome, refused, stop, forget } = turn;
   const busy = writing !== null;
+  const { toast, node: toastNode, heard: toastHeard } = useChatToast(busy);
+
+  // A reply redone by the AI just chosen, said once it is in: not when it failed or was refused.
+  const redoing = useRef<string | null>(null);
+  const wasBusy = useRef(false);
+  useEffect(() => {
+    if (busy) {
+      wasBusy.current = true;
+      return;
+    }
+    if (refused) redoing.current = null;
+    if (!wasBusy.current) return;
+    wasBusy.current = false;
+    const name = redoing.current;
+    redoing.current = null;
+    if (name !== null && !outcome && !lost) toast(t("chat.ai.redone", { name }));
+  }, [busy, outcome, lost, refused, toast, t]);
 
   // The home's link belongs to the reply while it is written: a portrait's copies wait for its end.
   useEffect(() => holdSizes(busy), [busy]);
@@ -409,6 +499,53 @@ function ChatView({ id }: { id: string }) {
     setDrawn((n) => n + DRAWN);
   }
 
+  /** The AI answering from now on, as the server took it; the last reply can be redone by it while
+   *  nothing is being written, the reply before kept beside it. */
+  function switched(ai: Ai) {
+    setAiSheet(false);
+    // Another AI chosen: the line saying one was removed goes with it, as on the server.
+    setConversation((c) => (c ? { ...c, model_id: ai.id, model_lost: null } : c));
+    const newest = messages.at(-1);
+    const redoable = !busy && newest?.role === "assistant" && !newest.meta?.greeting;
+    toast(t("chat.ai.switched", { name: ai.name }), redoable
+      ? {
+          label: t("chat.ai.redo"),
+          run: () => {
+            redoing.current = ai.name;
+            void ask({ mode: "regenerate" });
+          },
+        }
+      : undefined);
+  }
+
+  /** An AI as the server saved it, in the list the page holds. */
+  function tookAi(saved: AiSaved) {
+    changeAis((now) => now && now.map((ai) => (ai.id === saved.id ? saved : ai)));
+  }
+
+  /** An AI the server no longer has, picked in the sheet: its row goes, and the list is read again. */
+  function aiGone(gone: Ai) {
+    changeAis((now) => now && now.filter((ai) => ai.id !== gone.id));
+    readAis();
+  }
+
+  /** The ceiling of its own the AI answering keeps, lifted: a setting of the AI's. */
+  async function letEvermind(ai: Ai) {
+    try {
+      const saved = await data.connections!.models.update(ai.id, { reply_cap: { mode: "auto" } });
+      tookAi(saved);
+      toast(t("ai.notice.capLifted", { name: saved.name }));
+    } catch (error) {
+      toast(describeError(error, t));
+    }
+  }
+
+  async function seeLost() {
+    if (await write(() => data.conversations.update(id, { model_lost_seen: true }))) {
+      setConversation((c) => (c ? { ...c, model_lost: null } : c));
+    }
+  }
+
   if (lost && !conversation) {
     return (
       <div className="p-10">
@@ -445,6 +582,24 @@ function ChatView({ id }: { id: string }) {
   // The plate under the text, only where a picture is drawn: with none, nothing changes.
   const veiled = shown.src !== null && shown.strength > 0;
   const drawnMessages = visibleMessages.slice(-drawn);
+  // What answers it, where the edition keeps AIs of its own; drawn once they are read.
+  const chipShown = data.connections !== undefined && ais !== null;
+  const answeringAi = ais ? answering(conversation.model_id, ais) : null;
+  const lostLine = chipShown && conversation.model_lost && (
+    <div
+      data-model-lost
+      className="mx-auto mb-2.5 flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-parchment-dim"
+    >
+      <span className="min-w-0 [overflow-wrap:anywhere]">
+        {answeringAi
+          ? t("chat.ai.lost", { lost: conversation.model_lost, name: answeringAi.name })
+          : t("chat.ai.lostNone", { lost: conversation.model_lost })}
+      </span>
+      <button type="button" className="btn btn-ghost touch-target !py-1 text-xs" onClick={seeLost}>
+        {t("chat.ai.seen")}
+      </button>
+    </div>
+  );
 
   return (
     <div className="flex h-full">
@@ -613,6 +768,9 @@ function ChatView({ id }: { id: string }) {
                     if (!now.some((m) => m.id === message.id)) cut();
                   })}
                   onBranch={() => write(() => branchFrom(message))}
+                  onLetEvermind={message.id === last?.id && answeringAi?.reply_cap.mode === "fixed"
+                    ? () => letEvermind(answeringAi)
+                    : undefined}
                 />
               ))}
 
@@ -624,9 +782,10 @@ function ChatView({ id }: { id: string }) {
                 </div>
               )}
 
+              {/* The sentence takes the width; the button goes under it when both do not fit side by side. */}
               {problem && (
-                <div className="chat-banner mx-1 my-3 flex items-center justify-between gap-4 rounded-xl border border-blood/40 px-4 py-3">
-                  <p role="alert" className="text-sm text-blood">{problem}</p>
+                <div className="chat-banner mx-1 my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-blood/40 px-4 py-3">
+                  <p role="alert" className="min-w-0 flex-[1_1_12rem] text-sm text-blood">{problem}</p>
                   {!busy && !lost && !refusal && (
                     <button className="btn btn-ghost shrink-0 !py-1.5 text-xs" onClick={retry}>
                       {t("chat.errors.retryButton")}
@@ -638,9 +797,11 @@ function ChatView({ id }: { id: string }) {
           </div>
         </div>
 
-        <p role="status" className="sr-only">
+        {/* The page's one status line, which says the toasts too: each part is heard as it changes. */}
+        <p role="status" aria-atomic="false" className="sr-only">
           {heard.said && t(heard.said === "typing" ? "chat.stream.assistantTyping" : "chat.stream.replied", { name: character.name })}
           {heard.cut && ` ${heard.cut}`}
+          {toastHeard}
         </p>
         {/* Out of the scrolling: what failed may be far above, or in the header. */}
         {writeError && (
@@ -655,6 +816,22 @@ function ChatView({ id }: { id: string }) {
           busy={busy && !lost}
           characterName={character.name}
           stopRef={stopButton}
+          say={toast}
+          above={<>{toastNode}{lostLine}</>}
+          status={
+            data.connections ? (
+              // On a touch screen the chip takes the place of the keyboard's sentence.
+              <ChatStatusRow keyboardHint={hasKeyboard() ? t("chat.input.hintDefault") : null}>
+                {chipShown
+                  ? <AiChip ai={answeringAi} onOpen={() => (answeringAi ? openAiSheet() : setAddingAi(true))} />
+                  : aisUnread && <AiUnread onRetry={readAis} />}
+              </ChatStatusRow>
+            ) : (
+              <ChatStatusRow keyboardHint={t(hasKeyboard() ? "chat.input.hintDefault" : "chat.input.hintTouch")}>
+                {null}
+              </ChatStatusRow>
+            )
+          }
         />
       </div>
 
@@ -702,6 +879,38 @@ function ChatView({ id }: { id: string }) {
             focusStrength={displaySheet.focusStrength}
           />
         </Sheet>
+      )}
+      {aiSheet && ais && (
+        <AiSheet
+          conversation={conversation}
+          ais={ais}
+          room={room}
+          onPick={switched}
+          onGone={aiGone}
+          onAddOther={() => {
+            setAiSheet(false);
+            setAddingAi(true);
+          }}
+          onClose={() => setAiSheet(false)}
+          onCapLifted={(saved) => {
+            tookAi(saved);
+            // Closed, so that the line saying it is read: on a phone the sheet covers it.
+            setAiSheet(false);
+            toast(t("ai.notice.capLifted", { name: saved.name }));
+          }}
+        />
+      )}
+      {addingAi && (
+        <AddAiFlow
+          origin={{ from: "conversation", conversationId: conversation.id }}
+          onAdded={(result) => {
+            changeAis((now) => [...(now ?? []).filter((ai) => !result.models.some((made) => made.id === ai.id)), ...result.models]);
+            setAddingAi(false);
+            const chosen = result.models.find((ai) => ai.id === result.conversation?.model_id) ?? result.models.at(-1);
+            if (chosen) switched(chosen);
+          }}
+          onClose={() => setAddingAi(false)}
+        />
       )}
       {showCard && (
         <CardSummary character={character} personaName={persona?.name ?? null} onClose={() => setShowCard(false)} />

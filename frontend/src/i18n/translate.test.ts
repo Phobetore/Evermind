@@ -29,7 +29,7 @@ describe("a number", () => {
     ["de", "54,1 T/s · erstes Token in 0,23\u00a0s", "19\u00a0%"],
     ["es", "54,1 t/s · primer token en 0,23\u00a0s", "19\u00a0%"],
   ] as const)("is written in %s as the language writes it", (locale, speed, share) => {
-    expect(translate(locale, "connections.benchmarkResult", { tokensPerSecond: 54.1, firstTokenSeconds: 0.23 }))
+    expect(translate(locale, "ai.benchmarkResult", { tokensPerSecond: 54.1, firstTokenSeconds: 0.23 }))
       .toBe(speed);
     expect(translate(locale, "chat.context.percent", { pct: 19 })).toBe(share);
   });
@@ -65,8 +65,25 @@ describe("a number", () => {
     expect(translate(locale, "cards.report.lore", { count: 1500 })).toContain(report);
     expect(translate(locale, "characters.reread.lore", { count: 12000 })).toContain(banner);
   });
+});
 
-  it.each(["fr", "de", "es"] as const)("written into a sentence in %s has its decimal comma", (locale) => {
-    expect(translate(locale, "connections.temperatureHint")).toMatch(/\b0,8\b/);
+describe("a price", () => {
+  const price = { input: 5.7, output: 0.075 };
+  it.each([
+    ["en", "$5.70 read, $0.075 written, per million tokens"],
+    ["fr", "5,70 $ lus, 0,075 $ écrits, le million de tokens"],
+    ["de", "5,70 $ gelesen, 0,075 $ geschrieben, pro Million Tokens"],
+    ["es", "5,70 $ leídos, 0,075 $ escritos, por millón de tokens"],
+  ] as const)("keeps its cents and its small figures in %s", (locale, sentence) => {
+    expect(translate(locale, "ai.priceKnown", price)).toBe(sentence);
+  });
+
+  it("that rounds to nothing is not written as nothing", () => {
+    expect(translate("en", "ai.priceKnown", { input: 0.00001, output: 3 })).toBe("$0.00001 read, $3 written, per million tokens");
+    expect(translate("fr", "ai.priceKnown", { input: 0.0000001, output: 3 })).toContain("0,0000001 $ lus");
+  });
+
+  it("is written whole when it is", () => {
+    expect(translate("fr", "ai.priceKnown", { input: 3, output: 15 })).toBe("3 $ lus, 15 $ écrits, le million de tokens");
   });
 });

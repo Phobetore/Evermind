@@ -1,36 +1,40 @@
+import { AddAiFlow } from "@/components/ai/AddAiFlow";
+import { AiLine } from "@/components/ai/AiLine";
+import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { LanguageSelect } from "@/components/layout/LanguageSelect";
 import { DisplayControls } from "@/components/display/DisplayControls";
-import { ConnectionForm } from "@/components/settings/ConnectionForm";
 import { useConfirm } from "@/components/ui/Confirm";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
-import { Tag } from "@/components/ui/Tag";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
+import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
-import type { Connection, Installation, Settings } from "@/types";
-import { Cable, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
+import type { Ai, Installation, Settings } from "@/types";
+import { Cable, ChevronRight, Loader2, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Link } from "react-router";
 
 export function SettingsPage() {
   const t = useT();
   const { status: accessStatus } = useAccess();
-  const [connections, setConnections] = useState<Connection[] | null>(null);
+  const [ais, setAis] = useState<Ai[] | null>(null);
+  const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [editing, setEditing] = useState<Connection | "new" | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadFailure, setLoadFailure] = useState<{ error: unknown } | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorLine = useRef<HTMLParagraphElement>(null);
   const displayTitle = useId();
+  const aisTitle = useId();
 
   const load = useCallback(() => {
     Promise.all([
-      data.connections?.list().then(setConnections),
+      data.connections?.models.list().then(setAis),
       data.settings.get().then(setSettings),
     ]).then(() => setLoadFailure(null), (error) => setLoadFailure({ error }));
   }, []);
@@ -67,9 +71,12 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
+    // The side gutters are layout, not text: in pixels at most, so that the largest text does not
+    // double them and take from the words the room they need.
+    <div className="mx-auto max-w-4xl px-[min(1.5rem,24px)] py-10">
       <header className="mb-8 animate-rise">
-        <h1 className="font-display text-3xl font-semibold">{t("nav.settings")}</h1>
+        {/* One long word at the largest text (Einstellungen): broken rather than slide the page. */}
+        <h1 className="font-display text-3xl font-semibold break-words hyphens-auto">{t("nav.settings")}</h1>
         <p className="mt-1 text-mist">{t("settings.subtitle")}</p>
       </header>
 
@@ -97,46 +104,53 @@ export function SettingsPage() {
         </Field>
       </section>
 
-      {/* Connections: only an edition that keeps its own models has them. */}
+      {/* My AIs: only an edition that keeps its own models has them. Each opens its own page;
+          nothing is read from their servers here, the lines say the last read. */}
       {data.connections && (
-        <section className="mb-10">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="ui-label">{t("settings.connectionsTitle")}</h2>
-            <button className="btn btn-primary !py-2 text-sm" onClick={() => setEditing("new")}>
-              <Plus className="h-4 w-4" /> {t("settings.addConnection")}
+        <section className="mb-10" aria-labelledby={aisTitle}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 id={aisTitle} className="ui-label">{t("ai.mine")}</h2>
+            <button type="button" className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-sm" onClick={() => setAdding(true)}>
+              <Plus className="h-4 w-4" />
+              {t("ai.add.open")}
             </button>
           </div>
+          {adding && (
+            <AddAiFlow
+              origin={{ from: "settings" }}
+              // Read again whole: the first AI added becomes the default, which the list shows.
+              onAdded={() => data.connections?.models.list().then(setAis, () => {})}
+              onClose={() => setAdding(false)}
+            />
+          )}
 
-          {connections === null ? (
+          {ais && (
+            <MigrationNotice
+              ais={ais.filter((ai) => ai.migrated && ai.notices.length > 0)}
+              onChanged={(saved) => setAis((before) => before && before.map((ai) => ai.id === saved.id ? saved : ai))}
+            />
+          )}
+
+          {ais === null ? (
             !loadFailure && <div className="text-mist animate-pulse-soft">{t("common.loading")}</div>
-          ) : connections.length === 0 ? (
-            <EmptyState icon={Cable} title={t("settings.emptyState.title")}>
-              {t("settings.emptyState.body")}
+          ) : ais.length === 0 ? (
+            <EmptyState icon={Cable} title={t("ai.empty.title")}>
+              {t("ai.empty.body")}
             </EmptyState>
           ) : (
-            <div className="stagger flex flex-col gap-3">
-              {connections.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setEditing(c)}
-                  className="panel flex items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:border-ember-600/40"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display font-semibold">{c.name}</h3>
-                      {c.is_default && <Tag tone="ember">{t("settings.defaultTag")}</Tag>}
-                    </div>
-                    <p className="mt-0.5 truncate text-sm text-mist">
-                      {c.provider === "anthropic" ? "Anthropic" : "OpenAI-compatible"} ·{" "}
-                      {c.model || t("settings.noModel")} · {c.base_url}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-mono text-xs text-mist-dim">
-                    {c.api_key_set ? t("settings.keyHint", { hint: c.api_key_hint }) : t("settings.noKey")}
-                  </span>
-                </button>
+            <ul className="stagger flex flex-col gap-3">
+              {ais.map((ai) => (
+                <li key={ai.id}>
+                  <Link
+                    to={`/settings/ai/${ai.id}`}
+                    className="panel flex items-center justify-between gap-3 px-5 py-4 hover:border-ink-600"
+                  >
+                    <AiLine ai={ai} />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-mist" aria-hidden="true" />
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </section>
       )}
@@ -249,17 +263,6 @@ export function SettingsPage() {
         />
       )}
 
-      {editing && data.connections && (
-        <ConnectionForm
-          source={data.connections}
-          connection={editing === "new" ? null : editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            load();
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -273,15 +276,17 @@ function GlobalInstructions({
 }) {
   const t = useT();
   const [value, setValue] = useState(initial);
+  const room = usePlaceholderRoom(t("settings.globalInstructionsPlaceholder"));
   return (
     <div>
       <textarea
+        ref={room}
         className="field min-h-32"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={t("settings.globalInstructionsPlaceholder")}
       />
-      <button className="btn btn-ghost mt-2" onClick={() => onSave(value)} disabled={value === initial}>
+      <button className="btn btn-ghost mt-2 max-w-full whitespace-normal" onClick={() => onSave(value)} disabled={value === initial}>
         {t("settings.saveInstructions")}
       </button>
     </div>
@@ -323,7 +328,7 @@ function Access() {
         <div className="mt-3 flex flex-wrap gap-3">
           <button
             type="button"
-            className="btn btn-ghost !py-1.5 text-sm"
+            className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-sm"
             onClick={() => signOut(false)}
             disabled={busy}
           >
@@ -332,7 +337,7 @@ function Access() {
           </button>
           <button
             type="button"
-            className="btn btn-ghost !py-1.5 text-sm"
+            className="btn btn-ghost max-w-full whitespace-normal !py-1.5 text-sm"
             onClick={() => signOut(true)}
             disabled={busy}
           >
@@ -473,9 +478,10 @@ function About({
           </label>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
+            {/* As on an AI's page: at the largest text the icon goes above, the words keep whole. */}
             <button
               type="button"
-              className="btn btn-ghost !py-1.5 text-sm"
+              className="btn btn-ghost max-w-full flex-wrap whitespace-normal break-words hyphens-auto !px-[min(1.1rem,17.6px)] !py-1.5 text-sm"
               onClick={checkNow}
               disabled={checking || !installed}
             >

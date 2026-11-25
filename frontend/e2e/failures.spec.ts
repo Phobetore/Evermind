@@ -195,25 +195,6 @@ test("a card that is not removed says so on its form, and stays", async ({ page,
   expect((await request.get(`${API}/api/characters/${card.id}`)).ok()).toBe(true);
 });
 
-test("a connection that is not removed says so in its window, and stays", async ({ page, request }) => {
-  const made = await (await request.post(`${API}/api/connections`, {
-    data: { name: `Kept ${Date.now()}`, base_url: "http://127.0.0.1:1/v1" },
-  })).json();
-  await page.goto("/#/settings");
-  await page.getByRole("button", { name: new RegExp(`^${made.name}`) }).click();
-  const dialog = page.getByRole("dialog");
-  await page.route(`**/api/connections/${made.id}`, refused);
-  await dialog.getByRole("button", { name: "Delete" }).click();
-  await answer(page, true);
-  await expect(dialog.getByText("HTTP 500")).toBeInViewport();
-
-  await dialog.getByRole("button", { name: "Close" }).click();
-  await expect(page.getByRole("button", { name: new RegExp(`^${made.name}`) })).toBeVisible();
-  const kept = (await (await request.get(`${API}/api/connections`)).json()).filter((c: { id: string }) => c.id === made.id);
-  expect(kept).toHaveLength(1);
-  await request.delete(`${API}/api/connections/${made.id}`);
-});
-
 test("a card's conversations that cannot be read are said to be so, not shown as none", async ({ page, request }) => {
   const convo = await makeConversation(request);
   const title = `Listed ${Date.now()}`;

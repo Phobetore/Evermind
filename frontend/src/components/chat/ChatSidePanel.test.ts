@@ -16,7 +16,7 @@ const backdrop: ConversationBackdrop = {
 
 function opened(fields: Partial<Conversation>) {
   const conversation = {
-    id: "v1", character_id: "c1", persona_id: null, connection_id: null, title: "", summary: "",
+    id: "v1", character_id: "c1", persona_id: null, model_id: null, model_lost: null, title: "", summary: "",
     character, ...fields,
   } as Conversation;
   return renderToString(createElement(MemoryRouter, null, createElement(I18nProvider, {
@@ -58,7 +58,7 @@ test("nothing running, nothing waits", () => {
 
 test("a failure found on opening is told, with a way to try again", () => {
   const html = opened({ memory_error: { error: "http://localhost:1234/v1", kind: "unreachable" } });
-  expect(html).toContain("Evermind cannot reach the model&#x27;s server at http://localhost:1234/v1.");
+  expect(html).toContain("Evermind cannot reach the AI&#x27;s server at http://localhost:1234/v1.");
   expect(button(html, "Try again")).toEqual({ disabled: false, spinning: false });
 });
 

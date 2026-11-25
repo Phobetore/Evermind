@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { cardEnds, makeCharacter } from "./fixtures";
+import { addModel, cardEnds, makeCharacter, MOCK } from "./fixtures";
 import { expectWithin, pageFactor } from "./pace";
 
 /**
@@ -29,7 +29,13 @@ const said = (page: Page) => page.locator("p.break-words").filter({ hasText: /Pr
 async function ask(page: Page, request: Parameters<typeof makeCharacter>[0], words: string) {
   // The connection to the stand-in model is made along with a card, as the other specs do.
   await makeCharacter(request);
+  // A model that thinks teaches its AI that it reasons, which stops its ceiling being sent: an AI
+  // of its own, so that the one every other test uses is left as it was.
+  const own = /THINKS/.test(words)
+    ? await addModel(request, { base_url: MOCK, model: `assist-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` })
+    : null;
   await page.goto("/#/characters/new");
+  if (own) await page.getByLabel("Model used to write the card").selectOption(own.id);
   await brief(page).fill(words);
   await generate(page).click();
 }
@@ -177,10 +183,10 @@ test("a brief of a hundred thousand characters is kept whole, and said too long 
   expect((await brief(page).inputValue()).length).toBe(100_001);
 
   await generate(page).click();
-  // The stand-in model's connection holds 16384 tokens, which the brief alone outgrows.
+  // The stand-in AI reads 16384 tokens, which the brief alone outgrows.
   const refused = page.getByText(/too long for this model/);
   await expect(refused).toBeVisible();
-  await expect(refused).toContainText("the connection holds 16,384");
+  await expect(refused).toContainText("this AI reads 16,384 at a time");
   await expect(brief(page)).toBeEnabled();
 });
 

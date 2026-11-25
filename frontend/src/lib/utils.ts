@@ -6,11 +6,12 @@ import type { Character } from "@/types";
 export function timeAgo(
   iso: string | null | undefined,
   t: (key: string, vars?: Record<string, string | number>) => string,
+  now: number = Date.now(),
 ): string {
   if (!iso) return "";
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "";
-  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  const seconds = Math.max(0, Math.floor((now - then) / 1000));
   if (seconds < 60) return t("time.justNow");
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return t("time.minutesAgo", { count: minutes });
@@ -117,6 +118,10 @@ export function newId(): string {
   const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+
+/** A pointing device that hovers, which in practice means a real keyboard is
+ *  attached too. Read at the moment it matters rather than remembered. */
+export const hasKeyboard = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 /** Whether the focus is on the page itself, as when what held it has gone: a keyboard is then nowhere. */
 export const nothingFocused = () => !document.activeElement || document.activeElement === document.body;

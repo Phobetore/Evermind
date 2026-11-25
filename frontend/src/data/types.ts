@@ -1,4 +1,4 @@
-import type { Backdrop, Character, Kind, LoreEntry, Memory, ProviderType } from "@/types";
+import type { Ai, Backdrop, Character, Family, Kind, LoreEntry, Memory, ProbeModel, ProviderType } from "@/types";
 
 /** Given up on with `signal`, or as unanswered when no answer has begun within `within` ms. */
 export interface Asking {
@@ -24,7 +24,8 @@ export interface AssistInput {
   prompt: string;
   kind: Kind;
   existing: Record<string, unknown>;
-  connection_id: string | null;
+  /** Null: the default AI. */
+  model_id: string | null;
 }
 
 /** A draft: any of the card's fields, and lorebook entries to add to it. */
@@ -96,7 +97,8 @@ export interface PersonaInput {
 export interface ConversationInput {
   character_id: string;
   persona_id: string | null;
-  connection_id: string | null;
+  /** Null: the default AI of this moment, which the conversation then keeps. */
+  model_id: string | null;
   /** Asked for again under the same one, it is the conversation made the first time. */
   client_id?: string;
 }
@@ -107,7 +109,9 @@ export interface ConversationPatch {
   /** The summary the new one was typed over. */
   summary_was?: string;
   author_note?: string;
-  connection_id?: string;
+  model_id?: string;
+  /** The line saying an AI was removed has been seen. */
+  model_lost_seen?: true;
   wallpaper_opacity?: number;
   backdrop?: Backdrop;
   backdrop_strength?: number | null;
@@ -136,32 +140,65 @@ export interface TurnRequest {
   client_id?: string;
 }
 
-/** A connection as the form holds it. `api_key` is left out when editing a
- *  saved connection whose key should stay as it is: the server never sends a
- *  key back, so there is nothing to put there. */
-export interface ConnectionInput {
-  name: string;
+/** A saved service, named by its id. `family`: the chip it was reached by. */
+export interface SavedRef { id: string; family?: Family }
+
+/** A service as the page holds it before it is saved, or a saved one edited (`id`). With no key
+ *  (undefined or null), the saved one's is used, and only at the address it was given for; "" is
+ *  no key. */
+export interface ServiceDraft {
+  id?: string;
+  name?: string;
   provider: ProviderType;
   base_url: string;
-  api_key?: string;
-  model: string;
-  context_size: number;
-  max_tokens: number | null;
-  temperature: number | null;
-  top_p: number | null;
-  frequency_penalty: number | null;
-  presence_penalty: number | null;
-  is_default: boolean;
+  api_key?: string | null;
+  family?: Family;
 }
 
-/** How a connection test or a benchmark went. One that failed is an error; the form keeps its
- *  sentence in `detail`. */
-export interface ConnectionTestResult {
-  ok: boolean;
-  detail: string;
-  model_count?: number;
-  models_sample?: string[];
+/** What a service's PUT takes, exactly: anything else is refused by the server. */
+export interface ServiceUpdate {
+  name?: string;
+  provider?: ProviderType;
+  base_url?: string;
+  /** null keeps the key, "" clears it. */
+  api_key?: string | null;
 }
+
+/** The AIs to add on one service, in one write. `read`: the model as the probe relayed it. */
+export interface ModelsCreate {
+  service: SavedRef | ServiceDraft;
+  models: {
+    model: string;
+    name?: string;
+    context_own?: number | null;
+    price_own_in?: number | null;
+    price_own_out?: number | null;
+    read?: ProbeModel;
+  }[];
+  /** The conversation that asked: it is given the last AI of the list. */
+  conversation_id?: string;
+}
+
+/** What an AI's PUT takes; each field left out stays as it is. */
+export interface ModelUpdate {
+  name?: string;
+  model?: string;
+  /** Only true: another is made the default by marking it. */
+  is_default?: true;
+  /** null follows what the server says. */
+  context_own?: number | null;
+  reply_cap?: { mode: "auto" | "unsent" | "fixed"; tokens?: number | null };
+  temperature?: number | null;
+  top_p?: number | null;
+  frequency_penalty?: number | null;
+  presence_penalty?: number | null;
+  price_own_in?: number | null;
+  price_own_out?: number | null;
+  notices_kept?: boolean;
+}
+
+/** An AI as saved, with what the person typed that the server says is too much. */
+export type AiSaved = Ai & { warnings: ("above_read_window" | "above_read_output" | "cap_above_window")[] };
 
 export interface BenchmarkResult {
   ok: boolean;

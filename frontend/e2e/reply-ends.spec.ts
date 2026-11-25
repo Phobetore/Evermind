@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { API } from "../playwright.config";
-import { chat, conversationWithReply, MOCK, replyEnds } from "./fixtures";
+import { addModel, chat, conversationWithReply, MOCK, replyEnds } from "./fixtures";
 
 /**
  * A reply that ends without what was asked for says why, as a person on a phone reads it
@@ -11,20 +11,25 @@ import { chat, conversationWithReply, MOCK, replyEnds } from "./fixtures";
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-/** A conversation with one exchange in it, its model now told to end the next reply `how`. */
-async function endingWith(request: APIRequestContext, how: string, connection: Record<string, unknown> = {}) {
+/**
+ * An AI of the conversation's own, so that what is set here, or what it learns (that its model
+ * reasons, which stops its ceiling being sent), never reaches the one every other test uses.
+ */
+async function ownAi(request: APIRequestContext, conversationId: string, changes?: Record<string, unknown>) {
+  const own = await addModel(request, {
+    base_url: MOCK, model: `reply-ends-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, changes,
+  });
+  await request.patch(`${API}/api/conversations/${conversationId}`, { data: { model_id: own.id } });
+}
+
+/**
+ * A conversation with one exchange in it, its model now told to end the next reply `how`;
+ * `changes`: on an AI of its own.
+ */
+async function endingWith(request: APIRequestContext, how: string, changes?: Record<string, unknown>) {
   const convo = await conversationWithReply(request);
-  const patch: Record<string, unknown> = { author_note: how };
-  if (Object.keys(connection).length) {
-    const own = await (await request.post(`${API}/api/connections`, {
-      data: {
-        name: `reply-ends ${Date.now()}`, provider: "openai-compatible", base_url: MOCK,
-        api_key: "none", model: "evermind-demo", ...connection,
-      },
-    })).json();
-    patch.connection_id = own.id;
-  }
-  await request.patch(`${API}/api/conversations/${convo.id}`, { data: patch });
+  if (changes) await ownAi(request, convo.id, changes);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: how } });
   return convo;
 }
 
@@ -42,12 +47,12 @@ async function noSidewaysScroll(page: Page) {
 }
 
 test("a model that only reasoned says so, with what to change", { tag: "@desktop" }, async ({ page, request }) => {
-  const convo = await endingWith(request, "MOCK_REASONS_ONLY");
+  const convo = await endingWith(request, "MOCK_REASONS_ONLY", {});
   await sendFromTheBox(page, convo.id);
 
   const said = page.getByRole("alert");
   await expect(said).toHaveText(
-    "The model spent its whole answer thinking and wrote nothing. Raise the connection's max tokens, or use a model that does not think as long.",
+    "The model spent its whole answer thinking and wrote nothing. Try again: Evermind now knows it thinks first and leaves it room, unless its reply ceiling is set by hand (My AIs, under Advanced). If it happens again, use an AI that does not think as long.",
   );
   await expect(page.getByText("The model returned an empty reply.")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
@@ -65,16 +70,16 @@ test("an answer its server withheld quotes the server's word", { tag: "@desktop"
 });
 
 test("a reply cut by the max tokens says why under it, and Continue carries it to its end", { tag: "@desktop" }, async ({ page, request }) => {
-  const convo = await endingWith(request, "MOCK_HITS_CEILING", { max_tokens: 1024 });
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
   await sendFromTheBox(page, convo.id);
 
   const reply = page.locator("[data-message-id]").last();
   const line = reply.locator("[data-ceiling]");
   await expect(line).toHaveText(
-    "Cut short: this reply reached the connection's limit of 1,024 tokens, and the model's thinking counts toward it. Continue the reply to carry on.",
+    "Cut short: this reply reached this AI's reply ceiling of 1,024 tokens, and its thinking counts toward it. Continue the reply to carry on.",
   );
   // Said once as the reply comes in, with the reply; not a failure, and not "interrupted".
-  await expect(page.getByRole("status")).toContainText("reached the connection's limit of 1,024 tokens");
+  await expect(page.getByRole("status")).toContainText("reached this AI's reply ceiling of 1,024 tokens");
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(reply).not.toContainText("interrupted");
   await noSidewaysScroll(page);
@@ -95,8 +100,61 @@ test("a reply cut by the max tokens says why under it, and Continue carries it t
   await noSidewaysScroll(page);
 });
 
+test("a reply cut at a ceiling of its ai's offers to let Evermind set it", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
+  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  await sendFromTheBox(page, convo.id);
+
+  const reply = page.locator("[data-message-id]").last();
+  const lift = reply.getByRole("button", { name: "Let Evermind set it" });
+  await expect(reply.locator("[data-ceiling]")).toContainText("1,024 tokens");
+  await expect(lift).toBeVisible();
+  await noSidewaysScroll(page);
+  await lift.click();
+  await expect(page.locator("[data-chat-toast]")).toContainText("no longer has a ceiling of its own: Evermind keeps the room it needs.");
+  const ais = await (await request.get(`${API}/api/models`)).json();
+  expect(ais.find((ai: { id: string }) => ai.id === aiId).reply_cap.mode).toBe("auto");
+  // The line stays, for what it says of this reply, without its button.
+  await expect(reply.locator("[data-ceiling]")).toBeVisible();
+  await expect(lift).toHaveCount(0);
+
+  // Continue ends the reply as it does today.
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "" } });
+  await page.waitForLoadState("networkidle");
+  const ends = replyEnds(page, convo.id);
+  await reply.locator('button[title="Continue the reply"]').click({ force: true });
+  await ends;
+  await expect(reply.locator("[data-ceiling]")).toHaveCount(0);
+});
+
+test("a reply cut where its ai sends no ceiling offers nothing to lift", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "unsent" } });
+  await sendFromTheBox(page, convo.id);
+
+  const reply = page.locator("[data-message-id]").last();
+  await expect(reply.locator("[data-ceiling]")).toHaveText(
+    "Cut short: this reply reached the most the model's server lets it write, and the model's thinking counts toward it. Continue the reply to carry on.",
+  );
+  await expect(reply.getByRole("button", { name: "Let Evermind set it" })).toHaveCount(0);
+});
+
+test("a reply cut with no ceiling sent offers nothing to lift once its ai keeps one", { tag: "@desktop" }, async ({ page, request }) => {
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "unsent" } });
+  await sendFromTheBox(page, convo.id);
+  // The AI then keeps a ceiling of its own: the reply on screen was not cut at it.
+  const aiId = (await (await request.get(`${API}/api/conversations/${convo.id}`)).json()).model_id;
+  expect((await request.put(`${API}/api/models/${aiId}`, { data: { reply_cap: { mode: "fixed", tokens: 1024 } } })).ok()).toBe(true);
+  await page.reload();
+
+  const reply = page.locator("[data-message-id]").last();
+  await expect(reply.locator("[data-ceiling]")).toHaveText(
+    "Cut short: this reply reached the most the model's server lets it write, and the model's thinking counts toward it. Continue the reply to carry on.",
+  );
+  await expect(reply.getByRole("button", { name: "Let Evermind set it" })).toHaveCount(0);
+});
+
 test("an older reply cut by the max tokens keeps a short mark, without asking to continue it", { tag: "@desktop" }, async ({ page, request }) => {
-  const convo = await endingWith(request, "MOCK_HITS_CEILING", { max_tokens: 1024 });
+  const convo = await endingWith(request, "MOCK_HITS_CEILING", { reply_cap: { mode: "fixed", tokens: 1024 } });
   await sendFromTheBox(page, convo.id);
   await expect(page.locator("[data-ceiling]")).toHaveCount(1);
 
@@ -119,6 +177,7 @@ test("an older reply cut by the max tokens keeps a short mark, without asking to
 
 test("the pen's advice on what to change stays until the next try", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request);
+  await ownAi(request, convo.id);
   // A message the ghost-writer reads, which makes the model reason through all its room.
   await chat(request, { conversation_id: convo.id, mode: "send", content: "MOCK_REASONS_ONLY" });
   await page.goto(`/#/chat/${convo.id}`);
@@ -135,6 +194,7 @@ test("the pen's advice on what to change stays until the next try", { tag: "@des
 
 test("the pen's advice is gone once a reply is asked for another way", { tag: "@desktop" }, async ({ page, request }) => {
   const convo = await conversationWithReply(request);
+  await ownAi(request, convo.id);
   // A message the model answers with nothing but thought; the pen reads it too.
   await chat(request, { conversation_id: convo.id, mode: "send", content: "MOCK_REASONS_ONLY" });
   await page.goto(`/#/chat/${convo.id}`);

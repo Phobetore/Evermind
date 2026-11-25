@@ -1,0 +1,5 @@
+{
+ "default_generation_settings": {"n_ctx": 8192, "params": {"temperature": 0.8}},
+ "total_slots": 1,
+ "model_path": "models/brume-12b-q4_k_m.gguf"
+}
