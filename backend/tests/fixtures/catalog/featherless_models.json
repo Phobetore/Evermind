@@ -1,0 +1,20 @@
+{
+ "data": [
+  {"id": "Brume/Brume-27B", "is_gated": false, "created": 1786726806, "model_class": "brume-27b",
+   "owned_by": "Feather", "context_length": 262144, "max_completion_tokens": 32768,
+   "concurrency_cost": 2,
+   "pricing": {"prompt": "0.0000004", "completion": "0.000003", "image": "0", "request": "0",
+               "input": 0.4, "output": 3},
+   "features": {"tool_use": true, "image_input": true}},
+  {"id": "Givre/Givre-12B-Lune", "is_gated": false, "created": 1780000000,
+   "model_class": "givre-12b", "owned_by": "Feather", "context_length": 32768,
+   "concurrency_cost": 1,
+   "pricing": {"prompt": "0.0000001", "completion": "0.0000001", "image": "0", "request": "0",
+               "input": 0.1, "output": 0.1}},
+  {"id": "Aurore/Aurore-70B", "is_gated": true, "created": 1775000000, "model_class": "aurore-70b",
+   "owned_by": "Feather", "concurrency_cost": 4,
+   "pricing": {"prompt": "0.0000008", "completion": "0.0000016", "image": "0", "request": "0",
+               "input": 0.8, "output": 1.6},
+   "features": {"tool_use": false, "image_input": false}}
+ ]
+}

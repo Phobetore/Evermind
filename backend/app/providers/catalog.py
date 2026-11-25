@@ -2,9 +2,11 @@
 reply may be, its price and whether it reasons before it writes.
 
 Each family of servers says it its own way (OpenRouter in its list, LM Studio, llama.cpp,
-KoboldCpp and Ollama at addresses of their own); this module reads each as its documentation
-gives it and keeps nothing it was not told. Nothing a server lists is left out of a read: only
-``relayed`` holds back what cannot answer in a conversation, and says how many.
+KoboldCpp and Ollama at addresses of their own, Chutes, NanoGPT, DeepInfra and xAI in units or
+places of their own, recognised by their address); this module reads each as its documentation
+gives it and keeps nothing it was not told: no price rather than one in a unit nobody stated.
+Nothing a server lists is left out of a read: only ``relayed`` holds back what cannot answer in
+a conversation, and says how many.
 """
 
 import asyncio
@@ -135,11 +137,23 @@ def _decimal(value: object) -> Decimal | None:
 def per_million(value: object) -> float | None:
     """A server's price per token, as USD per million tokens. Counted in decimal, so that
     "0.000003" is 3.0 and not 2.9999999. A negative price is not one: None."""
+    return _scaled(value, PER_TOKEN)
+
+
+# What turns a figure into USD per million tokens, for each unit a service states.
+PER_TOKEN = Decimal(1_000_000)
+PER_MILLION = Decimal(1)
+PER_THOUSAND = Decimal(1_000)
+CENTS_PER_HUNDRED_MILLION = Decimal("0.0001")
+
+
+def _scaled(value: object, factor: Decimal) -> float | None:
+    """A price in the unit ``factor`` turns into USD per million tokens, counted in decimal."""
     number = _decimal(value)
     if number is None or number < 0:
         return None
     try:
-        result = float(number * 1_000_000)
+        result = float(number * factor)
     except ArithmeticError:
         # Past what a decimal holds ("1e999999"): no price.
         return None
@@ -169,8 +183,21 @@ def _bare(base_url: str) -> str:
 def is_openrouter(base_url: str) -> bool:
     """OpenRouter's own host, or one under it (eu.openrouter.ai): the one test of it, for the
     family of a service and for the least reasoning of a memory pass alike."""
+    return _at(base_url, "openrouter.ai")
+
+
+def _at(base_url: str, domain: str) -> bool:
+    """The domain's own host, or one under it; never a name that only begins like it."""
     host = _host(base_url)
-    return host == "openrouter.ai" or host.endswith(".openrouter.ai")
+    return host == domain or host.endswith("." + domain)
+
+
+# Services that say their prices or sizes their own way, under names another service may use in
+# another unit: recognised by their address alone, and read as "generic" everywhere else.
+CHUTES = "chutes.ai"
+DEEPINFRA = "deepinfra.com"
+NANOGPT = "nano-gpt.com"
+XAI = "x.ai"
 
 
 def guess_family(provider: str, base_url: str) -> Family:
@@ -316,7 +343,89 @@ def _reasons_on_openrouter(entry: dict) -> bool | None:
     return False
 
 
-def _listed(entry: dict, family: Family, provider: str) -> Listed | None:
+def _object_at(value: object, key: str) -> dict:
+    found = value.get(key) if isinstance(value, dict) else None
+    return found if isinstance(found, dict) else {}
+
+
+def _first(entry: dict, names: tuple[str, ...]) -> int | None:
+    """The first of these counts the entry tells."""
+    for name in names:
+        if (told := whole(entry.get(name))) is not None:
+            return told
+    return None
+
+
+# The figures a list gives in a unit it states, read as USD per million tokens.
+STATED_UNITS = {"per_million_tokens", "usd_per_1m_tokens"}
+# Past this, a price read per token is in a unit nobody stated: no hosted model costs it.
+MOST_PER_MILLION = 1_000
+# DeepInfra's kinds of model that cannot answer in a conversation, as its list tags them.
+_DEEPINFRA_NOT_CHAT = {"embed", "image-gen", "video-gen", "tts", "stt"}
+
+_Prices = tuple[float | None, float | None, float | None, float | None, bool]
+_NO_PRICE: _Prices = (None, None, None, None, False)
+
+
+def _negative(*values: object) -> bool:
+    return any((_decimal(value) or 0) < 0 for value in values)
+
+
+def _prices(entry: dict, base_url: str) -> _Prices:
+    """Input, output, cache read and cache write in USD per million tokens, and whether a negative
+    price says the service picks the model. Each read in the unit its service states, and none
+    at all rather than one in a unit nobody stated."""
+    pricing = _object_at(entry, "pricing")
+    currency = pricing.get("currency")
+    if currency is not None and not (isinstance(currency, str)
+                                     and currency.strip().upper() == "USD"):
+        return _NO_PRICE
+    unit = pricing.get("unit")
+    if unit is not None:
+        if not isinstance(unit, str) or unit.strip().lower() not in STATED_UNITS:
+            return _NO_PRICE
+        names = ("prompt", "completion")
+        if all(pricing.get(name) is None for name in names):
+            names = ("input", "output")
+        given_in, given_out = (pricing.get(name) for name in names)
+        read = pricing.get("input_cache_read")
+        read = pricing.get("cache_read") if read is None else read
+        cache_read = _scaled(read, PER_MILLION)
+        cache_write = _scaled(pricing.get("input_cache_write"), PER_MILLION)
+        if _at(base_url, NANOGPT):
+            # Its documentation: "Fields ending in `Per1kTokens` are USD per 1,000 tokens."
+            cache_read = _scaled(pricing.get("cacheReadInputPer1kTokens"), PER_THOUSAND)
+            cache_write = _scaled(pricing.get("cacheWriteInputPer1kTokens"), PER_THOUSAND)
+        return (_scaled(given_in, PER_MILLION), _scaled(given_out, PER_MILLION), cache_read,
+                cache_write, _negative(given_in, given_out))
+    if _at(base_url, CHUTES):
+        given_in, given_out = pricing.get("prompt"), pricing.get("completion")
+        return (_scaled(given_in, PER_MILLION), _scaled(given_out, PER_MILLION),
+                _scaled(pricing.get("input_cache_read"), PER_MILLION), None,
+                _negative(given_in, given_out))
+    if _at(base_url, DEEPINFRA):
+        own = _object_at(_object_at(entry, "metadata"), "pricing")
+        given_in, given_out = own.get("input_tokens"), own.get("output_tokens")
+        return (_scaled(given_in, PER_MILLION), _scaled(given_out, PER_MILLION),
+                _scaled(own.get("cache_read_tokens"), PER_MILLION), None,
+                _negative(given_in, given_out))
+    if _at(base_url, XAI):
+        given_in = entry.get("prompt_text_token_price")
+        given_out = entry.get("completion_text_token_price")
+        return (_scaled(given_in, CENTS_PER_HUNDRED_MILLION),
+                _scaled(given_out, CENTS_PER_HUNDRED_MILLION),
+                _scaled(entry.get("cached_prompt_text_token_price"), CENTS_PER_HUNDRED_MILLION),
+                None, _negative(given_in, given_out))
+    given_in, given_out = pricing.get("prompt"), pricing.get("completion")
+    price_in, price_out = per_million(given_in), per_million(given_out)
+    if not is_openrouter(base_url) and any(
+            price is not None and price > MOST_PER_MILLION for price in (price_in, price_out)):
+        return _NO_PRICE
+    return (price_in, price_out, per_million(pricing.get("input_cache_read")),
+            per_million(pricing.get("input_cache_write")), _negative(given_in, given_out))
+
+
+def _listed(entry: dict, family: Family, provider: str, base_url: str = "") -> Listed | None:
     raw_id = entry.get("id")
     if isinstance(raw_id, bool) or not isinstance(raw_id, str | int) or raw_id == "":
         return None
@@ -332,10 +441,14 @@ def _listed(entry: dict, family: Family, provider: str) -> Listed | None:
         served = whole(entry.get("max_input_tokens"))
         max_output = whole(entry.get("max_tokens"))
     else:
-        for field in ("context_window", "max_context_length", "context_length", "max_model_len"):
-            if served is None:
-                served = whole(entry.get(field))
-        max_output = whole(entry.get("max_completion_tokens"))
+        served = _first(entry, ("context_window", "max_context_length", "context_length",
+                                "max_model_len", "context_size"))
+        max_output = _first(entry, ("max_completion_tokens", "max_output_tokens",
+                                    "max_output_length"))
+        if _at(base_url, DEEPINFRA):
+            metadata = _object_at(entry, "metadata")
+            served = served or whole(metadata.get("context_length"))
+            max_output = max_output or whole(metadata.get("max_tokens"))
         meta = entry.get("meta")
         if isinstance(meta, dict):
             served = served or whole(meta.get("n_ctx"))
@@ -350,10 +463,7 @@ def _listed(entry: dict, family: Family, provider: str) -> Listed | None:
     if vendor is None and "/" in model_id:
         vendor = model_id.split("/", 1)[0] or None
 
-    pricing = entry.get("pricing")
-    pricing = pricing if isinstance(pricing, dict) else {}
-    price_in, price_out = per_million(pricing.get("prompt")), per_million(pricing.get("completion"))
-    varies = any((_decimal(pricing.get(key)) or 0) < 0 for key in ("prompt", "completion"))
+    price_in, price_out, cache_read, cache_write, varies = _prices(entry, base_url)
     architecture = entry.get("architecture")
     outputs = architecture.get("output_modalities") if isinstance(architecture, dict) else None
     # Only the names in it: anything else in the list says nothing, and could not be compared.
@@ -367,15 +477,20 @@ def _listed(entry: dict, family: Family, provider: str) -> Listed | None:
     chats = not batch and (outputs is None or "text" in outputs)
     if family == "openai" and any(word in model_id.lower() for word in _OPENAI_NOT_CHAT):
         chats = False
+    if _at(base_url, DEEPINFRA):
+        tags = _object_at(entry, "metadata").get("tags")
+        tags = {t for t in tags if isinstance(t, str)} if isinstance(tags, list) else set()
+        # Held back only when its tags name a kind that cannot answer, and not "chat" as well.
+        if tags & _DEEPINFRA_NOT_CHAT and "chat" not in tags:
+            chats = False
     reasoning = entry.get("reasoning")
     return Listed(
         id=model_id, name=name, vendor=_text(vendor), created=created, served=served,
         configured=configured, max=top, max_output=max_output,
         reasoning=reasoning if isinstance(reasoning, dict) else None,
-        price_in=price_in, price_out=price_out,
-        price_cache_read=per_million(pricing.get("input_cache_read")),
-        price_cache_write=per_million(pricing.get("input_cache_write")),
-        price_varies=varies, reasons=reasons, chats=chats, batch=batch)
+        price_in=price_in, price_out=price_out, price_cache_read=cache_read,
+        price_cache_write=cache_write, price_varies=varies, reasons=reasons, chats=chats,
+        batch=batch)
 
 
 # Requests
@@ -526,13 +641,40 @@ async def _anthropic_list(client, base: str, headers: dict, service: dict) -> li
     return entries
 
 
+def _any_entries(body: bytes) -> list[dict]:
+    """A list under "data", else under "models", else the answer itself as a bare list."""
+    try:
+        data = json.loads(body)
+    except NOT_JSON:
+        raise ProviderError(UNREADABLE, MODEL_UNREADABLE)
+    if isinstance(data, list):
+        return [entry for entry in data if isinstance(entry, dict)]
+    if not isinstance(data, dict):
+        raise ProviderError(UNREADABLE, MODEL_UNREADABLE)
+    return _entries(data, "data" if data.get("data") is not None else "models")
+
+
+async def _generic_list(client, base: str, headers: dict, service: dict) -> list[dict]:
+    """Any other address's list. NanoGPT gives sizes and prices only in its detailed list: it
+    is asked for that one first, and its plain list read if it refuses."""
+    url = base + "/models"
+    if _at(base, NANOGPT):
+        status, body = await _fetch(client, url, headers, base, params={"detailed": "true"})
+        if status < 400:
+            return _any_entries(body)
+    status, body = await _fetch(client, url, headers, base)
+    if status >= 400:
+        raise _refusal(status, body, service.get("api_key"))
+    return _any_entries(body)
+
+
 async def _the_list(client, service: dict, family: Family, headers: dict,
                     check_key: bool) -> list[dict]:
     base = _bare(service.get("base_url"))
     if service.get("provider") == "anthropic":
         return await _anthropic_list(client, base, headers, service)
     if family != "openrouter":
-        return _entries(await _page(client, base + "/models", headers, service))
+        return await _generic_list(client, base, headers, service)
     if not check_key:
         return await _openrouter_list(client, base, headers, service)
     checking = asyncio.ensure_future(_key_refused(client, base, headers, service))
@@ -765,7 +907,7 @@ async def _read(service: dict, probes: bool, check_key: bool, factory) -> Catalo
     models: list[Listed] = []
     seen: set[str] = set()
     for entry in entries:
-        listed = _listed(entry, learned, provider)
+        listed = _listed(entry, learned, provider, base_url)
         # The same id twice: the first is kept.
         if listed is not None and listed.id not in seen:
             seen.add(listed.id)

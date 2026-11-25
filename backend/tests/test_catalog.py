@@ -45,6 +45,20 @@ from .conftest import PAYLOAD, anth_provider, collect, oai_provider, sse
 
 FIXTURES = Path(__file__).parent / "fixtures" / "catalog"
 OPENROUTER = "https://openrouter.ai/api/v1"
+CHUTES = "https://llm.chutes.ai/v1"
+NANOGPT = "https://nano-gpt.com/api/v1"
+DEEPINFRA = "https://api.deepinfra.com/v1/openai"
+FEATHERLESS = "https://api.featherless.ai/v1"
+XAI = "https://api.x.ai/v1"
+PROXY = "https://proxy.example.com/v1"
+# An entry in the shape xAI's documentation gives its list (made up, like every entry here).
+XAI_ENTRY = {"id": "brume-4", "object": "model", "owned_by": "xai", "created": 1768003200,
+             "aliases": [], "context_length": 256000, "prompt_text_token_price": 20000,
+             "cached_prompt_text_token_price": 2000, "prompt_image_token_price": 0,
+             "completion_text_token_price": 80000,
+             "prompt_text_token_price_long_context": 40000,
+             "completion_text_token_price_long_context": 160000,
+             "long_context_threshold": 128000}
 KEY = "sk-test-SECRET-4f2a"
 MINUTES = 60.0
 HOURS = 3600.0
@@ -644,15 +658,62 @@ async def test_a_field_of_an_odd_shape_never_breaks_another_family_s_list():
             sane(read)
 
     generic = {"id": "m", "context_window": 8192, "max_context_length": 8192,
-               "context_length": 8192, "max_model_len": 8192, "max_completion_tokens": 1024,
+               "context_length": 8192, "max_model_len": 8192, "context_size": 8192,
+               "max_completion_tokens": 1024, "max_output_tokens": 1024,
+               "max_output_length": 1024,
+               "pricing": {"prompt": 1, "completion": 2, "input": 1, "output": 2,
+                           "input_cache_read": 0.1, "cache_read": 0.1,
+                           "input_cache_write": 0.2, "currency": "USD",
+                           "unit": "per_million_tokens"},
                "meta": {"n_ctx": 8192, "n_ctx_train": 131072}}
     for path in [("context_window",), ("max_context_length",), ("context_length",),
-                 ("max_model_len",), ("max_completion_tokens",), ("meta",), ("meta", "n_ctx"),
+                 ("max_model_len",), ("context_size",), ("max_completion_tokens",),
+                 ("max_output_tokens",), ("max_output_length",), ("pricing",),
+                 ("pricing", "prompt"), ("pricing", "completion"), ("pricing", "input"),
+                 ("pricing", "output"), ("pricing", "input_cache_read"),
+                 ("pricing", "cache_read"), ("pricing", "input_cache_write"),
+                 ("pricing", "currency"), ("pricing", "unit"), ("meta",), ("meta", "n_ctx"),
                  ("meta", "n_ctx_train")]:
         for odd in ODD:
             server = Server({"/v1/models": {"data": [put(generic, path, odd)]}})
             read = await server.read(service("https://proxy.example.com/v1"), probes=False)
             assert [m.id for m in read.models] == ["m"], (path, odd)
+            sane(read)
+
+    # Each service read its own way, at its own address.
+    own_ways = [
+        (CHUTES, "/v1/models", fixture("chutes_models.json")["data"][0], [
+            ("pricing", "prompt"), ("pricing", "completion"), ("pricing", "input_cache_read"),
+            ("max_output_length",)]),
+        (NANOGPT, "/api/v1/models", fixture("nanogpt_models_detailed.json")["data"][1], [
+            ("pricing", "cacheReadInputPer1kTokens"), ("pricing", "cacheWriteInputPer1kTokens"),
+            ("max_output_tokens",)]),
+        (DEEPINFRA, "/v1/openai/models", fixture("deepinfra_models.json")["data"][0], [
+            ("metadata",), ("metadata", "context_length"), ("metadata", "max_tokens"),
+            ("metadata", "pricing"), ("metadata", "pricing", "input_tokens"),
+            ("metadata", "pricing", "output_tokens"), ("metadata", "pricing", "cache_read_tokens"),
+            ("metadata", "tags"), ("metadata", "tags", 0)]),
+        (XAI, "/v1/models", XAI_ENTRY, [
+            ("prompt_text_token_price",), ("completion_text_token_price",),
+            ("cached_prompt_text_token_price",)]),
+    ]
+    for base, route, entry, paths in own_ways:
+        for path in paths:
+            for odd in ODD:
+                server = Server({route: {"data": [put(entry, path, odd)]}})
+                read = await server.read(service(base), probes=False)
+                assert [m.id for m in read.models] == [entry["id"]], (base, path, odd)
+                sane(read)
+    # The list's envelope, of every odd shape: read as empty, or unreadable, never a crash.
+    for odd in ODD:
+        for page in (odd, {"models": odd}, {"data": None, "models": odd}):
+            # As a response: a route of None would be no route at all.
+            server = Server({"/v1/models": httpx.Response(200, content=json.dumps(page))})
+            try:
+                read = await server.read(service("https://proxy.example.com/v1"), probes=False)
+            except ProviderError as refused:
+                assert refused.kind == "model_unreadable", page
+                continue
             sane(read)
 
 
@@ -716,6 +777,292 @@ async def test_a_list_nested_past_the_parser_s_depth_is_unreadable_not_a_crash()
     with pytest.raises(ProviderError) as raised:
         await server.read(service(OPENROUTER))
     assert (raised.value.kind, raised.value.message) == (AUTH_REFUSED, "HTTP 401")
+
+
+# Services that say it their own way, recognised by their address
+
+
+def prices(model: Listed) -> tuple:
+    return (model.price_in, model.price_out, model.price_cache_read, model.price_cache_write)
+
+
+async def read_entries(base_url: str, entries: list[dict], route: str = "/v1/models"):
+    server = Server({route: {"data": entries}, "/api/v1/key": OPENROUTER_KEY_OK})
+    return by_id(await server.read(service(base_url), probes=False))
+
+
+async def test_chutes_gives_its_prices_per_million():
+    """Chutes's `pricing` holds US dollars per million tokens, not per token."""
+    server = Server({"/v1/models": fixture("chutes_models.json")})
+    read = await server.read(service(CHUTES), probes=False)
+    assert read.family == "generic"
+    models = by_id(read)
+    brume = models["brume/Brume-30B-TEE"]
+    assert prices(brume) == (0.039, 1.25, 0.0039, None)
+    assert (brume.served, brume.max_output, brume.price_varies) == (262144, 65536, False)
+    assert prices(models["aurore/Aurore-Large"]) == (1.0, 3.0, 0.1, None)
+    assert prices(models["sillage/Sillage-Free"]) == (0.0, 0.0, 0.0, None)
+    # Its own figure, beside: what Evermind shows is what Chutes shows.
+    for entry in fixture("chutes_models.json")["data"]:
+        assert models[entry["id"]].price_in == entry["price"]["input"]["usd"]
+        assert models[entry["id"]].price_out == entry["price"]["output"]["usd"]
+    # A host under chutes.ai is Chutes; a name that only looks like it is not.
+    entry = {"id": "v/a", "pricing": {"prompt": 0.5, "completion": 2}}
+    for base in ("https://chutes.ai/v1", "https://eu.llm.chutes.ai/v1", "HTTPS://LLM.Chutes.AI/v1"):
+        assert prices((await read_entries(base, [entry]))["v/a"])[:2] == (0.5, 2.0), base
+    for base in ("https://chutes.ai.evil.example/v1", "https://notchutes.ai/v1", PROXY):
+        assert prices((await read_entries(base, [entry]))["v/a"])[:2] == (None, None), base
+    # A negative price says the service picks the model, as anywhere.
+    varies = (await read_entries(CHUTES, [{"id": "v/r", "pricing": {"prompt": -1,
+                                                                    "completion": -1}}]))["v/r"]
+    assert (varies.price_in, varies.price_varies) == (None, True)
+
+
+async def test_chutes_s_list_read_at_another_address_shows_no_price():
+    """Read per token, Chutes's 0.039 would be 39,000 dollars per million: at an address that is
+    not Chutes's, its figures are in a unit nobody stated, and no price is shown."""
+    server = Server({"/v1/models": fixture("chutes_models.json")})
+    models = by_id(await server.read(service(PROXY), probes=False))
+    assert prices(models["brume/Brume-30B-TEE"]) == (None, None, None, None)
+    # 0.0039 alone would pass for 3,900: the whole model goes without a price.
+    assert prices(models["givre/Givre-7B"]) == (None, None, None, None)
+    # Its sizes have no unit to get wrong.
+    assert models["brume/Brume-30B-TEE"].served == 262144
+    assert models["brume/Brume-30B-TEE"].max_output == 65536
+
+
+async def test_a_price_per_token_above_a_thousand_dollars_a_million_is_not_one():
+    entries = [
+        {"id": "under", "pricing": {"prompt": "0.000999", "completion": "0.000999"}},
+        {"id": "at", "pricing": {"prompt": "0.001", "completion": "0.001"}},
+        {"id": "over", "pricing": {"prompt": "0.0010001", "completion": "0.000001",
+                                   "input_cache_read": "0.0000001",
+                                   "input_cache_write": "0.0000002"}},
+        {"id": "over-out", "pricing": {"prompt": "0.000001", "completion": "0.0011",
+                                       "input_cache_read": "0.0000001"}},
+    ]
+    models = await read_entries(PROXY, entries)
+    assert prices(models["under"])[:2] == (999.0, 999.0)
+    assert prices(models["at"])[:2] == (1000.0, 1000.0)
+    assert prices(models["over"]) == (None, None, None, None)
+    assert prices(models["over-out"]) == (None, None, None, None)
+    # OpenRouter's own figures are its own: none of it is held back there.
+    models = await read_entries(OPENROUTER, entries, route="/api/v1/models")
+    assert prices(models["over"]) == (1000.1, 1.0, 0.1, 0.2)
+    assert prices(models["over-out"])[:3] == (1.0, 1100.0, 0.1)
+
+
+async def test_a_unit_stated_in_the_list_is_read_as_stated():
+    entries = [
+        {"id": "per-million", "pricing": {"prompt": 2, "completion": 6, "currency": "USD",
+                                          "unit": "per_million_tokens"}},
+        # Perplexity's Orchestrator, as its documentation gives its list.
+        {"id": "usd-per-1m", "pricing": {"input": 1.4, "output": 4.4, "cache_read": 0.26,
+                                         "unit": "usd_per_1m_tokens"}},
+        {"id": "both-names", "pricing": {"prompt": 2, "completion": 6, "input": 9, "output": 9,
+                                         "unit": "per_million_tokens"}},
+        {"id": "dear", "pricing": {"prompt": 1500, "completion": 3000,
+                                   "unit": "per_million_tokens"}},
+        {"id": "lower-case", "pricing": {"prompt": 2, "completion": 6, "currency": "usd",
+                                         "unit": "per_million_tokens"}},
+        {"id": "per-1k", "pricing": {"prompt": 0.002, "completion": 0.006,
+                                     "unit": "per_1k_tokens"}},
+        {"id": "unit-odd", "pricing": {"prompt": "0.000002", "completion": "0.000006",
+                                       "unit": 1000000}},
+        {"id": "euros", "pricing": {"prompt": 2, "completion": 6, "currency": "EUR",
+                                    "unit": "per_million_tokens"}},
+        {"id": "euros-per-token", "pricing": {"prompt": "0.000002", "completion": "0.000006",
+                                              "currency": "eur"}},
+        {"id": "negative", "pricing": {"prompt": -1, "completion": -1,
+                                       "unit": "per_million_tokens"}},
+    ]
+    models = await read_entries(PROXY, entries)
+    assert prices(models["per-million"]) == (2.0, 6.0, None, None)
+    assert prices(models["usd-per-1m"]) == (1.4, 4.4, 0.26, None)
+    assert prices(models["both-names"])[:2] == (2.0, 6.0)
+    # The guard is for a unit nobody stated: a stated one is taken at its word.
+    assert prices(models["dear"])[:2] == (1500.0, 3000.0)
+    assert prices(models["lower-case"])[:2] == (2.0, 6.0)
+    for unknown in ("per-1k", "unit-odd", "euros", "euros-per-token"):
+        assert prices(models[unknown]) == (None, None, None, None), unknown
+    assert (models["negative"].price_in, models["negative"].price_varies) == (None, True)
+
+
+async def test_nanogpt_is_asked_its_detailed_list_and_read_in_its_units():
+    def answer(request: httpx.Request):
+        if request.url.params.get("detailed") == "true":
+            return fixture("nanogpt_models_detailed.json")
+        return fixture("nanogpt_models.json")
+
+    server = Server({"/api/v1/models": answer})
+    read = await server.read(service(NANOGPT), probes=False)
+    assert [str(r.url.params) for r in server.requests] == ["detailed=true"]
+    models = by_id(read)
+    eclair = models["eclair/eclair-1"]
+    # Its cache prices are dollars per thousand tokens.
+    assert prices(eclair) == (0.25, 1.0, 0.03, None)
+    assert (eclair.served, eclair.max_output, eclair.name) == (1048576, 131072, "Eclair-1")
+    mini = models["brume/brume-mini"]
+    assert prices(mini) == (0.15, 0.37, 0.03, 0.003)
+    assert (mini.served, mini.max_output) == (32000, None)
+    assert prices(models["givre/givre-chat"]) == (2.0, 6.0, None, None)
+    # Thousands are NanoGPT's alone: elsewhere those two names are not read.
+    elsewhere = await read_entries(PROXY, fixture("nanogpt_models_detailed.json")["data"])
+    assert prices(elsewhere["brume/brume-mini"]) == (0.15, 0.37, None, None)
+    # Only NanoGPT is asked for it.
+    server = Server({"/v1/models": {"data": [{"id": "a"}]}})
+    await server.read(service(PROXY), probes=False)
+    assert [str(r.url.params) for r in server.requests] == [""]
+
+
+@pytest.mark.parametrize("status", [400, 404, 500])
+async def test_nanogpt_s_plain_list_is_read_when_the_detailed_one_is_refused(status):
+    def answer(request: httpx.Request):
+        if request.url.params:
+            return httpx.Response(status, json={"error": {"message": "no"}})
+        return fixture("nanogpt_models.json")
+
+    server = Server({"/api/v1/models": answer})
+    read = await server.read(service(NANOGPT), probes=False)
+    assert [m.id for m in read.models] == [
+        "eclair/eclair-1", "brume/brume-mini", "givre/givre-chat"]
+    assert all(prices(m) == (None, None, None, None) for m in read.models)
+    assert [str(r.url.params) for r in server.requests] == ["detailed=true", ""]
+    # Both refused: the plain list's refusal is the one said.
+    server = Server({"/api/v1/models": httpx.Response(401, json={"error": {"message": "key"}})})
+    with pytest.raises(ProviderError) as raised:
+        await server.read(service(NANOGPT), probes=False)
+    assert raised.value.kind == AUTH_REFUSED
+    assert len(server.requests) == 2
+
+
+async def test_deepinfra_says_everything_under_metadata_and_lists_what_cannot_chat():
+    server = Server({"/v1/openai/models": fixture("deepinfra_models.json")})
+    read = await server.read(service(DEEPINFRA), probes=False)
+    models = by_id(read)
+    brume = models["brume/Brume-70B-Instruct"]
+    assert prices(brume) == (0.36, 0.4, 0.18, None)
+    assert (brume.served, brume.max_output) == (131072, 131072)
+    assert prices(models["givre/Givre-VL-12B"]) == (0.08, 0.16, None, None)
+    assert len(read.models) == 6
+    assert [m["id"] for m in relayed(read)] == ["brume/Brume-70B-Instruct", "givre/Givre-VL-12B"]
+    # A kind that cannot answer, said alongside "chat", or no kind at all: kept.
+    entries = [
+        {"id": "video", "metadata": {"tags": ["video-gen"]}},
+        {"id": "embed-and-chat", "metadata": {"tags": ["chat", "embed"]}},
+        {"id": "untagged", "metadata": {"tags": []}},
+        {"id": "no-tags", "metadata": {}},
+        {"id": "no-metadata"},
+        {"id": "unknown-kind", "metadata": {"tags": ["rerank", "reasoning"]}},
+        {"id": "tags-odd", "metadata": {"tags": "embed"}},
+    ]
+    chats = {m.id: m.chats for m in (await read_entries(
+        DEEPINFRA, entries, route="/v1/openai/models")).values()}
+    assert chats == {"video": False, "embed-and-chat": True, "untagged": True, "no-tags": True,
+                     "no-metadata": True, "unknown-kind": True, "tags-odd": True}
+
+
+async def test_metadata_is_read_only_at_deepinfra_s_address():
+    for base in (PROXY, "https://deepinfra.com.evil.example/v1/openai"):
+        server = Server({"/v1/openai/models": fixture("deepinfra_models.json"),
+                         "/v1/models": fixture("deepinfra_models.json")})
+        read = await server.read(service(base), probes=False)
+        brume = by_id(read)["brume/Brume-70B-Instruct"]
+        assert (brume.served, brume.max_output) == (None, None), base
+        assert prices(brume) == (None, None, None, None), base
+        assert len(relayed(read)) == 6, base
+    entry = {"id": "v/a", "metadata": {"context_length": 4096, "max_tokens": 512,
+                                       "pricing": {"input_tokens": 1, "output_tokens": 2}}}
+    for base in ("https://deepinfra.com/v1/openai", "https://api.deepinfra.com/v1/openai"):
+        listed = (await read_entries(base, [entry], route="/v1/openai/models"))["v/a"]
+        assert (listed.served, listed.max_output, listed.price_in) == (4096, 512, 1.0), base
+
+
+async def test_featherless_is_read_as_it_was():
+    """Featherless gives its prices per token, as strings, beside the same per million under
+    other names and no unit: the per-token figures are the ones read, as before."""
+    for base in (FEATHERLESS, PROXY):
+        server = Server({"/v1/models": fixture("featherless_models.json")})
+        models = by_id(await server.read(service(base), probes=False))
+        brume = models["Brume/Brume-27B"]
+        assert prices(brume) == (0.4, 3.0, None, None)
+        assert (brume.served, brume.max_output) == (262144, 32768)
+        givre = models["Givre/Givre-12B-Lune"]
+        assert (prices(givre), givre.served, givre.max_output) == (
+            (0.1, 0.1, None, None), 32768, None)
+        aurore = models["Aurore/Aurore-70B"]
+        assert (prices(aurore)[:2], aurore.served) == ((0.8, 1.6), None)
+        assert all(m.chats for m in models.values())
+
+
+async def test_xai_gives_its_prices_in_cents_per_hundred_million_tokens():
+    models = await read_entries(XAI, [XAI_ENTRY])
+    brume = models["brume-4"]
+    assert prices(brume) == (2.0, 8.0, 0.2, None)
+    assert brume.served == 256000
+    for base in ("https://x.ai/v1", "https://eu.api.x.ai/v1"):
+        assert prices((await read_entries(base, [XAI_ENTRY]))["brume-4"])[:2] == (2.0, 8.0)
+    for base in (PROXY, "https://x.ai.evil.example/v1", "https://notx.ai/v1"):
+        assert prices((await read_entries(base, [XAI_ENTRY]))["brume-4"]) == (
+            None, None, None, None), base
+
+
+async def test_the_longest_reply_is_read_under_each_of_its_names_in_order():
+    entries = [
+        {"id": "completion", "max_completion_tokens": 100},
+        {"id": "output", "max_output_tokens": 200},
+        {"id": "length", "max_output_length": 300},
+        {"id": "all", "max_completion_tokens": 100, "max_output_tokens": 200,
+         "max_output_length": 300},
+        {"id": "output-length", "max_output_tokens": 200, "max_output_length": 300},
+        {"id": "first-told", "max_completion_tokens": "lots", "max_output_tokens": None,
+         "max_output_length": 300},
+        {"id": "metadata", "metadata": {"max_tokens": 400}},
+        {"id": "metadata-after", "max_output_length": 300, "metadata": {"max_tokens": 400}},
+    ]
+    models = await read_entries(PROXY, entries)
+    assert {i: m.max_output for i, m in models.items()} == {
+        "completion": 100, "output": 200, "length": 300, "all": 100, "output-length": 200,
+        "first-told": 300, "metadata": None, "metadata-after": 300}
+    models = await read_entries(DEEPINFRA, entries, route="/v1/openai/models")
+    assert (models["metadata"].max_output, models["metadata-after"].max_output) == (400, 300)
+    # OpenRouter's own provider still says it first.
+    entries = [openrouter_entry("v/top", top_provider={"max_completion_tokens": 16384},
+                                max_output_tokens=999),
+               openrouter_entry("v/bare", max_output_tokens=999)]
+    models = await read_entries(OPENROUTER, entries, route="/api/v1/models")
+    assert (models["v/top"].max_output, models["v/bare"].max_output) == (16384, 999)
+
+
+async def test_the_size_read_at_once_under_each_of_its_names():
+    entries = [
+        {"id": "size", "context_size": 4096},
+        {"id": "length-first", "context_length": 8192, "context_size": 4096},
+        {"id": "metadata", "metadata": {"context_length": 16384}},
+        {"id": "metadata-after", "context_size": 4096, "metadata": {"context_length": 16384}},
+    ]
+    models = await read_entries(PROXY, entries)
+    assert {i: m.served for i, m in models.items()} == {
+        "size": 4096, "length-first": 8192, "metadata": None, "metadata-after": 4096}
+    models = await read_entries(DEEPINFRA, entries, route="/v1/openai/models")
+    assert (models["metadata"].served, models["metadata-after"].served) == (16384, 4096)
+
+
+async def test_a_list_under_models_or_bare_is_read_too():
+    for page in ({"models": [{"id": "a"}, {"name": "no id"}, {"id": "b"}]},
+                 [{"id": "a"}, {"name": "no id"}, "not an object", {"id": "b"}],
+                 {"data": [{"id": "a"}, {"id": "b"}], "models": [{"id": "z"}]},
+                 {"data": None, "models": [{"id": "a"}, {"id": "b"}]}):
+        server = Server({"/v1/models": page})
+        read = await server.read(service(PROXY), probes=False)
+        assert [m.id for m in read.models] == ["a", "b"], page
+    # OpenRouter's pages and Anthropic's are read as they always were.
+    server = Server({"/api/v1/models": [{"id": "a"}], "/api/v1/key": OPENROUTER_KEY_OK})
+    with pytest.raises(ProviderError):
+        await server.read(service(OPENROUTER), probes=False)
+    server = Server({"/v1/models": {"models": [{"id": "claude-a"}]}})
+    read = await server.read(service("https://api.anthropic.com", provider="anthropic"))
+    assert read.models == []
 
 
 # The other families
