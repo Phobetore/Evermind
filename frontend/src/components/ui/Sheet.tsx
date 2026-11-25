@@ -1,6 +1,6 @@
 import { useT } from "@/i18n/useT";
 import { clsx } from "clsx";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 
 /** A sheet that rises from the bottom edge: the browser's modal dialog, as Modal is. Below md,
@@ -93,5 +93,14 @@ export function Sheet({
         )}
       </div>
     </dialog>
+  );
+}
+
+/** In a sheet, in place of what is on its way: a spinner, its rows drawn only once they can stay. */
+export function SheetWait() {
+  return (
+    <div className="flex justify-center py-6" aria-busy="true">
+      <Loader2 className="size-[20px] animate-spin text-mist" aria-hidden />
+    </div>
   );
 }

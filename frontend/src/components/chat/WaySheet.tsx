@@ -1,5 +1,5 @@
 import { Bolded } from "@/components/ai/MigrationNotice";
-import { Sheet } from "@/components/ui/Sheet";
+import { Sheet, SheetWait } from "@/components/ui/Sheet";
 import { WayChoices, type WayChange } from "@/components/ways/WayChoices";
 import { data, type ConversationPatch } from "@/data";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -46,11 +46,7 @@ export function WaySheet({ conversation, outlook, ais, onPicked, onClose, onLetE
   const asked = useRef(0);
   const [huge] = useState(() => parseFloat(getComputedStyle(document.documentElement).fontSize) >= HUGE_ROOT_PX);
 
-  const waiting = (
-    <div className="flex justify-center py-6" aria-busy="true">
-      <Loader2 className="size-[20px] animate-spin text-mist" aria-hidden />
-    </div>
-  );
+  const waiting = <SheetWait />;
   // The same sheet as the one with its figures, so that it stays open as they come.
   if (!outlook) {
     return <Sheet title={t("ways.sheet.title")} hint={t("ways.sheet.hint")} onClose={onClose}>{waiting}</Sheet>;

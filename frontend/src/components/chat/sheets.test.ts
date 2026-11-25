@@ -45,3 +45,30 @@ describe("per 100 messages, in a conversation's two sheets", () => {
     expect(count(waySheet({ ais: null }), "On a long story.")).toBe(0);
   });
 });
+
+describe("the AIs' sheet while its figures are on their way", () => {
+  const ais = [aiOf(), aiOf({ id: "m2", name: "Aube" })];
+  /** The rows drawn: one button for each AI, named first by it. */
+  const rows = (html: string) => ais.filter((ai) => new RegExp(`<button[^>]*>(?:(?!</button>).)*${ai.name}`, "s").test(html)).length;
+
+  test("draws no row, the spinner in their place, as the ways' sheet does", () => {
+    const html = aiSheet({ ais, outlook: null, waiting: true });
+    expect(rows(html)).toBe(0);
+    expect(html).toMatch(/aria-busy="true"[^>]*>\s*<svg[^>]*animate-spin/);
+    // What leads elsewhere stays in reach.
+    expect(words(html)).toContain("Other model…");
+  });
+
+  test("draws its rows once, with their figures when they came, without when they could not be read", () => {
+    const came = aiSheet({ ais, waiting: false });
+    expect(rows(came)).toBe(2);
+    expect(words(came)).toContain("per 100 messages");
+    const failed = aiSheet({ ais, outlook: null, waiting: false });
+    expect(rows(failed)).toBe(2);
+    expect(words(failed)).not.toContain("per 100 messages");
+  });
+
+  test("not told it waits, it draws its rows at once, as before", () => {
+    expect(rows(aiSheet({ ais, outlook: null }))).toBe(2);
+  });
+});
