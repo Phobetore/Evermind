@@ -282,16 +282,17 @@ function Where({ services, loadError, connections, onChoose }: {
           <ul className="flex flex-col gap-2">
             {shown.map((service) => (
               <li key={service.id} className="rounded-xl border border-ink-700">
-                <div className="flex items-stretch">
+                {/* At large text the button that removes goes under the row, which keeps its width. */}
+                <div className="flex flex-wrap items-stretch">
                   <button
                     type="button"
-                    className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left"
+                    className="flex min-h-14 min-w-0 flex-[1_1_8rem] items-center gap-[min(0.75rem,12px)] px-[min(0.75rem,12px)] py-2.5 text-left"
                     onClick={() => onChoose({
                       type: "service", id: service.id, provider: service.provider, base_url: service.base_url,
                     })}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block font-display text-sm font-medium text-parchment">{service.name}</span>
+                      <span className="block font-display text-sm font-medium text-parchment [overflow-wrap:anywhere]">{service.name}</span>
                       <span className="block text-xs text-mist [overflow-wrap:anywhere]">
                         {service.base_url}
                         {/* The hint carries its own ellipsis. */}
@@ -306,7 +307,11 @@ function Where({ services, loadError, connections, onChoose }: {
                     <ChevronRight className="h-4 w-4 shrink-0 text-mist" />
                   </button>
                   {service.model_count === 0 && (
-                    <button type="button" className="btn btn-danger m-2 !px-3 !py-1.5 text-sm" onClick={() => remove(service)}>
+                    <button
+                      type="button"
+                      className="btn btn-danger m-[min(0.5rem,8px)] ml-auto !px-[min(0.75rem,12px)] !py-1.5 text-sm"
+                      onClick={() => remove(service)}
+                    >
                       {t("ai.add.remove")}
                     </button>
                   )}
