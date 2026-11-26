@@ -441,6 +441,81 @@ test("a first read that fails says it waits when asked again", async ({ page }) 
   await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
 });
 
+test("the same period read again and failed shows none of its old amounts", async ({ page }) => {
+  const asked = await answerSpending(page);
+  let fail = false;
+  await onSummary(page, async (_url, route) => {
+    if (fail) return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Down." }) });
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
+  await page.getByRole("button", { name: "Clear the history…" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("radio", { name: "Everything" }).check();
+  const clear = sheet.getByRole("button", { name: "Clear", exact: true });
+  await expect(clear).toBeEnabled();
+  fail = true;
+  await clear.click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText("HTTP 500");
+  await expect(total(page)).toHaveCount(0);
+  await expect(page.getByText(/\$3\.02/)).toHaveCount(0);
+  expect(asked.clear.at(-1)!.searchParams.get("dry_run")).toBeNull();
+});
+
+test("a list narrowed to one ai waits in its place, and says when it cannot be read", async ({ page }) => {
+  await answerSpending(page);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await onSummary(page, async (url, route) => {
+    const model = url.searchParams.get("model");
+    if (model === "ai-sylve") await held;
+    if (model === "ai-brume") {
+      return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Down." }) });
+    }
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await expect(line(page, "Lost road")).toBeVisible();
+  await page.getByRole("combobox").selectOption({ label: "Sylve Mini" });
+  await expect(list(page)).toHaveCount(0);
+  await expect(page.locator("[aria-busy=true]").first()).toContainText("Loading…");
+  await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
+  release();
+  await expect(line(page, "At the inn")).toBeVisible();
+  await expect(line(page, "Lost road")).toHaveCount(0);
+
+  await page.getByRole("combobox").selectOption({ label: "Brume 12B" });
+  await expect(page.getByRole("alert")).toContainText("HTTP 500");
+  await expect(list(page)).toHaveCount(0);
+  await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
+});
+
+test("a line closed leaves no step behind for the back button", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/");
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await line(page, "At the inn").click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+  await page.goBack();
+  await expect(page).not.toHaveURL(/#\/spending/);
+});
+
+test("a line low in a long list is in sight once closed", async ({ page }) => {
+  await answerSpending(page, year);
+  await page.goto("/#/spending?per=all&cut=conversation&key=conv-40");
+  const sheet = page.getByRole("dialog");
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(list(page).locator('[data-key="conv-40"]')).toBeInViewport();
+});
+
 test("a late answer of another period is dropped", async ({ page }) => {
   await answerSpending(page, weekOrMonth);
   let release!: () => void;
