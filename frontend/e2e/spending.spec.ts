@@ -1,7 +1,7 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page, type Route } from "@playwright/test";
 import { API } from "../playwright.config";
 import { MOCK, MOCK_ROOT, chat, forgetServices, inLocale, makeCharacter, misfits, rootAt } from "./fixtures";
-import { answerSpending, dayBefore, inWords, nothing, year } from "./spending.fixture";
+import { answerSpending, dayBefore, inWords, month, nothing, year } from "./spending.fixture";
 
 /**
  * The page of Spending: what the AIs cost, by period and four cuts. Most tests answer for the
@@ -31,6 +31,23 @@ async function conversationOn(request: APIRequestContext, modelId: string, costs
 
 async function rootIs32(page: Page) {
   await page.addInitScript(rootAt, "32px");
+}
+
+/** The month, but $1.00 over the last 7 days, and an AI with no call in them: an answer of one
+ *  period told from another's. */
+function weekOrMonth(url: URL) {
+  const said = month();
+  if (url.searchParams.get("from") !== dayBefore(6)) return said;
+  return { ...said, total: 1, previous: 0.5, models: said.models.filter(([id]) => id !== "ai-sylve") };
+}
+
+/** Each read of the summary, before the fixture answers it: `answer` holds it, fails it or lets
+ *  it through with route.fallback(). */
+async function onSummary(page: Page, answer: (url: URL, route: Route) => Promise<void>) {
+  await page.route((url) => url.pathname.endsWith("/api/spending"), async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await answer(new URL(route.request().url()), route);
+  });
 }
 
 async function fits(page: Page) {
@@ -305,6 +322,11 @@ test("clearing needs a choice and says what goes", async ({ page }) => {
   const year = new Date().getFullYear();
   await sheet.getByRole("radio", { name: "Before" }).check();
   await expect(clear).toBeDisabled();
+  // A day the server does not read is no choice: nothing is asked.
+  await sheet.locator("input[type=date]").fill("1999-05-01");
+  await expect(clear).toBeDisabled();
+  await expect(sheet).toContainText("Choose what goes");
+  expect(asked.clear).toEqual([]);
   await sheet.locator("input[type=date]").fill(`${year}-12-15`);
   await expect(sheet).toContainText(
     `1,214 calls, from ${inWords(`${year}-11-20`)} to ${inWords(`${year}-12-14`)}. This cannot be undone.`);
@@ -343,3 +365,210 @@ test("side by side on a wide screen @desktop", async ({ page }) => {
   await expect(detail(page)).toContainText("per 100 messages, from your last 100 replies");
 });
 
+
+test("a period chosen shows no amount of the one before while it waits", async ({ page }) => {
+  await answerSpending(page, weekOrMonth);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await onSummary(page, async (url, route) => {
+    if (url.searchParams.get("from") === dayBefore(6)) await held;
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
+  const height = await page.locator("main").evaluate((el) => el.scrollHeight);
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await expect(page.locator("[aria-busy=true]").first()).toContainText("Loading…");
+  await expect(total(page)).toHaveCount(0);
+  await expect(list(page)).toHaveCount(0);
+  await expect(page.getByText(/\$/)).toHaveCount(0);
+  // What waits holds the room of what it replaces: nothing below it jumps.
+  expect(await page.locator("main").evaluate((el) => el.scrollHeight)).toBeGreaterThanOrEqual(height);
+  release();
+  await expect(total(page)).toHaveText("$1.00 + 205 calls without a price");
+  await expect(page.getByText("The 7 days before: $0.50")).toBeVisible();
+});
+
+test("a period that cannot be read says so and reads again", async ({ page }) => {
+  await answerSpending(page, weekOrMonth);
+  let failing = true;
+  await onSummary(page, async (url, route) => {
+    if (failing && url.searchParams.get("from") === dayBefore(6)) {
+      return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Down." }) });
+    }
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("HTTP 500");
+  await expect(page.getByRole("button", { name: "7 days", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(total(page)).toHaveCount(0);
+  await expect(page.getByText(/\$3\.02|The 7 days before/)).toHaveCount(0);
+  failing = false;
+  await page.getByRole("button", { name: "Reload" }).click();
+  await expect(total(page)).toHaveText("$1.00 + 205 calls without a price");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("a late answer of another period is dropped", async ({ page }) => {
+  await answerSpending(page, weekOrMonth);
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let first = true;
+  await onSummary(page, async (_url, route) => {
+    // The page's first read, of 30 days, comes back last.
+    if (first) {
+      first = false;
+      await held;
+    }
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await expect(total(page)).toHaveText("$1.00 + 205 calls without a price");
+  const late = page.waitForResponse((r) => new URL(r.url()).searchParams.get("from") === dayBefore(29));
+  release();
+  await late;
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await expect(total(page)).toHaveText("$1.00 + 205 calls without a price");
+});
+
+test("a free ai chosen in the filter is free, never an amount", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  const read = page.waitForRequest((r) => new URL(r.url()).searchParams.get("model") === "ai-brume");
+  await page.getByRole("combobox").selectOption({ label: "Brume 12B" });
+  await read;
+  await expect(page.getByText("With Brume 12B: free")).toBeVisible();
+  await expect(page.getByText(/^With Brume 12B: \$/)).toHaveCount(0);
+});
+
+test("the ai filtered stays chosen in a period where it made no call", async ({ page }) => {
+  const asked = await answerSpending(page, weekOrMonth);
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await page.getByRole("combobox").selectOption({ label: "Sylve Mini" });
+  await expect(page.getByText("With Sylve Mini: $1.43")).toBeVisible();
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await expect(total(page)).toHaveText("$1.00 + 205 calls without a price");
+  expect(asked.summary.at(-1)!.searchParams.get("model")).toBe("ai-sylve");
+  // What the select shows is what the page asks.
+  await expect(page.getByRole("combobox")).toHaveValue("ai-sylve");
+  await expect(page.getByRole("combobox").locator("option:checked")).toHaveText("Sylve Mini");
+  await expect(page.getByText("With Sylve Mini: nothing")).toBeVisible();
+  await page.getByRole("combobox").selectOption({ label: "All AIs" });
+  await expect.poll(() => asked.summary.at(-1)!.searchParams.get("model")).toBeNull();
+});
+
+for (const [locale, words] of [
+  ["en", { card: "By character", reload: "Reload" }],
+  ["fr", { card: "Par personnage", reload: "Recharger" }],
+  ["de", { card: "Nach Charakter", reload: "Neu laden" }],
+] as const) {
+  test(`a line that cannot be read keeps its way to read it again in reach, in ${locale}`, async ({ page }) => {
+    await inLocale(page, locale);
+    await answerSpending(page);
+    await rootIs32(page);
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto("/#/spending");
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
+    await page.getByRole("button", { name: words.card }).click();
+    // No detail of this line is answered: the fixture says it was not found.
+    await list(page).locator('[data-key="card-vigil"] button').click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet.getByRole("alert")).toBeVisible();
+    await expect(sheet.getByRole("button", { name: words.reload })).toBeVisible();
+    await fits(page);
+  });
+}
+
+test("back closes a line opened before it leaves the page, and a reload keeps it open", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/");
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await line(page, "At the inn").click();
+  await expect(page.getByRole("dialog")).toContainText("At the inn");
+  expect(new URLSearchParams(page.url().split("?")[1] ?? "").get("key")).toBe("conv-inn");
+  await page.reload();
+  await expect(page.getByRole("dialog")).toContainText("At the inn");
+  await page.goBack();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page).toHaveURL(/#\/spending$/);
+  await expect(line(page, "At the inn")).toBeVisible();
+});
+
+test("a line closed and a period chosen are what a reload shows", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending?cut=conversation&key=conv-inn&per=all");
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await page.reload();
+  await expect(total(page)).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "7 days", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a period tapped is the one the next visit shows", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "Last month" }).click();
+  await page.goto("/#/");
+  await page.goto("/#/spending");
+  await expect(page.getByRole("button", { name: "Last month" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("every line and control is a finger's size", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  await expect(total(page)).toBeVisible();
+  const heights = (selector: string) => page.locator(selector).evaluateAll((all) =>
+    all.map((el) => [el.textContent?.trim().slice(0, 30), el.getBoundingClientRect().height] as const));
+  const low = async (selector: string, least: number) => (await heights(selector)).filter(([, h]) => h < least);
+  expect(await low("[role=group] > button", 44)).toEqual([]);
+  expect(await heights("[data-outside]")).toHaveLength(1);
+  expect(await low("[data-outside]", 44)).toEqual([]);
+  for (const cut of ["By AI", "By character", "By conversation", "By use"]) {
+    await page.getByRole("button", { name: cut }).click();
+    expect(await low("[data-cut-list] [data-key] > button:first-child", 56), cut).toEqual([]);
+  }
+});
+
+test("the bars slide sideways under a finger and say their choice aloud", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  expect(await page.locator("[data-bars]").evaluate((el) => getComputedStyle(el).touchAction)).toBe("pan-y");
+  await expect(page.locator("[data-bars-legend]")).toHaveAttribute("aria-live", "polite");
+});
+
+test("only replies say their retried attempts", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By use" }).click();
+  await expect(line(page, "Replies")).toContainText("retried");
+  await expect(line(page, "Automatic memory")).not.toContainText("retried");
+});
+
+test("an amount computed from a cache with no price is at most", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  await line(page, "Aurore").click();
+  await expect(detail(page)).toContainText("computed with the service's price: at most $0.12");
+});
+
+test("lines only with free ais come last, under their title", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  for (const [cut, free] of [["By character", "Home only"], ["By conversation", "Quiet evening"]] as const) {
+    await page.getByRole("button", { name: cut }).click();
+    // Its words as written: a title is drawn in capitals.
+    const rows = await list(page).locator(":scope > li").allTextContents();
+    const title = rows.findIndex((text) => text.trim() === "Only with free AIs");
+    expect(title, cut).toBe(rows.length - 2);
+    expect(rows.at(-1), cut).toContain(free);
+  }
+});

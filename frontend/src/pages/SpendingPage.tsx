@@ -14,7 +14,7 @@ import { dayMonth, downloadBlob } from "@/lib/utils";
 import type { Spending } from "@/types";
 import { clsx } from "clsx";
 import { ArrowLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 
 /** The page's side gutters: layout, not text, so in pixels at most (as on an AI's page). */
@@ -26,9 +26,14 @@ const TOAST_MS = 4200;
 const PERIODS: readonly string[] = ["7", "30", "month", "last", "all"] satisfies Period[];
 const CUTS: Cut[] = ["model", "card", "conversation", "use"];
 
+/** The AI the lists are narrowed to, as it was when chosen: a period where it made no call keeps
+ *  it chosen, under that name. */
+type Chosen = { id: string; name: string; free: boolean };
+
 /** The route /spending: what the AIs cost, by period and four cuts, as sums. Opening it asks the
  *  server once; a period or a filter, once; a line opened, once. `?per=` is the period of this
- *  visit only; `?cut=&key=` open that line. */
+ *  visit only, until another is chosen; `?cut=&key=` is the line open, so that a reload keeps it
+ *  and the back button closes it before it leaves the page. */
 export function SpendingPage() {
   // An edition with nothing counted has no page of it.
   if (!spendingShown(data)) return <Navigate to="/settings" replace />;
@@ -46,31 +51,53 @@ function useWide(): boolean {
   return wide;
 }
 
+/** In place of what belongs to another question while this one is asked: as high as it was, so
+ *  that nothing below it jumps, and no amount of it left in sight. A failure says so there. */
+function Held({ waiting, room, failure, onRetry, className, children }: {
+  waiting: boolean;
+  room: number;
+  failure: { error: unknown } | null;
+  onRetry(): void;
+  className?: string;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  if (!waiting) return <div className={className}>{children}</div>;
+  return (
+    <div className={className} aria-busy={!failure} style={{ minHeight: room }}>
+      {failure
+        ? <LoadFailure error={failure.error} onRetry={onRetry} />
+        : <p className="text-mist animate-pulse-soft">{t("common.loading")}</p>}
+    </div>
+  );
+}
+
 function SpendingView() {
   const { t, locale } = useI18n();
   const spending = data.spending!;
   const navigate = useNavigate();
   const location = useLocation();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const wide = useWide();
   const filterId = useId();
 
-  // What the address asks, read once: the period of this visit does not become the one kept.
+  // The period the address asks, read once: the period of this visit does not become the one kept.
   const [asked] = useState(() => {
     const per = params.get("per");
-    const cut = params.get("cut") as Cut | null;
-    const key = params.get("key");
-    return {
-      per: per !== null && PERIODS.includes(per) ? (per as Period) : keptPeriod(),
-      opened: cut !== null && CUTS.includes(cut) && key !== null ? { cut, key, name: "" } : null,
-    };
+    return per !== null && PERIODS.includes(per) ? (per as Period) : keptPeriod();
   });
-  const [per, setPer] = useState<Period>(asked.per);
-  const [cut, setCut] = useState<Cut>(asked.opened?.cut ?? "model");
-  const [model, setModel] = useState("");
-  const [summary, setSummary] = useState<Spending | null>(null);
-  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
-  const [opened, setOpened] = useState<Opened | null>(asked.opened);
+  const addressCut = params.get("cut") as Cut | null;
+  const addressKey = params.get("key");
+  const [per, setPer] = useState<Period>(asked);
+  const [cut, setCut] = useState<Cut>(() => (addressCut !== null && CUTS.includes(addressCut) ? addressCut : "model"));
+  const [model, setModel] = useState<Chosen | null>(null);
+  // Each answer with the question it answers: one of another period or AI is never shown as this one's.
+  const [answer, setAnswer] = useState<{ period: string; model: string; summary: Spending } | null>(null);
+  const [failure, setFailure] = useState<{ query: string; error: unknown } | null>(null);
+  // The room the total and the lists took when another question was asked, kept while it is.
+  const [room, setRoom] = useState({ all: 0, list: 0 });
+  // The name a line opened from the list shows before its detail is read, and whether to price it.
+  const [hint, setHint] = useState<Opened | null>(null);
   const [clearing, setClearing] = useState(false);
   const [toast, setToast] = useState<{ text: string; at: number } | null>(null);
   // Each read of everything again: a line opened reads itself again with it.
@@ -79,20 +106,30 @@ function SpendingView() {
   const [today, setToday] = useState(() => new Date());
   const range = rangeOf(per, today);
   const { from, to } = range;
+  const period = `${from ?? ""}/${to}`;
+  const modelId = model?.id ?? "";
+  const query = `${period}/${modelId}`;
+  const allBox = useRef<HTMLDivElement>(null);
+  const listBox = useRef<HTMLDivElement>(null);
+  const scrollTo = useRef<string | null>(null);
+
+  const opened: Opened | null = addressCut !== null && CUTS.includes(addressCut) && addressKey !== null
+    ? hint && hint.cut === addressCut && hint.key === addressKey ? hint : { cut: addressCut, key: addressKey, name: "" }
+    : null;
 
   const answered = useRef(0);
   const read = useCallback(() => {
     const mine = ++answered.current;
-    const query: SpendingQuery = { from, to, model: model || undefined };
-    spending.summary(query).then(
+    const asking: SpendingQuery = { from, to, model: modelId || undefined };
+    spending.summary(asking).then(
       (found) => {
         if (mine !== answered.current) return;
-        setSummary(found);
+        setAnswer({ period, model: modelId, summary: found });
         setFailure(null);
       },
-      (error) => mine === answered.current && setFailure({ error }),
+      (error) => mine === answered.current && setFailure({ query, error }),
     );
-  }, [spending, from, to, model]);
+  }, [spending, from, to, modelId, period, query]);
   useEffect(() => {
     read();
   }, [read, reads]);
@@ -104,15 +141,69 @@ function SpendingView() {
   }, [toast]);
   const say = (text: string) => setToast({ text, at: performance.now() });
 
+  // The line just closed, in sight in the list, once its sheet has gone, whichever way it went.
+  const isOpen = opened !== null;
+  useEffect(() => {
+    if (isOpen || scrollTo.current === null) return;
+    const key = scrollTo.current;
+    scrollTo.current = null;
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-cut-list] [data-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "center" });
+    });
+  }, [isOpen]);
+
+  /** The room the total and the lists take now, held while the next answer is awaited. What is
+   *  already held keeps its room. */
+  function holdRoom() {
+    setRoom((before) => ({
+      all: allBox.current?.offsetHeight ?? before.all,
+      list: listBox.current?.offsetHeight ?? before.list,
+    }));
+  }
+
   /** Everything read again, today included: after a clear or a price that filled earlier calls. */
   function readAgain() {
     setReads((n) => n + 1);
     setToday(new Date());
   }
 
+  /** The address without some of its words, in place: the entry stays what it was. */
+  function dropFromAddress(...names: string[]) {
+    setParams((before) => {
+      const next = new URLSearchParams(before);
+      for (const name of names) next.delete(name);
+      return next;
+    }, { replace: true, state: location.state });
+  }
+
   function choosePeriod(next: Period) {
+    if (next === per) return;
     keepPeriod(next);
+    holdRoom();
     setPer(next);
+    // The period chosen is the device's now, not the address's.
+    if (params.has("per")) dropFromAddress("per");
+  }
+
+  function chooseModel(id: string) {
+    holdRoom();
+    if (!id) return setModel(null);
+    const listed = answer?.summary;
+    const free = listed?.free.find(([each]) => each === id);
+    const name = free?.[1] ?? listed?.models.find(([each]) => each === id)?.[1] ?? id;
+    setModel({ id, name, free: !!free });
+  }
+
+  function openLine(line: Opened) {
+    setHint(line);
+    setParams((before) => {
+      const next = new URLSearchParams(before);
+      next.set("cut", line.cut);
+      next.set("key", line.key);
+      return next;
+    // A line opened here is an entry of its own, which the back button closes; one opened over
+    // another takes its place.
+    }, isOpen ? { replace: true, state: location.state } : { state: { line: true } });
   }
 
   function back() {
@@ -121,19 +212,18 @@ function SpendingView() {
   }
 
   function closeLine() {
-    const key = opened?.key;
-    setOpened(null);
-    // The line it was, in sight in the list.
-    requestAnimationFrame(() => {
-      const row = key === undefined ? null : document.querySelector(`[data-cut-list] [data-key="${CSS.escape(key)}"]`);
-      row?.scrollIntoView({ block: "center" });
-    });
+    scrollTo.current = opened?.key ?? null;
+    if ((location.state as { line?: boolean } | null)?.line === true) navigate(-1);
+    else dropFromAddress("cut", "key");
   }
 
   function forgot(which: "card" | "conversation", key: string) {
-    setSummary((before) => before && (which === "conversation"
-      ? { ...before, conversations: before.conversations.map((c) => (c[0] === key ? [c[0], null, ...c.slice(2)] as typeof c : c)) }
-      : { ...before, cards: before.cards.map((c) => (c[0] === key ? [c[0], null, ...c.slice(2)] as typeof c : c)) }));
+    setAnswer((before) => before && {
+      ...before,
+      summary: which === "conversation"
+        ? { ...before.summary, conversations: before.summary.conversations.map((c) => (c[0] === key ? [c[0], null, ...c.slice(2)] as typeof c : c)) }
+        : { ...before.summary, cards: before.summary.cards.map((c) => (c[0] === key ? [c[0], null, ...c.slice(2)] as typeof c : c)) },
+    });
     // Her conversations' titles went with her name: they are read again.
     if (which === "card") read();
   }
@@ -157,6 +247,8 @@ function SpendingView() {
     readAgain();
   }
 
+  const summary = answer?.summary ?? null;
+  const failed = failure?.query === query ? failure : null;
   const money = (cost: number, unpriced = 0) =>
     moneyText({ cost, unpriced, currency: summary?.currency ?? "USD" }, "total", locale, t);
   const since = summary ? localDate(new Date(summary.since)) : "";
@@ -164,92 +256,119 @@ function SpendingView() {
     ...summary.models.map(([id, name]) => [id, name] as const),
     ...summary.free.map(([id, name]) => [id, name] as const),
   ].filter((choice): choice is readonly [string, string | null] => choice[0] !== null) : [];
-  const filtered = choices.find(([id]) => id === model);
+  // The AI chosen stays a choice where it made no call: what the select shows is what is asked.
+  if (model && !choices.some(([id]) => id === model.id)) choices.push([model.id, model.name]);
 
-  let body: React.ReactNode;
-  if (failure && !summary) body = <LoadFailure error={failure.error} onRetry={read} />;
-  else if (!summary) body = <p className="text-mist animate-pulse-soft">{t("common.loading")}</p>;
-  else {
-    const empty = summary.calls === 0;
+  let body: ReactNode;
+  if (!answer) {
+    body = failed
+      ? <LoadFailure error={failed.error} onRetry={read} />
+      : <p aria-busy="true" className="text-mist animate-pulse-soft">{t("common.loading")}</p>;
+  } else {
+    const shown = answer.summary;
+    const empty = shown.calls === 0;
+    // Another period asked, or this one read again and failed: none of these amounts is its own.
+    const periodWaits = answer.period !== period || (failed !== null && answer.model === modelId);
+    const listWaits = !periodWaits && answer.model !== modelId;
+    const free = model !== null && (shown.free.some(([id]) => id === model.id)
+      || (model.free && !shown.models.some(([id]) => id === model.id)));
     body = (
-      <>
-        <section className="flex flex-col gap-1.5">
-          <p data-total className="font-display text-4xl font-semibold text-parchment [overflow-wrap:anywhere]">
-            {money(summary.total, summary.unpriced.calls)}
-          </p>
-          {!empty && summary.outside_replies.calls > 0 && (
-            <button type="button" className="self-start text-left text-sm text-mist underline-offset-2 hover:text-parchment hover:underline" onClick={() => setCut("use")}>
-              {t("spending.outside", { money: amountText(summary.outside_replies.cost, summary.currency, locale, t) })}
-            </button>
-          )}
-          {!empty && summary.previous !== null && from !== undefined && (
-            <p className="text-sm text-mist">
-              {t("spending.previous", { count: daysOf({ from, to }), money: amountText(summary.previous, summary.currency, locale, t) })}
+      <Held waiting={periodWaits} room={room.all} failure={failed} onRetry={read} className="flex flex-col gap-6">
+        <div ref={allBox} className="flex flex-col gap-6">
+          <section className="flex flex-col gap-1.5">
+            <p data-total className="font-display text-4xl font-semibold text-parchment [overflow-wrap:anywhere]">
+              {money(shown.total, shown.unpriced.calls)}
             </p>
-          )}
-          {(from === undefined || from < since) && (
-            <p className="text-sm text-mist">{t("spending.since", { date: dayMonth(summary.since, locale) })}</p>
-          )}
-          {empty && <p className="text-sm text-parchment-dim">{t("spending.nothing")}</p>}
-        </section>
+            {!empty && shown.outside_replies.calls > 0 && (
+              <button
+                type="button"
+                data-outside
+                className="inline-flex min-h-11 items-center self-start text-left text-sm text-mist underline-offset-2 hover:text-parchment hover:underline"
+                onClick={() => setCut("use")}
+              >
+                {t("spending.outside", { money: amountText(shown.outside_replies.cost, shown.currency, locale, t) })}
+              </button>
+            )}
+            {!empty && shown.previous !== null && from !== undefined && (
+              <p className="text-sm text-mist">
+                {t("spending.previous", { count: daysOf({ from, to }), money: amountText(shown.previous, shown.currency, locale, t) })}
+              </p>
+            )}
+            {(from === undefined || from < since) && (
+              <p className="text-sm text-mist">{t("spending.since", { date: dayMonth(shown.since, locale) })}</p>
+            )}
+            {empty && <p className="text-sm text-parchment-dim">{t("spending.nothing")}</p>}
+          </section>
 
-        {!empty && (
-          <>
-            <Bars key={`${per}:${from}:${to}:${reads}`} series={summary.series} currency={summary.currency} />
+          {!empty && (
+            <>
+              <Bars key={`${per}:${from}:${to}:${reads}`} series={shown.series} currency={shown.currency} />
 
-            <section className="flex flex-col gap-3">
-              <div role="group" aria-label={t("spending.cut.label")} className="flex flex-wrap gap-2">
-                {CUTS.map((each) => (
-                  <button key={each} type="button" aria-pressed={each === cut} className={choiceClass(each === cut)} onClick={() => setCut(each)}>
-                    {t(`spending.cut.${each}`)}
-                  </button>
-                ))}
-              </div>
-              {cut !== "model" && (
-                <div className="flex flex-col gap-1.5">
-                  <select
-                    id={filterId}
-                    aria-label={t("spending.cut.model")}
-                    className="field w-full max-w-full"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                  >
-                    <option value="">{t("spending.filter.all")}</option>
-                    {choices.map(([id, name]) => <option key={id} value={id}>{name ?? id}</option>)}
-                  </select>
-                  {model && filtered && summary.model_total !== null && (
-                    <p className="text-sm text-parchment-dim [overflow-wrap:anywhere]">
-                      {t("spending.filter.with", {
-                        name: filtered[1] ?? model,
-                        money: money(summary.model_total, summary.models.find(([id]) => id === model)?.[10] ?? 0),
-                      })}
-                    </p>
-                  )}
+              <section className="flex flex-col gap-3">
+                <div role="group" aria-label={t("spending.cut.label")} className="flex flex-wrap gap-2">
+                  {CUTS.map((each) => (
+                    <button key={each} type="button" aria-pressed={each === cut} className={choiceClass(each === cut)} onClick={() => setCut(each)}>
+                      {t(`spending.cut.${each}`)}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </section>
+                {cut !== "model" && (
+                  <div className="flex flex-col gap-1.5">
+                    <select
+                      id={filterId}
+                      aria-label={t("spending.cut.model")}
+                      className="field w-full max-w-full"
+                      value={modelId}
+                      onChange={(e) => chooseModel(e.target.value)}
+                    >
+                      <option value="">{t("spending.filter.all")}</option>
+                      {choices.map(([id, name]) => <option key={id} value={id}>{name ?? id}</option>)}
+                    </select>
+                    {model && !listWaits && shown.model_total !== null && (
+                      <p className="text-sm text-parchment-dim [overflow-wrap:anywhere]">
+                        {t("spending.filter.with", {
+                          name: model.name,
+                          // A free AI never has an amount, not even nothing.
+                          money: free
+                            ? t("ai.free")
+                            : moneyText({
+                              cost: shown.model_total,
+                              unpriced: shown.models.find(([id]) => id === model.id)?.[10] ?? 0,
+                              currency: shown.currency,
+                            }, "line", locale, t),
+                        })}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </section>
 
-            <div className={clsx(wide && opened && "grid grid-cols-[minmax(0,1fr)_minmax(0,24rem)] items-start gap-6")}>
-              <CutList summary={summary} cut={cut} onOpen={setOpened} />
-              {opened && wide && (
-                <LineDetail
-                  key={`${opened.cut}:${opened.key}`}
-                  line={opened}
-                  range={range}
-                  per={per}
-                  since={summary.since}
-                  currency={summary.currency}
-                  beside
-                  reread={reads}
-                  onClose={closeLine}
-                  onRepriced={readAgain}
-                  onForgot={forgot}
-                />
-              )}
-            </div>
-          </>
-        )}
-      </>
+              <div className={clsx(wide && opened && "grid grid-cols-[minmax(0,1fr)_minmax(0,24rem)] items-start gap-6")}>
+                <Held waiting={listWaits} room={room.list} failure={failed} onRetry={read}>
+                  <div ref={listBox}>
+                    <CutList summary={shown} cut={cut} onOpen={openLine} />
+                  </div>
+                </Held>
+                {opened && wide && (
+                  <LineDetail
+                    key={`${opened.cut}:${opened.key}`}
+                    line={opened}
+                    range={range}
+                    per={per}
+                    since={shown.since}
+                    currency={shown.currency}
+                    beside
+                    reread={reads}
+                    onClose={closeLine}
+                    onRepriced={readAgain}
+                    onForgot={forgot}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </Held>
     );
   }
 
@@ -305,4 +424,3 @@ function SpendingView() {
     </div>
   );
 }
-

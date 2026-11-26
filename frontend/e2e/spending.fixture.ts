@@ -41,14 +41,15 @@ export function nothing(): Spending {
 
 /** Thirty days of play: AIs on OpenRouter (one through a key of one's own, billed by Anthropic),
  *  one so cheap it rounds to nothing, a gateway with no price, two free ones, characters, a
- *  scenario, a deleted character and conversation, the drafts of a card not saved yet. */
+ *  scenario, a deleted character and conversation, the drafts of a card not saved yet. The lines
+ *  only with free AIs come first, so that putting them last is the page's own doing. */
 export function month(): Spending {
   return {
     since: instant(dayBefore(60)), currency: "USD", total: 3.0242, model_total: null, previous: 2.5, calls: 395,
     sources: { reported: 1.44, computed_read: 0.0042, computed_typed: 0, estimated: 0.02 },
     outside_replies: { cost: 1.58, calls: 62 },
     uses: [
-      ["memory", 1.54, 40, 0, 21, 98000, 6000, 0],
+      ["memory", 1.54, 40, 3, 21, 98000, 6000, 0],
       ["reply", 0.1, 300, 4, 184, 25456, 1890, 14],
       ["card", 0.04, 2, 0, 0, 0, 0, 0],
       ["speed", 0, 2, 0, 0, 0, 0, 2],
@@ -68,17 +69,17 @@ export function month(): Spending {
       ["ai-eclair", "Eclair Free", "service", 5, 4000, "OpenRouter"],
     ],
     cards: [
+      ["card-home", "Home only", "character", 0, 14, 0, true, false],
       ["card-serana", "Serana", "character", 1.6, 300, 184, false, false],
       ["card-vigil", "The Elmswood Vigil", "scenario", 0.2, 10, 0, false, false],
       ["card-old", "Old friend", "character", 0.05, 3, 0, false, true],
       [null, null, null, 0.04, 2, 0, false, false],
-      ["card-home", "Home only", "character", 0, 14, 0, true, false],
     ],
     cards_rest: null,
     conversations: [
+      ["conv-free", "Quiet evening", "Home only", 0, 14, 0, true, false],
       ["conv-inn", "At the inn", "Serana", 1.64, 230, 205, false, false],
       ["conv-gone", "Lost road", "Old friend", 0.05, 3, 0, false, true],
-      ["conv-free", "Quiet evening", "Home only", 0, 14, 0, true, false],
     ],
     conversations_rest: null,
     unpriced: { calls: 205, tokens_in: 123456, tokens_out: 7890 },
@@ -117,6 +118,14 @@ const sylve: SpendingDetailOfModel = {
   cards_rest: null,
 };
 
+/** An AI whose computed amount read from the cache with no price for it. */
+const aurore: SpendingDetailOfModel = {
+  name: "Aurore", service_name: "Lumen", deleted: false, priceable: false, per100: null, cost: 0.12,
+  cost_upstream: 0, upstream: null, calls: 2, unpriced_calls: 0, tokens: { in: 3000, out: 200, cached: 1000, reasoning: 0 },
+  sources: { reported: 0, computed_read: 0.12, computed_typed: 0, estimated: 0 }, at_most: true,
+  uses: [["reply", 0.12, 2, 0, 0]], cards: [["card-serana", "Serana", "character", 0.12, 2, false]], cards_rest: null,
+};
+
 const inn: SpendingDetailOfConversation = {
   title: "At the inn", card_name: "Serana", deleted: false, cost: 1.64, calls: 230, unpriced_calls: 205,
   models: [["ai-sylve", "Sylve Mini", 1.6, 20, 0, false], ["ai-gateway", "Gateway", 0, 205, 205, false],
@@ -144,6 +153,7 @@ const memory: SpendingDetailOfUse = {
 
 const DETAILS: Record<string, unknown> = {
   "model:ai-sylve": sylve,
+  "model:ai-aurore": aurore,
   "conversation:conv-inn": inn,
   "conversation:conv-gone": gone,
   "card:card-serana": serana,
@@ -153,9 +163,11 @@ const DETAILS: Record<string, unknown> = {
 /** What the page asked of the server, by kind, in order. */
 export interface Asked { summary: URL[]; detail: URL[]; forget: unknown[]; clear: URL[]; exported: URL[] }
 
-/** Answers every question of the page about spending with `summary` (narrowed to one AI when it
- *  asks for one: Sylve Mini's $1.43), the details above, and a clear of 1,214 calls. */
-export async function answerSpending(page: Page, summary: () => Spending = month): Promise<Asked> {
+/** Answers every question of the page about spending with `summary`, told what was asked (narrowed
+ *  to one AI when it asks for one: Sylve Mini's $1.43; another listed AI is left whole, with nothing
+ *  of its own as the server says of a free one; an AI the period does not list has no line), the
+ *  details above, and a clear of 1,214 calls. */
+export async function answerSpending(page: Page, summary: (url: URL) => Spending = month): Promise<Asked> {
   const asked: Asked = { summary: [], detail: [], forget: [], clear: [], exported: [] };
   const json = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -164,14 +176,23 @@ export async function answerSpending(page: Page, summary: () => Spending = month
     const method = route.request().method();
     if (url.pathname.endsWith("/api/spending") && method === "GET") {
       asked.summary.push(url);
-      const said = summary();
-      if (url.searchParams.get("model") === "ai-sylve") {
+      const said = summary(url);
+      const model = url.searchParams.get("model");
+      if (!model) return json(route, said);
+      const listed = [...said.models, ...said.free].some(([id]) => id === model);
+      if (!listed) {
         return json(route, {
-          ...said, model_total: 1.43,
-          uses: said.uses.slice(0, 2), conversations: said.conversations.slice(0, 1), cards: said.cards.slice(0, 1),
+          ...said, model_total: 0, uses: [], cards: [], cards_rest: null, conversations: [], conversations_rest: null,
         });
       }
-      return json(route, said);
+      if (model === "ai-sylve") {
+        return json(route, {
+          ...said, model_total: 1.43, uses: said.uses.slice(0, 2),
+          conversations: said.conversations.filter((c) => c[0] === "conv-inn"),
+          cards: said.cards.filter((c) => c[0] === "card-serana"),
+        });
+      }
+      return json(route, { ...said, model_total: 0 });
     }
     if (url.pathname.endsWith("/api/spending/detail")) {
       asked.detail.push(url);
