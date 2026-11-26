@@ -25,10 +25,10 @@ import { cutAtCeilingOf, describeCut } from "@/lib/cutShort";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { memoryFailed } from "@/lib/memoryMark";
 import { holdSizes, wantSizes } from "@/lib/portraitSizes";
-import { PATIENCE_MS, useTurn, type LiveText } from "@/lib/useTurn";
+import { PATIENCE_MS, useTurn, type Ended, type LiveText } from "@/lib/useTurn";
 import { hasKeyboard, newId, nothingFocused, smallPortrait } from "@/lib/utils";
 import { clsx } from "clsx";
-import type { Ai, Character, Conversation, Message, Outlook, Persona, TurnFailure } from "@/types";
+import type { Ai, Character, Conversation, Message, Outlook, Persona, SpentTotal, TurnFailure } from "@/types";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
@@ -391,9 +391,18 @@ function ChatView({ id }: { id: string }) {
   // request's answer was lost and the page found the turn already over, never having seen it run.
   // The same moment reads what the next turn would read: the story has moved, and the way or the AI
   // may have changed elsewhere. As the page opens, that is its first read of it.
+  // The end of a turn the page saw run carries the chip's pair and what the conversation has cost:
+  // nothing is asked for them then, unless a sheet is open, which reads the whole as before.
   const rewriting = useRef(false);
-  const settled = useCallback(() => {
-    outlookChanged();
+  // What the conversation has cost, as the last turn's end said it, for the panel's line.
+  const [, setSpent] = useState<SpentTotal | null>(null);
+  const settled = useCallback((ended: Ended) => {
+    if (ended.spent) setSpent(ended.spent);
+    if (ended.glance && !(waySheetShown.current || aiSheetShown.current)) {
+      glanceAsked.current += 1; // a short read sent before does not overwrite it
+      setWhole(null);
+      setGlance(ended.glance);
+    } else outlookChanged();
     if (!rewriting.current) return;
     rewriting.current = false;
     setStoryCuts((n) => n + 1);

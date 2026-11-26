@@ -373,11 +373,27 @@ export interface TurnFailure {
   reason?: string;
 }
 
+/** What one AI, one character or one conversation has cost. `free`: it was called, never for money. */
+export interface SpentTotal {
+  total: number;
+  currency: string;
+  calls: number;
+  unpriced_calls: number;
+  free: boolean;
+}
+
 /** What the server says of a conversation's turn: the message being written, as far as it has
- *  got, or how the last one ended when it failed or added nothing; first, its messages' revision. */
+ *  got, or how the last one ended when it failed or added nothing; first, its messages' revision.
+ *  Once it has ended, what the page would read next, while the story is the one it was read on:
+ *  what the AI reads of it under its way, and what the conversation has cost. */
 export type TurnState = { revision: number | null } & (
   | { running: true; message_id: string; text: string }
-  | { running: false; outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null });
+  | {
+      running: false;
+      outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null;
+      glance?: Outlook["current"] | null;
+      spent?: SpentTotal | null;
+    });
 
 /** What following a turn hands over: the message so far, then each piece as it arrives. */
 export type TurnEvent = { text: string } | { delta: string } | { end: true };
