@@ -332,6 +332,11 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
         # A server whose output limit is lower refuses it: the first answer's failure stands.
         logger.warning("%s: the second ask was refused: %s", what, exc.message)
         return answer, row
+    except BaseException:
+        # Cut (the server stopping) or failed: the pass ends here, and the first answer is lost
+        # with it. Shielded, so that a cancel does not cut the mark as well.
+        await asyncio.shield(calls.discard(row))
+        raise
     # The first answer was thrown away for this one.
     await calls.discard(row)
     if reads(second.text):

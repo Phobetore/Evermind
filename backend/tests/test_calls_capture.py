@@ -12,7 +12,7 @@ import pytest
 
 from app.config import db_path
 from app.providers.base import AUTH_REFUSED
-from app.services import calls, turns
+from app.services import calls, memory_service, turns
 
 from .conftest import messages_of, send, sse, within
 from .helpers import add_model, cap
@@ -308,6 +308,92 @@ async def test_a_memory_pass_asked_again_is_two_rows(client, monkeypatch):
 
     found = [(r["attempt"], r["outcome"]) for r in await recorded("memory")]
     assert found == [(0, "discarded"), (1, "whole")]
+
+
+async def test_a_second_ask_cut_by_the_server_stopping_discards_the_first(client, monkeypatch):
+    ai, convo = await hosted_story(client)
+    await client.put(f"/api/models/{ai['id']}", json=cap(300))
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    await send(client, convo["id"])
+    started = asyncio.Event()
+    model.answers, model.bodies = [
+        writing('{"facts": [', stop="length"),
+        lambda: httpx.Response(200, stream=Released(started, asyncio.Event(), []))], []
+    asking = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}/memories/extract"))
+    await within(5, started.wait())
+    await memory_service.stop()
+    await asyncio.gather(asking, return_exceptions=True)
+
+    found = [(r["attempt"], r["outcome"]) for r in await recorded("memory")]
+    assert found == [(0, "discarded"), (1, "stopped")]
+
+
+async def test_a_second_ask_refused_leaves_the_first_discarded(client, monkeypatch):
+    ai, convo = await hosted_story(client)
+    await client.put(f"/api/models/{ai['id']}", json=cap(300))
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    await send(client, convo["id"])
+    model.answers, model.bodies = [writing('{"facts": [', stop="length"),
+                                   (400, {"error": {"message": "max_tokens is too large"}})], []
+    resp = await client.post(f"/api/conversations/{convo['id']}/memories/extract")
+    assert resp.json()["kind"] == "model_unreadable"
+
+    found = [(r["attempt"], r["outcome"], r["status"]) for r in await recorded("memory")]
+    assert found == [(0, "discarded", None), (1, "refused", 400)]
+
+
+async def test_a_learned_room_refused_then_its_own_ceiling_are_two_rows(client, monkeypatch):
+    ai, convo = await hosted_story(client)
+    await client.put(f"/api/models/{ai['id']}", json=cap(300))
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    await send(client, convo["id"])
+    extract = f"/api/conversations/{convo['id']}/memories/extract"
+    model.answers, model.bodies = [writing('{"facts": [', stop="length"),
+                                   writing(EXTRACTION_JSON)], []
+    assert (await client.post(extract)).status_code == 200
+    model.answers, model.bodies = [writing("*She smiles.*")], []
+    await send(client, convo["id"], content="More")
+    model.answers, model.bodies = [(400, {"error": {"message": "max_tokens is too large"}}),
+                                   writing(EXTRACTION_JSON)], []
+    assert (await client.post(extract)).status_code == 200
+    assert [body.get("max_tokens") for body in model.bodies] == [8192, 2048]
+
+    found = [(r["attempt"], r["outcome"]) for r in await recorded("memory")]
+    assert found[2:] == [(0, "refused"), (1, "whole")]
+
+
+async def facts_changed_while_asked(client, monkeypatch, path: str, answer: str) -> dict:
+    """The memory operation at ``path``, a fact it was sent forgotten while the model answers."""
+    _, convo = await hosted_story(client)
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    await send(client, convo["id"])
+    await add_facts(client, convo["id"], [f"Redundant fact number {i}." for i in range(10)],
+                    by_the_model=True)
+    fact = (await client.get(f"/api/conversations/{convo['id']}/memories")).json()[0]
+    started, release = asyncio.Event(), asyncio.Event()
+    model.answers = [lambda: httpx.Response(200, stream=Released(started, release,
+                                                                 writing(answer)))]
+    asking = asyncio.create_task(client.post(f"/api/conversations/{convo['id']}{path}"))
+    try:
+        await within(5, started.wait())
+        assert (await client.delete(f"/api/memories/{fact['id']}")).status_code == 204
+    finally:
+        release.set()
+    return (await within(5, asking)).json()
+
+
+async def test_a_memory_pass_refused_for_a_fact_changed_is_discarded(client, monkeypatch):
+    answered = await facts_changed_while_asked(client, monkeypatch, "/memories/extract",
+                                               EXTRACTION_JSON)
+    assert answered["kind"] == "facts_changed"
+    assert [r["outcome"] for r in await recorded("memory")] == ["discarded"]
+
+
+async def test_a_consolidation_refused_for_a_fact_changed_is_discarded(client, monkeypatch):
+    merged = json.dumps({"facts": [{"content": "One dense fact."}]})
+    answered = await facts_changed_while_asked(client, monkeypatch, "/memories/consolidate", merged)
+    assert answered["kind"] == "facts_changed"
+    assert [r["outcome"] for r in await recorded("consolidation")] == ["discarded"]
 
 
 async def test_consolidation_is_counted_apart(client, monkeypatch):
