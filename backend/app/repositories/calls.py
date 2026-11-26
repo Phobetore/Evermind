@@ -310,7 +310,7 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
     return {
         "name": names[0], "service_name": names[1], "deleted": bool(names[2]),
         "priceable": model is not None and recorder.pricing_of(dict(model)).source is None,
-        "per100": (await per100_all(db)).get(args["key"]),
+        "per100": (await per100_all(db, args["key"])).get(args["key"]),
         "cost": _money(head[1]), "cost_upstream": _money(head[2]),
         "upstream": names[3], "calls": head[0], "unpriced_calls": head[3],
         "tokens": {"in": head[4], "out": head[5], "cached": head[6], "reasoning": head[7]},
@@ -496,18 +496,24 @@ MEASURED_FROM = 20
 MEASURED_OVER = 100
 
 
-async def per100_all(db: aiosqlite.Connection) -> dict[str, dict]:
+async def per100_all(db: aiosqlite.Connection, only: str | None = None) -> dict[str, dict]:
     """model_id -> {cost, n, typed}: what its last 100 whole replies cost, made a hundred, for the
-    AIs with 20 or more. Only the server id the AI names now counts: an id edited in place is
-    another model."""
+    AIs with 20 or more (``only``: that AI alone). Only the server id the AI names now counts: an
+    id edited in place is another model.
+
+    Each AI takes its own last 100 through the index on (model_id, started_at): the list of the
+    AIs asks it on every page, and a year of play must not be read and sorted for it."""
     rows = await _all(db, f"""
-        SELECT model_id, COUNT(*) AS n, SUM(money) AS money, MAX(typed) AS typed
-        FROM (SELECT c.model_id, {MONEY} AS money,
-                     c.cost_source = 'computed' AND c.price_source IN ('typed', 'typed_later')
-                         AS typed,
-                     ROW_NUMBER() OVER (PARTITION BY c.model_id ORDER BY c.started_at DESC) AS k
-              FROM calls c JOIN models m ON m.id = c.model_id AND m.model = c.model_asked
-              WHERE {REPLIES} AND c.outcome = 'whole' AND c.cost_source <> 'none')
-        WHERE k <= {MEASURED_OVER} GROUP BY model_id HAVING n >= {MEASURED_FROM}""")
+        SELECT m.id AS model_id, COUNT(*) AS n, SUM({MONEY}) AS money,
+               MAX(c.cost_source = 'computed' AND c.price_source IN ('typed', 'typed_later'))
+                   AS typed
+        FROM models m JOIN calls c ON c.rowid IN (
+            SELECT x.rowid FROM calls x
+            WHERE x.model_id = m.id AND x.model_asked = m.model
+              AND x.purpose IN ('reply', 'regenerate', 'continue') AND x.outcome = 'whole'
+              AND x.cost_source <> 'none'
+            ORDER BY x.started_at DESC LIMIT {MEASURED_OVER})
+        WHERE :only IS NULL OR m.id = :only
+        GROUP BY m.id HAVING n >= {MEASURED_FROM}""", {"only": only})
     return {r["model_id"]: {"cost": _money(r["money"] * 100 / r["n"]), "n": r["n"],
                             "typed": bool(r["typed"])} for r in rows}

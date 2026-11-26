@@ -477,6 +477,35 @@ async def test_the_measured_figure_says_a_typed_price(client):
     assert (await per100_of(client, ai["id"]))["typed"] is True
 
 
+async def test_the_measured_figure_is_the_latest_100(client):
+    ai = await measured_ai(client)
+    start = datetime.now(UTC) - timedelta(days=1)
+    put_calls([row_of(model_id=ai["id"], cost=0.5 if i < 20 else 0.01,
+                      started_at=calls.instant(start + timedelta(seconds=i))) for i in range(120)])
+    measured = await per100_of(client, ai["id"])
+    assert (measured["cost"], measured["n"]) == (pytest.approx(1.0), 100)
+    assert (await detail(client, "model", ai["id"]))["per100"] == measured
+
+
+async def test_the_list_of_the_ais_reads_no_year_of_replies(client):
+    # The list of the AIs is asked by every page: its figure takes each AI's last 100 replies,
+    # never every reply of a year sorted.
+    ais = [(await add_model(client, base_url=HOSTED, model=f"aurore-{n}", name=f"Aurore {n}",
+                            as_added=True))["id"] for n in range(4)]
+    start = datetime.now(UTC) - timedelta(days=365)
+    put_calls([row_of(model_id=ais[n % 4], model_asked=f"aurore-{n % 4}",
+                      purpose=("reply", "reply", "memory", "regenerate", "pen")[n % 5],
+                      started_at=calls.instant(start + timedelta(seconds=n * 571)))
+               for n in range(55_000)])
+    took = []
+    for _ in range(9):
+        began = time.perf_counter()
+        resp = await client.get("/api/models")
+        took.append(time.perf_counter() - began)
+    assert all(m["per100"]["n"] == 100 for m in resp.json())
+    assert sorted(took)[4] < 0.02, took
+
+
 # The detail of a line.
 
 
