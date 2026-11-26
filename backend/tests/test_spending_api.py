@@ -505,6 +505,19 @@ async def test_the_detail_of_an_ai(client):
     assert got["tokens"] == {"in": 2000, "out": 200, "cached": 400, "reasoning": 0}
     assert got["uses"] == [["reply", 0.01, 1, 0, 0], ["pen", 0, 1, 0, 1]]
     assert got["cards"] == [["card-1", "Serana", "character", 0.01, 2, True]]
+    assert got["cards_rest"] is None
+
+
+async def test_the_detail_of_an_ai_lists_its_dearest_characters_then_the_rest(client):
+    put_calls([row_of(card_id=f"card-{n:02}", card_name=f"Card {n}", cost=(n + 1) / 1000)
+               for n in range(15)])
+    got = await detail(client, "model", "ai-1")
+    assert len(got["cards"]) == 12
+    assert [c[0] for c in got["cards"][:2]] == ["card-14", "card-13"]
+    assert got["cards"][0] == ["card-14", "Card 14", "character", 0.015, 1, True]
+    lines, cost, calls_, unpriced = got["cards_rest"]
+    assert (lines, calls_, unpriced) == (3, 3, 0)
+    assert cost == pytest.approx(0.006)
 
 
 async def test_the_detail_of_a_character_and_of_a_use(client):
@@ -587,3 +600,9 @@ async def test_a_year_of_calls_answers_small_and_quickly(client):
     assert got["conversations_rest"][0] == 250
     assert got["calls"] == 55_000
     assert got["series"]["step"] == "week"
+    # Opening a line: under 2 KB, even the AI that served every character.
+    for cut, key in (("model", "ai-0"), ("card", "card-000"), ("conversation", "convo-000"),
+                     ("use", "reply")):
+        resp = await client.get("/api/spending/detail", params={"cut": cut, "key": key})
+        assert resp.status_code == 200
+        assert len(resp.content) < 2 * 1024, (cut, len(resp.content))

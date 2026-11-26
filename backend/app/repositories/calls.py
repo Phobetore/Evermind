@@ -80,6 +80,8 @@ USE = "(CASE c.purpose WHEN 'consolidation' THEN 'memory' ELSE c.purpose END)"
 USES = ("reply", "regenerate", "continue", "pen", "memory", "card", "speed")
 # A long list is cut to its dearest; the rest is one line.
 LISTED = 50
+# The characters of an AI opened: the line opened stays under 2 KB with a year of play.
+LISTED_IN_DETAIL = 12
 
 
 def _money(value) -> float:
@@ -121,12 +123,12 @@ async def _uses(db, where: str, args: dict, *, unpriced_tokens: bool = True,
     return out
 
 
-def _split(rows: list, width: int) -> tuple[list[list], list | None]:
+def _split(rows: list, width: int, cut: int = LISTED) -> tuple[list[list], list | None]:
     """The rows of a ranked list (slot first, then ``width`` columns, then the lines the slot
-    holds): the dearest, and the rest in one line [lines, cost, calls, unpriced_calls]."""
+    holds): the ``cut`` dearest, and the rest in one line [lines, cost, calls, unpriced_calls]."""
     listed, rest = [], None
     for r in rows:
-        if r[0] <= LISTED:
+        if r[0] <= cut:
             listed.append(list(r[1:width + 1]))
         else:
             rest = [r[width + 1], _money(r["cost"]), r["n"], r["unpriced"]]
@@ -140,7 +142,8 @@ _RANKED = ("r AS (SELECT g.*, ROW_NUMBER() OVER (ORDER BY cost DESC, n DESC, las
            " AS k FROM g)")
 
 
-async def _cards(db, args: dict) -> tuple[list[list], list | None]:
+async def _cards(db, args: dict, where: str = OF_MODEL,
+                 cut: int = LISTED) -> tuple[list[list], list | None]:
     # A draft of a card not saved yet has no card: all of them are one line, "New card".
     rows = await _all(db, f"""
         WITH g AS (
@@ -151,15 +154,15 @@ async def _cards(db, args: dict) -> tuple[list[list], list | None]:
                    SUM({UNPRICED}) AS unpriced, SUM(NOT {FREE}) = 0 AS free_only,
                    c.card_id IS NOT NULL AND ch.id IS NULL AS deleted, MAX(c.started_at) AS last
             FROM calls c LEFT JOIN characters ch ON ch.id = c.card_id
-            WHERE {IN_PERIOD} AND {OF_MODEL}
+            WHERE {IN_PERIOD} AND {where}
               AND (c.card_id IS NOT NULL OR (c.purpose = 'card' AND c.job_id IS NOT NULL))
             GROUP BY c.card_id),
         {_RANKED}
         SELECT MIN(k) AS slot, id, name, kind, SUM(cost) AS cost, SUM(n) AS n,
                SUM(unpriced) AS unpriced, free_only, deleted, COUNT(*)
-        FROM r GROUP BY CASE WHEN k <= {LISTED} THEN k ELSE {LISTED + 1} END ORDER BY slot""",
+        FROM r GROUP BY CASE WHEN k <= {cut} THEN k ELSE {cut + 1} END ORDER BY slot""",
                           args)
-    listed, rest = _split(rows, 8)
+    listed, rest = _split(rows, 8, cut)
     for line in listed:
         line[6], line[7] = bool(line[6]), bool(line[7])
     return listed, rest
@@ -301,14 +304,9 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
              LEFT JOIN connections s ON s.id = m.connection_id
         WHERE {IN_PERIOD} AND {where}""", args)
     model = await _one(db, "SELECT * FROM models WHERE id = ?", (args["key"],))
-    rows = await _all(db, f"""
-        SELECT c.card_id, COALESCE(ch.name, c.card_name), COALESCE(ch.kind, c.card_kind),
-               SUM({SPENT}) AS cost, COUNT(*), c.card_id IS NOT NULL AND ch.id IS NULL,
-               MAX(c.started_at) AS last
-        FROM calls c LEFT JOIN characters ch ON ch.id = c.card_id
-        WHERE {IN_PERIOD} AND {where}
-          AND (c.card_id IS NOT NULL OR (c.purpose = 'card' AND c.job_id IS NOT NULL))
-        GROUP BY c.card_id ORDER BY cost DESC, last DESC""", args)
+    # The characters it served, cut as the page's own list is: an AI that served hundreds would
+    # make the line opened tens of KB.
+    cards, cards_rest = await _cards(db, args, where, LISTED_IN_DETAIL)
     return {
         "name": names[0], "service_name": names[1], "deleted": bool(names[2]),
         "priceable": model is not None and recorder.pricing_of(dict(model)).source is None,
@@ -320,8 +318,8 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
                     "computed_typed": _money(head[10]), "estimated": _money(head[11])},
         "at_most": bool(head[12]),
         "uses": await _uses(db, where, args, unpriced_tokens=False, free=False),
-        "cards": [[r[0], None if r[0] is None else r[1], r[2], _money(r[3]), r[4], bool(r[5])]
-                  for r in rows],
+        "cards": [[line[0], line[1], line[2], line[3], line[4], line[7]] for line in cards],
+        "cards_rest": cards_rest,
     }
 
 
