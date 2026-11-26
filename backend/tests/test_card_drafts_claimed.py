@@ -3,6 +3,8 @@ written for, and a card saved for the first time claims the drafts that wrote it
 
 import asyncio
 
+import httpx
+
 from app.db import _connect
 from app.repositories import calls as calls_repo
 from app.services import calls, card_assistant
@@ -152,3 +154,41 @@ async def test_a_draft_stopped_before_its_request_went_costs_nothing(client, mon
     assert model.bodies == []
     [row] = await recorded("card")
     assert (row["outcome"], row["tokens_in"], row["cost"]) == ("refused", 0, 0)
+
+
+async def test_a_refused_draft_is_one_refused_row_that_costs_nothing(client, monkeypatch):
+    ai = await hosted(client, monkeypatch, (429, {"error": {"message": "Slow down."}}))
+    await draft(client, ai)
+
+    [row] = await recorded("card")
+    assert (row["outcome"], row["status"], row["tokens_in"], row["cost"]) == ("refused", 429, 0, 0)
+
+
+async def test_a_draft_on_a_server_out_of_reach_is_refused_with_no_status(client, monkeypatch):
+    def unreachable():
+        raise httpx.ConnectError("nobody there")
+
+    ai = await hosted(client, monkeypatch, unreachable)
+    await draft(client, ai)
+
+    [row] = await recorded("card")
+    assert (row["outcome"], row["status"], row["tokens_in"], row["cost"]) == ("refused", None, 0, 0)
+
+
+async def test_a_draft_answered_with_spaces_is_empty(client, monkeypatch):
+    ai = await hosted(client, monkeypatch, writing("   "))
+    await draft(client, ai)
+
+    [row] = await recorded("card")
+    assert row["outcome"] == "empty"
+
+
+async def test_a_card_id_out_of_bounds_is_refused(client, monkeypatch):
+    ai = await hosted(client, monkeypatch)
+    for bad in ("", "x" * 65):
+        resp = await client.post("/api/characters/assist", json={
+            "prompt": "A seller of maps", "model_id": ai["id"], "card_id": bad})
+        assert resp.status_code == 422, resp.text
+    assert card_assistant._jobs == {}
+    assert await recorded() == []
+
