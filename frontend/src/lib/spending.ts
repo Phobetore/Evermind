@@ -3,6 +3,7 @@
 
 import { data, type Cut, type DataSource } from "@/data";
 import type { Translate as T } from "@/i18n/I18nProvider";
+import type { Spending } from "@/types";
 import { per100 } from "./money";
 import { dayMonth } from "./utils";
 
@@ -136,4 +137,47 @@ export function measuredText(measured: { cost: number; n: number; typed: boolean
 /** The one guard of every line, route and dialog of Spending: an edition without it draws none. */
 export function spendingShown(source: Pick<DataSource, "spending">): boolean {
   return source.spending !== undefined;
+}
+
+/** A sum of amounts, to the millionth as the server writes them: 1.43 + 0.01 is 1.44. */
+const summed = (a: number, b: number) => Math.round((a + b) * 1e6) / 1e6;
+
+/** The AIs of a period under the service they ran on. */
+export interface ServiceGroup {
+  name: string | null;
+  /** What it billed, through a key of one's own included. */
+  cost: number;
+  unpriced: number;
+  /** Those with an amount first, then those with no price, each in the server's order. */
+  lines: Spending["models"];
+  /** What the original services billed through a key of one's own, by service. */
+  upstream: { name: string; cost: number }[];
+}
+
+/** The AIs grouped by service, the dearest service first. */
+export function servicesOf(models: Spending["models"]): ServiceGroup[] {
+  const groups = new Map<string | null, ServiceGroup>();
+  for (const line of models) {
+    const [, , service, cost, upstreamCost, upstream, , , , , unpriced] = line;
+    let group = groups.get(service);
+    if (!group) groups.set(service, (group = { name: service, cost: 0, unpriced: 0, lines: [], upstream: [] }));
+    group.cost = summed(group.cost, summed(cost, upstreamCost));
+    group.unpriced += unpriced;
+    group.lines.push(line);
+    if (upstream !== null && upstreamCost > 0) {
+      const by = group.upstream.find((u) => u.name === upstream);
+      if (by) by.cost = summed(by.cost, upstreamCost);
+      else group.upstream.push({ name: upstream, cost: upstreamCost });
+    }
+  }
+  const priced = (line: Spending["models"][number]) => line[3] + line[4] > 0;
+  return [...groups.values()]
+    .map((group) => ({ ...group, lines: [...group.lines.filter(priced), ...group.lines.filter((l) => !priced(l))] }))
+    // Stable: services of the same amount keep the order the server gave their AIs.
+    .sort((a, b) => b.cost - a.cost);
+}
+
+/** Pages read by a free AI: a page is about 500 tokens. */
+export function pagesOf(tokens: number): number {
+  return Math.round(tokens / 500);
 }

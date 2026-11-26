@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { translate } from "@/i18n/translate";
 import {
-  amountText, daysOf, duringText, keepPeriod, keptPeriod, localDate, measuredText, moneyText, rangeOf,
+  amountText, daysOf, duringText, keepPeriod, keptPeriod, localDate, measuredText, moneyText, pagesOf, rangeOf, servicesOf,
   spendingShown, zoneOfDevice,
 } from "./spending";
 import { dayMonth } from "./utils";
@@ -194,5 +194,33 @@ describe("the one guard", () => {
   test("Spending is shown only by a source that has it", () => {
     expect(spendingShown({})).toBe(false);
     expect(spendingShown({ spending: {} as never })).toBe(true);
+  });
+});
+
+describe("the AIs by service", () => {
+  type Row = Parameters<typeof servicesOf>[0][number];
+  const row = (id: string, service: string, cost: number, upstream: number, by: string | null, unpriced: number): Row =>
+    [id, id, service, cost, upstream, by, 3, 2, 1000, 100, unpriced, false];
+
+  test("each service sums its own, the dearest first, and an AI with no price comes after those with one", () => {
+    const groups = servicesOf([
+      row("gateway", "Home", 0, 0, null, 12),
+      row("sylve", "OpenRouter", 1.43, 0, null, 0),
+      row("byok", "OpenRouter", 0, 0.01, "Anthropic", 0),
+      row("half", "Home", 0.2, 0, null, 3),
+      row("aurore", "Lumen", 0.0042, 0, null, 0),
+    ]);
+    expect(groups.map((g) => [g.name, g.cost, g.unpriced])).toEqual([
+      ["OpenRouter", 1.44, 0], ["Home", 0.2, 15], ["Lumen", 0.0042, 0],
+    ]);
+    expect(groups[1].lines.map((l) => l[0])).toEqual(["half", "gateway"]);
+    expect(groups[0].upstream).toEqual([{ name: "Anthropic", cost: 0.01 }]);
+    expect(groups[1].upstream).toEqual([]);
+  });
+
+  test("a page is 500 tokens read, rounded", () => {
+    expect(pagesOf(250_000)).toBe(500);
+    expect(pagesOf(749)).toBe(1);
+    expect(pagesOf(100)).toBe(0);
   });
 });

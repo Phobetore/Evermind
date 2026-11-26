@@ -12,6 +12,7 @@ import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { PersonasPage } from "@/pages/PersonasPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { SpendingPage } from "@/pages/SpendingPage";
 import { WayPage } from "@/pages/WayPage";
 import { createHashRouter, Navigate, Outlet } from "react-router";
 
@@ -43,6 +44,7 @@ export const router = createHashRouter([
           { path: "/settings", Component: SettingsPage },
           { path: "/settings/ai/:id", Component: AiPage },
           { path: "/settings/way/:id", Component: WayPage },
+          { path: "/spending", Component: SpendingPage },
           { path: "/login", Component: LoginPage },
           { path: "*", element: <Navigate to="/" replace /> },
         ],

@@ -427,8 +427,8 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
   );
 }
 
-type Save = (at: string, change: ModelUpdate) => Promise<void>;
-type Said = (at: string) => React.ReactNode;
+export type Save = (at: string, change: ModelUpdate) => Promise<void>;
+export type Said = (at: string) => React.ReactNode;
 
 function DefaultSwitch({ ai, t, onSave }: { ai: Ai; t: Translate; onSave(): void }) {
   const ids = useId();
@@ -669,7 +669,7 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
 /** Its price, typed, when the server gives none: per million tokens read and written. A negative
  *  one is sent as typed, for the server's refusal to be said under the fields rather than the
  *  figure dropped in silence. */
-function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint: string; onSave: Save; said: Said }) {
+export function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint: string; onSave: Save; said: Said }) {
   const ids = useId();
   return (
     <div className="flex flex-col gap-1.5">
