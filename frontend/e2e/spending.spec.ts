@@ -513,6 +513,23 @@ test("a line closed and a period chosen are what a reload shows", async ({ page 
   await expect(page.getByRole("button", { name: "7 days", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
+test("a period chosen beside an open line is what a reload shows @desktop", async ({ page }) => {
+  await answerSpending(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/#/spending?per=all");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await line(page, "At the inn").click();
+  await expect(detail(page)).toContainText("At the inn");
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await detail(page).getByRole("button", { name: "Close" }).click();
+  await expect(detail(page)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "7 days", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page).not.toHaveURL(/per=/);
+  await page.reload();
+  await expect(total(page)).toBeVisible();
+  await expect(page.getByRole("button", { name: "7 days", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
 test("a period tapped is the one the next visit shows", async ({ page }) => {
   await answerSpending(page);
   await page.goto("/#/spending");

@@ -112,6 +112,8 @@ function SpendingView() {
   const allBox = useRef<HTMLDivElement>(null);
   const listBox = useRef<HTMLDivElement>(null);
   const scrollTo = useRef<string | null>(null);
+  // A period chosen on this visit outlasts the address's: an entry gone back to still says `per`.
+  const chosenHere = useRef(false);
 
   const opened: Opened | null = addressCut !== null && CUTS.includes(addressCut) && addressKey !== null
     ? hint && hint.cut === addressCut && hint.key === addressKey ? hint : { cut: addressCut, key: addressKey, name: "" }
@@ -181,9 +183,15 @@ function SpendingView() {
     keepPeriod(next);
     holdRoom();
     setPer(next);
-    // The period chosen is the device's now, not the address's.
-    if (params.has("per")) dropFromAddress("per");
+    chosenHere.current = true;
   }
+
+  // The period chosen is the device's now, not the address's: on this entry, and on any entry gone
+  // back to, such as the one a line beside the list was opened from.
+  const addressPer = params.has("per");
+  useEffect(() => {
+    if (chosenHere.current && addressPer) dropFromAddress("per");
+  });
 
   function chooseModel(id: string) {
     holdRoom();
