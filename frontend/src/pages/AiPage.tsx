@@ -3,7 +3,7 @@ import { CostLine } from "@/components/ai/CostLine";
 import { LOCAL_FAMILIES } from "@/components/ai/addFlow";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
 import { ServiceForm } from "@/components/ai/ServiceForm";
-import { SpentLine } from "@/components/spending/SpentLine";
+import { keptSaid, SpentLine } from "@/components/spending/SpentLine";
 import { useConfirm } from "@/components/ui/Confirm";
 import { decimalOf, FigureField, tokensOf, type FieldHandle } from "@/components/ui/FigureField";
 import { LoadFailure } from "@/components/ui/LoadFailure";
@@ -13,7 +13,6 @@ import type { Translate } from "@/i18n/I18nProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { pages, successorOf, warningsOf } from "@/lib/ai";
 import { describeError, describeFailure } from "@/lib/errors";
-import { spendingShown } from "@/lib/spending";
 import { timeAgo } from "@/lib/utils";
 import { offeredWay } from "@/lib/ways";
 import type { Ai, Service, Ways } from "@/types";
@@ -198,7 +197,7 @@ function AiView({ id }: { id: string }) {
     const count = current.conversation_count;
     const last = !others.some((other) => other.service.id === current.service.id);
     // Its name is no secret of a story: what it cost stays under it, with no choice to forget it.
-    const kept = spendingShown(data);
+    const kept = keptSaid(t);
     const sure = await confirm(t("ai.page.removeConfirm", { name: current.name }), {
       action: t("ai.page.removeAction"),
       danger: true,
@@ -212,7 +211,7 @@ function AiView({ id }: { id: string }) {
             </p>
           )}
           {last && current.service.api_key_set && <p>{t("ai.page.removeKey", { service: current.service.name })}</p>}
-          {kept && <p>{t("spending.kept")}</p>}
+          {kept && <p>{kept}</p>}
         </>
       ),
     });

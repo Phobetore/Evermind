@@ -1,4 +1,4 @@
-import { data } from "@/data";
+import { data, type DataSource } from "@/data";
 import { useI18n, type Translate } from "@/i18n/I18nProvider";
 import { moneyText, spendingShown } from "@/lib/spending";
 import type { SpentTotal } from "@/types";
@@ -42,8 +42,7 @@ export function SpentLine({ query, sentence, name, to, known, hideWhenNothing, o
   }, [shown, known, model, card, conversation, days, onRead]);
 
   const spent = known ?? read;
-  if (!shown || !spent) return null;
-  if (hideWhenNothing && !(spent.total > 0) && !(spent.unpriced_calls > 0)) return null;
+  if (!spentLineShown(data, spent, hideWhenNothing) || !spent) return null;
   const money = moneyText({ cost: spent.total, unpriced: spent.unpriced_calls, currency: spent.currency }, "total", locale, t);
   const said = sentence === "settings"
     ? `${t("spending.title")} · ${t("spending.link.settings", { money })}`
@@ -64,16 +63,31 @@ export function SpentLine({ query, sentence, name, to, known, hideWhenNothing, o
   );
 }
 
+/** Whether the line is drawn: never in an edition without Spending, nor while the amount is
+ *  unknown; and, with `hideWhenNothing`, not when nothing cost money and nothing went unpriced. */
+export function spentLineShown(source: Pick<DataSource, "spending">, spent: SpentTotal | null, hideWhenNothing: boolean): boolean {
+  if (!spendingShown(source) || !spent) return false;
+  return !hideWhenNothing || spent.total > 0 || spent.unpriced_calls > 0;
+}
+
+/** What a window of deletion says is kept of what was spent; null in an edition without Spending. */
+export function keptSaid(t: Translate, source: Pick<DataSource, "spending"> = data): string | null {
+  return spendingShown(source) ? t("spending.kept") : null;
+}
+
 /** What a window of deletion says is kept of what was spent, and its tick to keep it under no
  *  name, unticked. The tick is read once the yes is given: the box is gone by then, so it is
  *  followed as it changes rather than read from the page. Null in an edition without Spending. */
-export function keptOnDelete(t: Translate): { details: React.ReactNode; forgetName: () => boolean } | null {
-  if (!spendingShown(data)) return null;
+export function keptOnDelete(
+  t: Translate, source: Pick<DataSource, "spending"> = data,
+): { details: React.ReactNode; forgetName: () => boolean } | null {
+  const said = keptSaid(t, source);
+  if (said === null) return null;
   let ticked = false;
   return {
     details: (
       <>
-        <p>{t("spending.kept")}</p>
+        <p>{said}</p>
         <label className="touch-target flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
