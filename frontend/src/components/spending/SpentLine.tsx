@@ -29,11 +29,17 @@ export function SpentLine({ query, sentence, name, to, known, hideWhenNothing, o
   const shown = spendingShown(data);
   // Once, as it first appears: after that, what it was given keeps it current.
   const asked = useRef(false);
+  // What the caller gave last: a read that lands after it gave something is older than that.
+  const given = useRef(known);
+  useEffect(() => {
+    given.current = known;
+  });
   const { model, card, conversation, days } = query;
   useEffect(() => {
     if (!shown || known || asked.current) return;
     asked.current = true;
     data.spending!.total({ model, card, conversation, days }).then((spent) => {
+      if (given.current) return;
       setRead(spent);
       onRead?.(spent);
     }, () => {

@@ -1,6 +1,6 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page, type Response } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK, MOCK_ROOT, answer, boxHears, chat, makeCharacter, misfits, replyEnds, rootAt } from "./fixtures";
+import { MOCK, MOCK_ROOT, answer, boxHears, chat, makeCharacter, misfits, replyEnds, rootAt, turnRunning } from "./fixtures";
 
 /**
  * The lines that lead to Spending (Settings, an AI's page, a conversation's panel, a character's
@@ -174,6 +174,42 @@ test("the conversation panel follows each reply without asking", async ({ page, 
     await expect(after).not.toHaveText(before);
     // The turn's end carried it: nothing was asked of Spending for the reply.
     expect(asked).toHaveLength(1);
+  } finally {
+    await drop(request, ai);
+  }
+});
+
+test("a first read that lands after a turn's end does not bring back an older amount", async ({ page, request }) => {
+  const ai = await pricedAi(request, `Late ${stamp()}`);
+  try {
+    const { convo } = await conversationOn(request, ai, { costs: 1000000 });
+    await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
+    await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: "SLOWLY MOCK_SAYS_coin MOCK_COSTS_1000000" } });
+    // A slow link: the panel's first read is answered by the server at once, while the reply is
+    // being written, and reaches the page only once the turn has ended.
+    let turnEnded!: () => void;
+    const over = new Promise<void>((resolve) => (turnEnded = resolve));
+    await page.route("**/api/spending/total?**", async (route) => {
+      const response = await route.fetch();
+      await over;
+      await route.fulfill({ response });
+    });
+    await page.goto(`/#/chat/${convo.id}`);
+    const ended = replyEnds(page, convo.id);
+    await page.locator("textarea").first().fill("And then?");
+    await page.locator('button[title="Send"]').click();
+    await expect.poll(() => turnRunning(request, convo.id)).toBe(true);
+    const read = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/spending/total");
+    const panel = await openPanel(page);
+    // What the turn's end said the conversation has cost.
+    const now: number = (await ((await ended) as Response).json()).spent.total;
+    const lead = panel.locator('a[href^="#/spending"]');
+    await expect(lead).toHaveText(`This conversation: $${now.toFixed(2)} since the start`);
+    turnEnded();
+    expect((await (await read).json()).total).toBeLessThan(now);
+    // Whatever the late read would draw is drawn within a frame or two of its landing.
+    await page.waitForTimeout(500);
+    await expect(lead).toHaveText(`This conversation: $${now.toFixed(2)} since the start`);
   } finally {
     await drop(request, ai);
   }
