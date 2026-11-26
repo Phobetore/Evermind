@@ -62,8 +62,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Built from nothing, every time. A layer kept from an earlier build is reused for
+          # as long as the base image stays the same, and the layer that takes Debian's
+          # security updates is one of them: a release would ship the packages of the day
+          # that layer was first built. This only runs on a tag, so the minutes are few.
+          no-cache: true
 
   # INSTALL.md sends people to releases/latest/download/docker-compose.yml, so a
   # release without these two files silently breaks the documented install. Not
