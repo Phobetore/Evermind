@@ -402,7 +402,7 @@ those copied names; only "Clear the history" removes rows.
   away from home, what the whole price makes; else nothing known. A refusal costs
   zero, never "no price". A price counts only whole (read and written).
 - **OpenRouter's record completes what it did not say.** A call that ended
-  without a cost (stopped, cut off, failed midway, or not counted; any use) is
+  without a cost OpenRouter reported (stopped, cut off, failed midway, or not counted; any use) is
   read from `GET {base}/generation?id=` with the service's key: 20 seconds after
   its end, again at 2 minutes if the record is not there yet, and at start-up
   while it is still missing and less than an hour old.

@@ -38,8 +38,8 @@ when Evermind starts, and a copy of it is kept first, as
   a gesture of its own, on the Spending page ("Clear the history…"), all of it
   or what is before a date. "Export (CSV)" saves the calls of the period shown
   as a file, one per line: the only place where calls are listed one by one.
-- **On OpenRouter**, after a call that ended without a cost (stopped, cut off
-  or not counted), Evermind asks OpenRouter what that call cost, with the key
+- **On OpenRouter**, after a call whose cost OpenRouter did not report (stopped,
+  cut off, or not counted), Evermind asks OpenRouter what that call cost, with the key
   you gave it for that service: at 20 seconds, again at 2 minutes if the record
   is not there yet, and once more at start-up if it is still missing within the
   hour (a read, not a reply). Nothing is sent anywhere else.
@@ -55,15 +55,15 @@ when Evermind starts, and a copy of it is kept first, as
   [Going back after an update](../INSTALL.md#going-back-after-an-update).
 - **For a script that calls the API**: `/api/spending` (sums by period), its
   `/detail`, `/total`, `/export.csv`, `DELETE /api/spending` (`before`, `dry_run`)
-  and `POST /api/spending/forget` are new, and a malformed day, zone or offset, or a
-  day outside 2000–2100, answers `422` (`bad_period`); a zone Python does not
-  know falls back to the offset. `DELETE` of a conversation or a character takes
+  and `POST /api/spending/forget` are new, and a malformed day, zone or offset, an
+  offset out of range, or a day outside 2000–2100, answers `422` (`bad_period`); a
+  zone Python does not know falls back to the offset, else UTC. `DELETE` of a conversation or a character takes
   `?forget_name=1`. `POST /api/characters` takes `assist_jobs`. `GET /api/models`
   gives each AI a `per100`, `PUT /api/models/{id}` answers `repriced`, and
   `GET /api/conversations/{id}/turn` carries `glance` and `spent` once a turn
   has ended, `null` again once anything has been written. The body of a request
-  to an AI does not change; after a call that ended without a cost, OpenRouter
-  receives `GET /generation?id=…` with your key.
+  to an AI does not change; after a call whose cost OpenRouter did not report
+  (stopped, cut off, or not counted), OpenRouter receives `GET /generation?id=…` with your key.
 
 ## From 3.7.x to 3.8.0
 
