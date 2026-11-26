@@ -191,6 +191,28 @@ describe("what is sent", () => {
     expect(JSON.parse(calls[6].init.body as string)).toEqual({ cut: "card", key: "c/1" });
   });
 
+  test("a device that names no zone sends its offset alone, which the server reads", async () => {
+    // The server refuses an empty zone name ("tz=" is 422), so no name means no tz at all.
+    const options = Intl.DateTimeFormat.prototype.resolvedOptions;
+    const unnamed = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockImplementation(function (this: Intl.DateTimeFormat) {
+        return { ...options.call(this), timeZone: undefined } as unknown as Intl.ResolvedDateTimeFormatOptions;
+      });
+    try {
+      const { tzo } = zoneOfDevice();
+      await data.spending!.summary({ to: "2026-11-26" });
+      expect(calls.map((c) => c.url)).toEqual([`api/spending?to=2026-11-26&tzo=${tzo}`]);
+    } finally {
+      unnamed.mockRestore();
+    }
+  });
+
+  test("an export the server names no file for is saved under Evermind's own name", async () => {
+    replies.push(new Response("id\n"));
+    const file = await data.spending!.exportCsv({});
+    expect(file.filename).toBe("evermind-spending.csv");
+  });
+
   test("a deletion that forgets the name says so, and one that keeps it sends nothing more", async () => {
     replies.push(...Array.from({ length: 4 }, () => new Response(null, { status: 204 })));
     await data.conversations.remove("v/1", { forgetName: true });
