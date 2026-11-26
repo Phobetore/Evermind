@@ -309,6 +309,7 @@ class Recording:
         # A stand-in provider that only streams has no figures: its call is estimated.
         self._figures: CallFigures = getattr(provider, "figures", None) or CallFigures()
         self._marked: Outcome | None = None
+        self._unsent = False
         self._error: BaseException | None = None
         self._row: dict = {}
         self._local = False
@@ -319,6 +320,11 @@ class Recording:
         it through, for the status a refusal came with."""
         self._marked = outcome
         self._error = error
+
+    def unsent(self) -> None:
+        """The request never went to the model's server (stopped while its row was written): the
+        row is removed on leaving, as a row stands for a request sent."""
+        self._unsent = True
 
     async def __aenter__(self) -> "Recording":
         model, service, who = self._model, self._service, self._who
@@ -368,6 +374,9 @@ class Recording:
         figures = self._figures
         if figures.on_id == self._on_id:
             figures.on_id = None
+        if self._unsent:
+            await asyncio.shield(_spawn(self._remove()))
+            return False
         outcome = self._marked or outcome_of(
             exc, figures, stopped=isinstance(exc, asyncio.CancelledError),
             wrote=figures.chars_out > 0)
@@ -388,6 +397,12 @@ class Recording:
         # Its own task, shielded: a second cancel, or the caller's own end, does not cut it.
         await asyncio.shield(_spawn(self._end({**self._row, **ended})))
         return False
+
+    async def _remove(self) -> None:
+        try:
+            await _write("DELETE FROM calls WHERE id = ?", (self.row_id,))
+        except Exception as exc:  # noqa: BLE001
+            _warn("a call never sent could not be removed", exc)
 
     async def _end(self, row: dict) -> None:
         try:

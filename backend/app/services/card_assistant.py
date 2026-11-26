@@ -294,8 +294,8 @@ async def _run(job: Job, provider: Provider, payload: PromptPayload, call: dict,
             async with calls.recording(provider, ai, who,
                                        prompt_estimate=prompt_tokens(payload)) as recording:
                 if job.stopped:
-                    # Stopped while its row was written: the request never went, and costs nothing.
-                    recording.mark("refused")
+                    # Stopped while its row was written: the request never went, and leaves no row.
+                    recording.unsent()
                 else:
                     job.reading = asyncio.create_task(_read(job, provider, payload))
                     # Waited for, not awaited: a stop cancels the reading, not this, which still

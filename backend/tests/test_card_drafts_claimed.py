@@ -152,9 +152,9 @@ async def test_a_draft_stopped_before_its_request_went_costs_nothing(client, mon
     release.set()
     assert (await within(5, stopping)).json()["stopped"] is True
 
+    # No request went to the model's server: no row says one did.
     assert model.bodies == []
-    [row] = await recorded("card")
-    assert (row["outcome"], row["tokens_in"], row["cost"]) == ("refused", 0, 0)
+    assert await recorded() == []
 
 
 async def test_a_refused_draft_is_one_refused_row_that_costs_nothing(client, monkeypatch):
