@@ -7,6 +7,7 @@ model "evermind-demo". It streams a canned roleplay-style reply that echoes
 context, so you can validate the whole pipeline (streaming, swipes, summary).
 """
 
+import itertools
 import json
 import os
 import random
@@ -55,6 +56,9 @@ GOOD_KEY = "sk-e2e-good"
 # What the LM Studio under /lmstudio/ has loaded brume-12b with; a test changes it by a POST to
 # /lmstudio/loaded, and puts it back.
 LMSTUDIO_LOADED = 32768
+# The number of each reply, in its generation id: one id for every piece of one stream, as
+# OpenRouter names its generations.
+GENERATIONS = itertools.count(1)
 
 
 def _lmstudio_native() -> dict:
@@ -272,6 +276,8 @@ class Handler(BaseHTTPRequestHandler):
         # end, since this sends no length for the stream; the length it promises and does
         # not keep is what makes the client see a connection that broke.
         midway = "MOCK_FAILS_MIDWAY" in json.dumps(payload)
+        # Every piece names its generation and the model asked, as OpenRouter's do.
+        named = {"id": f"gen-mock-{next(GENERATIONS)}", "model": payload.get("model")}
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -285,7 +291,7 @@ class Handler(BaseHTTPRequestHandler):
         for number in range(THOUGHTS if thinks else 0):
             thought = f"Step {number + 1}: weighing the brief, the voice and the stakes. "
             written += len(thought)
-            chunk = {"choices": [{"delta": {"reasoning_content": thought}}]}
+            chunk = {**named, "choices": [{"delta": {"reasoning_content": thought}}]}
             self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
             self.wfile.flush()
             time.sleep(delay)
@@ -297,11 +303,11 @@ class Handler(BaseHTTPRequestHandler):
             # A cut card ends exactly where the model stopped, on its comma.
             text = word if cut and number == len(words) - 1 else word + " "
             written += len(text)
-            chunk = {"choices": [{"delta": {"content": text}}]}
+            chunk = {**named, "choices": [{"delta": {"content": text}}]}
             self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode())
             self.wfile.flush()
             time.sleep(delay)
-        end = {"choices": [{"delta": {}, "finish_reason": finish}]}
+        end = {**named, "choices": [{"delta": {}, "finish_reason": finish}]}
         if "MOCK_NO_USAGE" in said:
             pass  # a server that never says what it counted
         elif (payload.get("stream_options") or {}).get("include_usage"):
@@ -310,6 +316,16 @@ class Handler(BaseHTTPRequestHandler):
                             "total_tokens": read + written // 3}
         else:
             end["usage"] = {"total_tokens": 42}
+        # What the reply cost, as OpenRouter says it in its count: MOCK_COSTS_<n> is n millionths
+        # of a dollar; MOCK_BYOK_<n> is nothing to OpenRouter and n millionths to the service
+        # whose key is one's own.
+        costs = re.search(r"MOCK_COSTS_(\d+)", said)
+        byok = re.search(r"MOCK_BYOK_(\d+)", said)
+        if "usage" in end and costs:
+            end["usage"]["cost"] = int(costs.group(1)) / 1e6
+        elif "usage" in end and byok:
+            end["usage"]["cost"] = 0
+            end["usage"]["cost_details"] = {"upstream_inference_cost": int(byok.group(1)) / 1e6}
         self.wfile.write(f"data: {json.dumps(end)}\n\n".encode())
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
