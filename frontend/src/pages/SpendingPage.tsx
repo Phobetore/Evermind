@@ -93,7 +93,8 @@ function SpendingView() {
   const [model, setModel] = useState<Chosen | null>(null);
   // Each answer with the question it answers: one of another period or AI is never shown as this one's.
   const [answer, setAnswer] = useState<{ period: string; model: string; summary: Spending } | null>(null);
-  // A failure asked again is `again` until it is answered: no amount comes back, and no error stays.
+  // A failure is `again` once anything is asked after it, until that is answered: no amount comes
+  // back in its place, and no error stays in sight.
   const [failure, setFailure] = useState<{ query: string; error: unknown; again?: boolean } | null>(null);
   // The room the total and the lists took when another question was asked, kept while it is.
   const [room, setRoom] = useState({ all: 0, list: 0 });
@@ -124,7 +125,6 @@ function SpendingView() {
   const read = useCallback(() => {
     const mine = ++answered.current;
     const asking: SpendingQuery = { from, to, model: modelId || undefined };
-    setFailure((before) => (before?.query === query ? { ...before, again: true } : before));
     spending.summary(asking).then(
       (found) => {
         if (mine !== answered.current) return;
@@ -165,8 +165,19 @@ function SpendingView() {
     }));
   }
 
+  /** Each question asked from here leaves the failure before it to its answer. */
+  function askAgain() {
+    setFailure((before) => before && { ...before, again: true });
+  }
+
+  function retry() {
+    askAgain();
+    read();
+  }
+
   /** Everything read again, today included: after a clear or a price that filled earlier calls. */
   function readAgain() {
+    askAgain();
     setReads((n) => n + 1);
     setToday(new Date());
   }
@@ -183,6 +194,7 @@ function SpendingView() {
   function choosePeriod(next: Period) {
     if (next === per) return;
     keepPeriod(next);
+    askAgain();
     holdRoom();
     setPer(next);
     chosenHere.current = true;
@@ -196,6 +208,7 @@ function SpendingView() {
   });
 
   function chooseModel(id: string) {
+    askAgain();
     holdRoom();
     if (!id) return setModel(null);
     const listed = answer?.summary;
@@ -235,7 +248,7 @@ function SpendingView() {
         : { ...before.summary, cards: before.summary.cards.map((c) => (c[0] === key ? [c[0], null, ...c.slice(2)] as typeof c : c)) },
     });
     // Her conversations' titles went with her name: they are read again.
-    if (which === "card") read();
+    if (which === "card") retry();
   }
 
   async function exportFile() {
@@ -274,7 +287,7 @@ function SpendingView() {
   let body: ReactNode;
   if (!answer) {
     body = said
-      ? <LoadFailure error={said.error} onRetry={read} />
+      ? <LoadFailure error={said.error} onRetry={retry} />
       : <p aria-busy="true" className="text-mist animate-pulse-soft">{t("common.loading")}</p>;
   } else {
     const shown = answer.summary;
@@ -285,7 +298,7 @@ function SpendingView() {
     const free = model !== null && (shown.free.some(([id]) => id === model.id)
       || (model.free && !shown.models.some(([id]) => id === model.id)));
     body = (
-      <Held waiting={periodWaits} room={room.all} failure={said} onRetry={read} className="flex flex-col gap-6">
+      <Held waiting={periodWaits} room={room.all} failure={said} onRetry={retry} className="flex flex-col gap-6">
         <div ref={allBox} className="flex flex-col gap-6">
           <section className="flex flex-col gap-1.5">
             <p data-total className="font-display text-4xl font-semibold text-parchment [overflow-wrap:anywhere]">
@@ -356,7 +369,7 @@ function SpendingView() {
               </section>
 
               <div className={clsx(wide && opened && "grid grid-cols-[minmax(0,1fr)_minmax(0,24rem)] items-start gap-6")}>
-                <Held waiting={listWaits} room={room.list} failure={said} onRetry={read}>
+                <Held waiting={listWaits} room={room.list} failure={said} onRetry={retry}>
                   <div ref={listBox}>
                     <CutList summary={shown} cut={cut} onOpen={openLine} />
                   </div>
