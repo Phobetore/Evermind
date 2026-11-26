@@ -1,6 +1,7 @@
 import { CardSummary } from "@/components/chat/CardSummary";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
+import { keptOnDelete } from "@/components/spending/SpentLine";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
@@ -74,8 +75,10 @@ export function ChatListPage() {
     e.preventDefault();
     e.stopPropagation();
     const question = t("chatList.confirmDelete", { title: convo.title || t("chatList.untitled") });
-    if (!(await confirm(question, { action: t("common.delete"), danger: true }))) return;
-    if (await write(convo.id, () => data.conversations.remove(convo.id))) {
+    const kept = keptOnDelete(t);
+    if (!(await confirm(question, { action: t("common.delete"), danger: true, details: kept?.details }))) return;
+    const forgetName = kept?.forgetName() ?? false;
+    if (await write(convo.id, () => data.conversations.remove(convo.id, { forgetName }))) {
       clearDraft(convo.id);
       load();
     }

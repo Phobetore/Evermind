@@ -1,7 +1,8 @@
 import { AddAiFlow } from "@/components/ai/AddAiFlow";
 import { AiLine } from "@/components/ai/AiLine";
-import { EstimateLine } from "@/components/ai/EstimateLine";
+import { CostLine } from "@/components/ai/CostLine";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
+import { SpentLine } from "@/components/spending/SpentLine";
 import { Field } from "@/components/editor/Field";
 import { useAccess } from "@/components/layout/Access";
 import { WaysList } from "@/components/ways/WaysList";
@@ -13,7 +14,6 @@ import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data, type DataSource } from "@/data";
 import { useT } from "@/i18n/useT";
 import { describeError } from "@/lib/errors";
-import { readerOfAi } from "@/lib/estimate";
 import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { isNewer, latestRelease, type Release } from "@/lib/releases";
 import { offeredWay } from "@/lib/ways";
@@ -123,6 +123,10 @@ export function SettingsPage() {
               {t("ai.add.open")}
             </button>
           </div>
+          {/* What all of them cost of late, even when it is nothing: the way to Spending. */}
+          <div className="-mt-2 mb-3">
+            <SpentLine query={{ days: 30 }} sentence="settings" to="#/spending" hideWhenNothing={false} />
+          </div>
           {adding && (
             <AddAiFlow
               origin={{ from: "settings" }}
@@ -154,7 +158,7 @@ export function SettingsPage() {
                     // As the ways' lines: gutters in pixels at most, or the largest text squeezes the words.
                     className="panel flex items-center justify-between gap-[min(0.75rem,12px)] px-[min(1.25rem,20px)] py-4 hover:border-ink-600"
                   >
-                    <AiLine ai={ai} extra={ways && <EstimateLine reader={readerOfAi(ai)} way={offeredWay(ways)} />} />
+                    <AiLine ai={ai} extra={ways && <CostLine ai={ai} way={offeredWay(ways)} />} />
                     <ChevronRight className="h-4 w-4 shrink-0 text-mist" aria-hidden="true" />
                   </Link>
                 </li>

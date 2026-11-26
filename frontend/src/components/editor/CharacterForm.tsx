@@ -5,6 +5,7 @@ import { NumberField, ROLES } from "@/components/editor/LoreEntrySettings";
 import { RereadBanner } from "@/components/editor/RereadBanner";
 import { fieldLabelKey, KIND_COPY, labelKey } from "@/components/editor/fieldLabels";
 import { TagInput } from "@/components/editor/TagInput";
+import { keptOnDelete } from "@/components/spending/SpentLine";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { data, DataError, type AssistField, type AssistState, type CharacterInput, type OriginalCard } from "@/data";
@@ -320,9 +321,12 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
 
   async function remove() {
     if (!initial) return;
-    if (!(await confirm(t("characters.form.confirmDelete", { name: initial.name }), { action: t("common.delete"), danger: true }))) return;
+    const kept = keptOnDelete(t);
+    const asked = { action: t("common.delete"), danger: true, details: kept?.details };
+    if (!(await confirm(t("characters.form.confirmDelete", { name: initial.name }), asked))) return;
+    const forgetName = kept?.forgetName() ?? false;
     try {
-      await data.characters.remove(initial.id);
+      await data.characters.remove(initial.id, { forgetName });
       navigate("/");
     } catch (e) {
       setError(describeError(e, t));

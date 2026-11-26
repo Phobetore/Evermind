@@ -2,6 +2,7 @@ import { CardTags } from "@/components/cards/CardTags";
 import { CharacterGreetings } from "@/components/cards/CharacterGreetings";
 import { CharacterNotes } from "@/components/cards/CharacterNotes";
 import { StartChatModal } from "@/components/cards/StartChatModal";
+import { SpentLine } from "@/components/spending/SpentLine";
 import { WhatTheModelReads } from "@/components/cards/WhatTheModelReads";
 import { Avatar } from "@/components/ui/Avatar";
 import { LoadFailure } from "@/components/ui/LoadFailure";
@@ -198,6 +199,16 @@ function CharacterDetail({ id }: { id: string }) {
               )}
             </section>
           )}
+          {/* What playing with it has cost, its conversations deleted since included. */}
+          <div className="mt-3">
+            <SpentLine
+              query={{ card: character.id, days: "all" }}
+              sentence="card"
+              name={character.name}
+              to={`#/spending?cut=card&key=${encodeURIComponent(character.id)}&per=all`}
+              hideWhenNothing
+            />
+          </div>
         </div>
       </div>
 

@@ -395,7 +395,7 @@ function ChatView({ id }: { id: string }) {
   // nothing is asked for them then, unless a sheet is open, which reads the whole as before.
   const rewriting = useRef(false);
   // What the conversation has cost, as the last turn's end said it, for the panel's line.
-  const [, setSpent] = useState<SpentTotal | null>(null);
+  const [spent, setSpent] = useState<SpentTotal | null>(null);
   const settled = useCallback((ended: Ended) => {
     if (ended.spent) setSpent(ended.spent);
     if (ended.glance && !(waySheetShown.current || aiSheetShown.current)) {
@@ -1043,6 +1043,8 @@ function ChatView({ id }: { id: string }) {
           backdrop={backdrop}
           persona={persona}
           storyCuts={storyCuts}
+          spent={spent}
+          onSpentRead={setSpent}
           takeFocus={panelByHand}
           onClose={() => showPanel(false)}
           onConversationChange={(patch) => {

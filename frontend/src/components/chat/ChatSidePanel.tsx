@@ -1,4 +1,5 @@
 import type { ConversationBackdrop } from "@/components/chat/useConversationBackdrop";
+import { SpentLine } from "@/components/spending/SpentLine";
 import { Avatar } from "@/components/ui/Avatar";
 import { PlainText } from "@/components/ui/PlainText";
 import { data, DataError } from "@/data";
@@ -9,7 +10,7 @@ import { backdropOf, useDisplay } from "@/lib/display";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS } from "@/lib/useTurn";
 import { cardText, smallPortrait } from "@/lib/utils";
-import type { Backdrop, Conversation, Memory, Persona } from "@/types";
+import type { Backdrop, Conversation, Memory, Persona, SpentTotal } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, RotateCcw, SlidersHorizontal, Type, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
@@ -28,6 +29,8 @@ export function ChatSidePanel({
   backdrop,
   persona,
   storyCuts = 0,
+  spent = null,
+  onSpentRead,
   takeFocus = false,
   onClose,
   onConversationChange,
@@ -40,6 +43,10 @@ export function ChatSidePanel({
   persona: Persona | null;
   /** Changes when the server takes the memory back, with a cut or a reply written over. */
   storyCuts?: number;
+  /** What the conversation has cost, as the last turn's end said it: null until one has. */
+  spent?: SpentTotal | null;
+  /** What the line read as the panel first showed it, kept by the page for the next opening. */
+  onSpentRead?: (spent: SpentTotal) => void;
   /** Opened by hand: the focus starts on its close button. */
   takeFocus?: boolean;
   onClose: () => void;
@@ -725,6 +732,15 @@ export function ChatSidePanel({
           </button>
         )}
         {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
+        {/* Under the memory, whose passes are part of it. Never "free" nor "$0": absent then. */}
+        <SpentLine
+          query={{ conversation: conversation.id, days: "all" }}
+          sentence="conversation"
+          to={`#/spending?cut=conversation&key=${encodeURIComponent(conversation.id)}&per=all`}
+          known={spent}
+          onRead={onSpentRead}
+          hideWhenNothing
+        />
       </div>
 
       {character.scenario && (
