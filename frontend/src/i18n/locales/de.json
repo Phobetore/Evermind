@@ -974,7 +974,143 @@
   "money": {
     "estimate": "≈ {amount} pro 100 Nachrichten",
     "atLeast": "mindestens {amount} pro 100 Nachrichten (≈ {fuller} mit Nachdenken)",
-    "underACent": "weniger als {amount} pro 100 Nachrichten"
+    "underACent": "weniger als {amount} pro 100 Nachrichten",
+    "measured": "{amount} pro 100 Nachrichten, nach Ihren letzten {count} Antworten",
+    "measured_one": "{amount} pro 100 Nachrichten, nach Ihrer letzten Antwort",
+    "measuredTyped": ", mit Ihrem Preis"
+  },
+  "spending": {
+    "title": "Ausgaben",
+    "period": {
+      "label": "Zeitraum",
+      "7": "7 Tage",
+      "30": "30 Tage",
+      "month": "Dieser Monat",
+      "last": "Letzter Monat",
+      "all": "Seit Beginn"
+    },
+    "during": {
+      "7": "in den letzten 7 Tagen",
+      "30": "in den letzten 30 Tagen",
+      "month": "im {month}",
+      "all": "seit dem {date}"
+    },
+    "outside": "davon {money} außerhalb der Antworten: automatisches Gedächtnis, Kartenassistent…",
+    "previous": "Die {count} Tage davor: {money}",
+    "previous_one": "Der Tag davor: {money}",
+    "since": "Evermind zählt seit dem {date}: Vorher wurde nichts erfasst.",
+    "nothing": "Für diesen Zeitraum ist nichts erfasst.",
+    "cut": {
+      "label": "Aufteilen",
+      "model": "Nach KI",
+      "card": "Nach Charakter",
+      "conversation": "Nach Unterhaltung",
+      "use": "Nach Zweck"
+    },
+    "filter": {
+      "all": "Alle KIs",
+      "with": "Mit {name}: {money}"
+    },
+    "use": {
+      "reply": "Antworten",
+      "regenerate": "Neu erzeugte Antworten",
+      "continue": "Fortsetzungen",
+      "pen": "Für mich schreiben",
+      "memory": "Automatisches Gedächtnis",
+      "card": "Kartenassistent",
+      "speed": "Geschwindigkeitstests"
+    },
+    "retried": "davon {count} wiederholte Versuche",
+    "retried_one": "davon 1 wiederholter Versuch",
+    "calls": "{count} Aufrufe",
+    "calls_one": "1 Aufruf",
+    "freeCalls": "und {count} Aufrufe an kostenlose KIs",
+    "freeCalls_one": "und 1 Aufruf an eine kostenlose KI",
+    "money": {
+      "withUnpriced": "{money} + {count} Aufrufe ohne Preis",
+      "withUnpriced_one": "{money} + 1 Aufruf ohne Preis",
+      "under": "weniger als {money}",
+      "nothing": "nichts",
+      "atMost": "höchstens {money}"
+    },
+    "tokens": "{read:grouped} Tokens gelesen · {written:grouped} geschrieben",
+    "setPrice": "Preis angeben",
+    "repriced": "Auch auf Ihre {count} früheren Aufrufe angewendet, die keinen Preis hatten.",
+    "repriced_one": "Auch auf Ihren früheren Aufruf angewendet, der keinen Preis hatte.",
+    "upstream": "davon {money} von {name} berechnet",
+    "free": {
+      "title": "Kostenlos",
+      "pc": "auf diesem PC",
+      "network": "in Ihrem Netzwerk",
+      "service": "kostenlos bei {service}",
+      "replies": "{count} Antworten",
+      "replies_one": "1 Antwort",
+      "pages": "≈ {count:grouped} Seiten gelesen",
+      "pages_one": "≈ 1 Seite gelesen",
+      "only": "Nur mit kostenlosen KIs"
+    },
+    "deleted": "gelöscht",
+    "forget": "Diesen Namen vergessen",
+    "deletedConversation": "Gelöschte Unterhaltung",
+    "deletedCard": "Gelöschter Charakter",
+    "newCard": "Neue Karte",
+    "rest": "{count} weitere",
+    "rest_one": "1 weitere",
+    "bars": {
+      "label": "Ausgaben pro Tag",
+      "labelWeeks": "Ausgaben pro Woche",
+      "day": "{date}: {money}",
+      "week": "Woche vom {date}: {money}",
+      "before": "Vorheriger Balken",
+      "after": "Nächster Balken"
+    },
+    "detail": {
+      "read": "Was die KI gelesen und geschrieben hat",
+      "in": "Gelesen: {count:grouped} Tokens",
+      "out": "Geschrieben: {count:grouped} Tokens",
+      "cached": "davon {count:grouped} aus dem Cache gelesen",
+      "reasoning": "davon {count:grouped} zum Nachdenken",
+      "sources": "Woher der Betrag kommt",
+      "share": "{name}: {money}",
+      "cards": "Mit welchen Charakteren",
+      "models": "Mit welchen KIs",
+      "conversations": "In welchen Unterhaltungen",
+      "growth": "Eine Nachricht kostete am Anfang {first}; jetzt kostet sie {last}.",
+      "growthWhy": "Jede Nachricht sendet die erneut gelesene Geschichte mit: Je länger sie wird, desto mehr kostet sie."
+    },
+    "source": {
+      "reported": "vom Dienst berechnet",
+      "computed_read": "mit dem Preis des Dienstes gerechnet",
+      "computed_typed": "mit Ihrem Preis gerechnet",
+      "estimated": "geschätzt"
+    },
+    "how": {
+      "title": "Wie gezählt wird",
+      "text": "Ein Aufruf: eine Anfrage von Evermind an eine KI (eine Antwort, eine Zusammenfassung für das Gedächtnis, ein Kartenentwurf). Diese Beträge sind das, was jeder Dienst nach eigener Angabe für Ihre Aufrufe abgebucht hat, oder was Evermind mit seinem Preis berechnet, wenn er nichts angibt. Was Sie bezahlt haben, kann abweichen: Gebühren des Dienstes beim Kauf von Guthaben, Rundungen, abgebrochene Antworten ohne Preisangabe, KIs ohne Preis und alles, was derselbe Schlüssel außerhalb von Evermind getan hat. Bei OpenRouter vergleichen Sie mit der Aktivitätsseite, nicht mit Ihren Guthabenkäufen."
+    },
+    "export": "Exportieren (CSV)",
+    "exported": "Datei gespeichert: {name}",
+    "clear": {
+      "open": "Verlauf löschen…",
+      "title": "Verlauf löschen",
+      "all": "Alles",
+      "before": "Vor dem",
+      "choose": "Wählen Sie, was gelöscht wird",
+      "count": "{count} Aufrufe, vom {first} bis zum {last}. Das lässt sich nicht rückgängig machen. Ihre Unterhaltungen und Ihre KIs bleiben, wie sie sind.",
+      "count_one": "1 Aufruf, am {first}. Das lässt sich nicht rückgängig machen. Ihre Unterhaltungen und Ihre KIs bleiben, wie sie sind.",
+      "none": "Vor diesem Datum gibt es nichts zu löschen.",
+      "confirm": "Löschen"
+    },
+    "cleared": "Verlauf gelöscht: {count} Aufrufe.",
+    "cleared_one": "Verlauf gelöscht: 1 Aufruf.",
+    "link": {
+      "settings": "{money} in den letzten 30 Tagen",
+      "ai": "Mit dieser KI ausgegeben: {money} in den letzten 30 Tagen",
+      "conversation": "Diese Unterhaltung: {money} seit Beginn",
+      "card": "Mit {name} seit Beginn ausgegeben: {money}"
+    },
+    "kept": "Was dafür ausgegeben wurde, bleibt unter Ausgaben, unter dem bisherigen Namen.",
+    "forgetTick": "ohne den Namen zu behalten"
   },
   "ways": {
     "names": {

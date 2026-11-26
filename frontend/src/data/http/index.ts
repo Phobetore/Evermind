@@ -1,16 +1,17 @@
 import type {
   Ai, Character, CharacterTile, CharacterWithLore, Conversation, Installation, LibraryItem, Memory,
-  Message, Outlook, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState, WayFields, WayListed,
-  Ways,
+  Message, Outlook, Persona, ProbeResult, Service, Settings, Spending, SpendingDetail, SpentTotal, TurnEvent,
+  TurnState, WayFields, WayListed, Ways,
 } from "@/types";
 import type { DataSource } from "../contract";
 import { device } from "./device";
 import { readEvents } from "./events";
 import { request, send } from "./request";
+import { zoneOfDevice } from "./zone";
 import type {
   AiSaved, Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConsolidateResult,
-  ConversationInput, ConversationPatch, ExtractResult, LoreEntryInput, ModelsCreate, ModelUpdate,
-  OriginalCard, PersonaInput, PortraitSizes, SavedRef, ServiceDraft, ServiceUpdate, StoredCard,
+  ConversationInput, ConversationPatch, Cut, ExtractResult, LoreEntryInput, ModelsCreate, ModelUpdate,
+  OriginalCard, PersonaInput, PortraitSizes, SavedRef, ServiceDraft, ServiceUpdate, SpendingQuery, StoredCard,
   TurnRequest,
 } from "../types";
 import { DataError } from "../errors";
@@ -29,6 +30,26 @@ const post = <T = void>(path: string, body?: unknown) =>
 const put = <T>(path: string, body: unknown) => request<T>(path, { method: "PUT", body: JSON.stringify(body) });
 const patch = <T>(path: string, body: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 const del = <T = void>(path: string, asking?: Asking) => request<T>(path, { method: "DELETE" }, asking);
+/** `?forget_name=1` only when asked: a deletion that keeps the name sends what it always sent. */
+const forgetting = (options?: { forgetName?: boolean }) => (options?.forgetName ? "?forget_name=1" : "");
+
+/** A query of Spending: the values set, in their order, then the device's zone, which turns its
+ *  days into instants on the server. */
+function inZone(values: Record<string, string | number | undefined>): string {
+  const { tz, tzo } = zoneOfDevice();
+  const query = new URLSearchParams();
+  for (const [name, value] of Object.entries(values)) if (value !== undefined) query.set(name, String(value));
+  if (tz) query.set("tz", tz);
+  query.set("tzo", String(tzo));
+  return query.toString();
+}
+
+/** The name the server gave a file it sends, or one of ours. */
+function filenameOf(resp: Response, fallback: string): string {
+  const said = /filename="([^"]+)"/.exec(resp.headers.get("Content-Disposition") ?? "");
+  return said?.[1] ?? fallback;
+}
+
 const upload = <T>(path: string, file: File) => {
   const form = new FormData();
   form.append("file", file);
@@ -51,7 +72,8 @@ export const data: DataSource = {
       input: Partial<CharacterInput> & { is_favorite?: boolean; lore_entries?: LoreEntryInput[]; card?: OriginalCard },
     ) => put<Character>(`api/characters/${seg(id)}`, input),
     card: (id: string) => get<StoredCard | null>(`api/characters/${seg(id)}/card`),
-    remove: (id: string) => del(`api/characters/${seg(id)}`),
+    remove: (id: string, options?: { forgetName?: boolean }) =>
+      del(`api/characters/${seg(id)}${forgetting(options)}`),
     uploadAvatar: (id: string, file: File) => upload<Character>(`api/characters/${seg(id)}/avatar`, file),
     /** A portrait replaced meanwhile answers 409: no failure, only copies that are not wanted any more. */
     async saveSizes(id: string, sizes: PortraitSizes, asking?: Asking) {
@@ -103,7 +125,8 @@ export const data: DataSource = {
         // A few dozen bytes, far under the 64 KB a request kept past its page may carry.
         ...(options?.outlivePage ? { keepalive: true } : {}),
       }),
-    remove: (id: string) => del(`api/conversations/${seg(id)}`),
+    remove: (id: string, options?: { forgetName?: boolean }) =>
+      del(`api/conversations/${seg(id)}${forgetting(options)}`),
     setWallpaper: (id: string, file: File) =>
       upload<Conversation>(`api/conversations/${seg(id)}/wallpaper`, file),
     clearWallpaper: (id: string) => del<Conversation>(`api/conversations/${seg(id)}/wallpaper`),
@@ -209,6 +232,27 @@ export const data: DataSource = {
 
   updates: {
     get: () => get<Installation>("api/update"),
+  },
+
+  // Past the cache: every reply changes them.
+  spending: {
+    summary: (q: SpendingQuery, asking?: Asking) =>
+      fresh<Spending>(`api/spending?${inZone({ from: q.from, to: q.to, model: q.model })}`, asking),
+    detail: (q: SpendingQuery & { cut: Cut; key: string }, asking?: Asking) =>
+      fresh<SpendingDetail>(`api/spending/detail?${inZone({ cut: q.cut, key: q.key, from: q.from, to: q.to })}`, asking),
+    total: (q: { model?: string; card?: string; conversation?: string; days: 30 | "all" }) =>
+      fresh<SpentTotal>(`api/spending/total?${inZone({
+        model: q.model, card: q.card, conversation: q.conversation, days: q.days,
+      })}`),
+    async exportCsv(q: SpendingQuery) {
+      const resp = await send(`api/spending/export.csv?${inZone({ from: q.from, to: q.to })}`);
+      return { blob: await resp.blob(), filename: filenameOf(resp, "evermind-spending.csv") };
+    },
+    clear: (q: { before?: string; dryRun: boolean }) =>
+      del<{ calls: number; first: string | null; last: string | null } | { deleted: number; since: string }>(
+        `api/spending?${inZone({ before: q.before, dry_run: q.dryRun ? 1 : undefined })}`),
+    forget: (cut: "conversation" | "card", key: string) =>
+      post<{ forgotten: number }>("api/spending/forget", { cut, key }),
   },
 
   access: {

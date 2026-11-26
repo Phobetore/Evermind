@@ -1,12 +1,12 @@
 import type {
   Ai, Character, CharacterTile, CharacterWithLore, Conversation, Installation, LibraryItem, Memory,
-  Message, Outlook, Persona, ProbeResult, Service, Settings, TurnEvent, TurnState, WayFields, WayListed,
-  Ways,
+  Message, Outlook, Persona, ProbeResult, Service, Settings, Spending, SpendingDetail, SpentTotal, TurnEvent,
+  TurnState, WayFields, WayListed, Ways,
 } from "@/types";
 import type {
   AiSaved, Asking, AssistInput, AssistState, BenchmarkResult, CharacterInput, ConsolidateResult,
-  ConversationInput, ConversationPatch, ExtractResult, LoreEntryInput, ModelsCreate, ModelUpdate,
-  OriginalCard, PersonaInput, PortraitSizes, SavedRef, ServiceDraft, ServiceUpdate, StoredCard,
+  ConversationInput, ConversationPatch, Cut, ExtractResult, LoreEntryInput, ModelsCreate, ModelUpdate,
+  OriginalCard, PersonaInput, PortraitSizes, SavedRef, ServiceDraft, ServiceUpdate, SpendingQuery, StoredCard,
   TurnRequest,
 } from "./types";
 
@@ -57,7 +57,9 @@ export interface DataSource {
     ): Promise<Character>;
     /** The card the character was read from, or null for one made here. */
     card(id: string): Promise<StoredCard | null>;
-    remove(id: string): Promise<void>;
+    /** Her calls stay in Spending under her name; `forgetName`: under no name, her
+     *  conversations' titles forgotten with it. */
+    remove(id: string, options?: { forgetName?: boolean }): Promise<void>;
     uploadAvatar(id: string, file: File): Promise<Character>;
     /** Hands over the copies the page made; null when the portrait changed meanwhile. */
     saveSizes(id: string, sizes: PortraitSizes, asking?: Asking): Promise<Character | null>;
@@ -88,7 +90,8 @@ export interface DataSource {
     /** `outlivePage`: sent so that it survives the page closing (fetch keepalive), for a change
      *  flushed on pagehide. A source with nothing to cut off ignores it. */
     update(id: string, changes: ConversationPatch, options?: { outlivePage?: boolean }): Promise<Conversation>;
-    remove(id: string): Promise<void>;
+    /** Its calls stay in Spending under its title; `forgetName`: under no title. */
+    remove(id: string, options?: { forgetName?: boolean }): Promise<void>;
     setWallpaper(id: string, file: File): Promise<Conversation>;
     clearWallpaper(id: string): Promise<Conversation>;
     /** What its AI and every other would read of it under its way, and its AI under every way,
@@ -188,6 +191,24 @@ export interface DataSource {
 
   updates?: {
     get(): Promise<Installation>;
+  };
+
+  /** What the calls to the AIs cost, as sums: never a list of them one by one. Absent, no line of
+   *  Spending is drawn anywhere. Days are the device's; the source says its zone. */
+  spending?: {
+    summary(q: SpendingQuery, asking?: Asking): Promise<Spending>;
+    /** One line opened: `key` is its id, "" for the drafts of cards not saved yet. */
+    detail(q: SpendingQuery & { cut: Cut; key: string }, asking?: Asking): Promise<SpendingDetail>;
+    /** One AI, one character or one conversation, over the last 30 days or since the start. */
+    total(q: { model?: string; card?: string; conversation?: string; days: 30 | "all" }): Promise<SpentTotal>;
+    /** Every call of the period, one a line: the one view call by call, and it leaves the page. */
+    exportCsv(q: SpendingQuery): Promise<{ blob: Blob; filename: string }>;
+    /** Without `before`, everything. `dryRun`: what would go, and nothing goes. */
+    clear(q: { before?: string; dryRun: boolean }): Promise<
+      { calls: number; first: string | null; last: string | null } | { deleted: number; since: string }>;
+    /** The calls of a conversation, or of a character and its conversations, keep their money
+     *  without the name. */
+    forget(cut: "conversation" | "card", key: string): Promise<{ forgotten: number }>;
   };
 
   access?: {

@@ -974,7 +974,143 @@
   "money": {
     "estimate": "≈ {amount} les 100 messages",
     "atLeast": "au moins {amount} les 100 messages (≈ {fuller} avec sa réflexion)",
-    "underACent": "moins de {amount} les 100 messages"
+    "underACent": "moins de {amount} les 100 messages",
+    "measured": "{amount} les 100 messages, d'après vos {count} dernières réponses",
+    "measured_one": "{amount} les 100 messages, d'après votre dernière réponse",
+    "measuredTyped": ", avec votre prix"
+  },
+  "spending": {
+    "title": "Dépenses",
+    "period": {
+      "label": "Période",
+      "7": "7 jours",
+      "30": "30 jours",
+      "month": "Ce mois-ci",
+      "last": "Le mois dernier",
+      "all": "Depuis le début"
+    },
+    "during": {
+      "7": "ces 7 derniers jours",
+      "30": "ces 30 derniers jours",
+      "month": "en {month}",
+      "all": "depuis le {date}"
+    },
+    "outside": "dont {money} hors réponses\u00a0: mémoire automatique, assistant de fiche…",
+    "previous": "Les {count} jours d'avant\u00a0: {money}",
+    "previous_one": "Le jour d'avant\u00a0: {money}",
+    "since": "Evermind compte depuis le {date}\u00a0: avant, rien n'était noté.",
+    "nothing": "Rien de noté sur cette période.",
+    "cut": {
+      "label": "Découper",
+      "model": "Par IA",
+      "card": "Par personnage",
+      "conversation": "Par conversation",
+      "use": "Par usage"
+    },
+    "filter": {
+      "all": "Toutes les IA",
+      "with": "Avec {name}\u00a0: {money}"
+    },
+    "use": {
+      "reply": "Réponses",
+      "regenerate": "Réponses refaites",
+      "continue": "Suites",
+      "pen": "Écrire à ma place",
+      "memory": "Mémoire automatique",
+      "card": "Assistant de fiche",
+      "speed": "Tests de vitesse"
+    },
+    "retried": "dont {count} essais repris",
+    "retried_one": "dont 1 essai repris",
+    "calls": "{count} appels",
+    "calls_one": "1 appel",
+    "freeCalls": "et {count} appels à des IA gratuites",
+    "freeCalls_one": "et 1 appel à une IA gratuite",
+    "money": {
+      "withUnpriced": "{money} + {count} appels sans prix",
+      "withUnpriced_one": "{money} + 1 appel sans prix",
+      "under": "moins de {money}",
+      "nothing": "rien",
+      "atMost": "au plus {money}"
+    },
+    "tokens": "{read:grouped} tokens lus · {written:grouped} écrits",
+    "setPrice": "Indiquer le prix",
+    "repriced": "Appliqué aussi à vos {count} appels d'avant, qui n'avaient pas de prix.",
+    "repriced_one": "Appliqué aussi à votre appel d'avant, qui n'avait pas de prix.",
+    "upstream": "dont {money} facturés par {name}",
+    "free": {
+      "title": "Gratuites",
+      "pc": "sur ce PC",
+      "network": "sur votre réseau",
+      "service": "gratuite chez {service}",
+      "replies": "{count} réponses",
+      "replies_one": "1 réponse",
+      "pages": "≈ {count:grouped} pages lues",
+      "pages_one": "≈ 1 page lue",
+      "only": "Seulement avec des IA gratuites"
+    },
+    "deleted": "supprimé",
+    "forget": "Oublier ce nom",
+    "deletedConversation": "Conversation supprimée",
+    "deletedCard": "Personnage supprimé",
+    "newCard": "Nouvelle fiche",
+    "rest": "{count} autres",
+    "rest_one": "1 autre",
+    "bars": {
+      "label": "Dépenses par jour",
+      "labelWeeks": "Dépenses par semaine",
+      "day": "{date}\u00a0: {money}",
+      "week": "semaine du {date}\u00a0: {money}",
+      "before": "Barre précédente",
+      "after": "Barre suivante"
+    },
+    "detail": {
+      "read": "Ce qu'elle a lu et écrit",
+      "in": "Lus\u00a0: {count:grouped} tokens",
+      "out": "Écrits\u00a0: {count:grouped} tokens",
+      "cached": "dont {count:grouped} relus depuis le cache",
+      "reasoning": "dont {count:grouped} de réflexion",
+      "sources": "D'où vient le montant",
+      "share": "{name}\u00a0: {money}",
+      "cards": "Avec quels personnages",
+      "models": "Avec quelles IA",
+      "conversations": "Dans quelles conversations",
+      "growth": "Un message coûtait {first} au début\u00a0; il coûte {last} maintenant.",
+      "growthWhy": "Chaque message renvoie l'histoire relue\u00a0: plus elle s'allonge, plus il pèse."
+    },
+    "source": {
+      "reported": "facturé par le service",
+      "computed_read": "calculé avec le prix du service",
+      "computed_typed": "calculé avec votre prix",
+      "estimated": "estimé"
+    },
+    "how": {
+      "title": "Comment c'est compté",
+      "text": "Un appel\u00a0: une demande d'Evermind à une IA (une réponse, un résumé pour la mémoire, un brouillon de fiche). Ces montants sont ce que chaque service dit avoir prélevé pour vos appels, ou ce qu'Evermind calcule avec son prix quand il ne dit rien. Ce que vous avez payé peut s'en écarter\u00a0: les frais que le service prend quand vous achetez des crédits, les arrondis, les réponses arrêtées dont il n'a pas donné le prix, les IA sans prix, et ce que la même clé a fait hors d'Evermind. Chez OpenRouter, comparez avec sa page d'activité, pas avec vos achats de crédits."
+    },
+    "export": "Exporter (CSV)",
+    "exported": "Fichier enregistré\u00a0: {name}",
+    "clear": {
+      "open": "Effacer l'historique…",
+      "title": "Effacer l'historique",
+      "all": "Tout",
+      "before": "Avant le",
+      "choose": "Choisissez ce qui part",
+      "count": "{count} appels, du {first} au {last}. Ce n'est pas réversible. Vos conversations et vos IA ne bougent pas.",
+      "count_one": "1 appel, le {first}. Ce n'est pas réversible. Vos conversations et vos IA ne bougent pas.",
+      "none": "Rien à effacer avant cette date.",
+      "confirm": "Effacer"
+    },
+    "cleared": "Historique effacé\u00a0: {count} appels.",
+    "cleared_one": "Historique effacé\u00a0: 1 appel.",
+    "link": {
+      "settings": "{money} ces 30 derniers jours",
+      "ai": "Dépensé avec elle\u00a0: {money} ces 30 jours",
+      "conversation": "Cette conversation\u00a0: {money} depuis le début",
+      "card": "Dépensé avec {name} depuis le début\u00a0: {money}"
+    },
+    "kept": "Ses dépenses restent dans Dépenses, sous son nom.",
+    "forgetTick": "sans garder son nom"
   },
   "ways": {
     "names": {

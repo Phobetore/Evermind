@@ -24,6 +24,25 @@ export function timeAgo(
   return t("time.yearsAgo", { count: Math.floor(months / 12) });
 }
 
+// Made once a language and a kind: one made for each day drawn would cost more than the day.
+const dayMonths = new Map<string, Intl.DateTimeFormat>();
+
+/** A day as a sentence says it, "6 octobre", on the device's own calendar; with its year when it is
+ *  not this one. A bare date (YYYY-MM-DD) is that day wherever the device is, not UTC's midnight. */
+export function dayMonth(iso: string, locale: string, today: Date = new Date()): string {
+  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const day = bare ? new Date(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]), 12) : new Date(iso);
+  if (Number.isNaN(day.getTime())) return "";
+  const withYear = day.getFullYear() !== today.getFullYear();
+  const key = `${locale}\u0000${withYear}`;
+  let made = dayMonths.get(key);
+  if (!made) {
+    made = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", ...(withYear ? { year: "numeric" } : {}) });
+    dayMonths.set(key, made);
+  }
+  return made.format(day);
+}
+
 /** No text is made longer than this by the names put in for its markers: a length the page
  *  already draws (a dropped 15 MB JSON brings one), far below the longest string JavaScript holds.
  *  Not a card's longest text: a PNG chunk inflates up to INFLATE_BOUND. */

@@ -26,6 +26,7 @@ function brume(over: Partial<Ai> = {}): Ai {
     reasons: false,
     price: { read_in: 0.2, read_out: 0.6, own_in: null, own_out: null, varies: false },
     free: false,
+    per100: null,
     limits_read_at: null,
     reply_cap: { mode: "auto", tokens: null },
     temperature: null,
