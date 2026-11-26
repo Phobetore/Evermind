@@ -406,7 +406,8 @@ EXPORTED = [
 async def test_the_export_is_every_column_but_usage_raw(client):
     put_call(started_at="2026-11-02T12:00:00.000+00:00", conversation_title="=HYPERLINK(\"x\")",
              card_name="-1+1", usage_raw='{"prompt_tokens": 1000}', cost=0.0123)
-    put_call(started_at="2026-11-03T12:00:00.000+00:00", card_name="@Serana")
+    put_call(started_at="2026-11-03T12:00:00.000+00:00", card_name="@Serana", cost=3e-05,
+             price_in=1.5e-07)
     put_call(started_at="2026-11-04T12:00:00.000+00:00", outcome="running")
     resp = await client.get("/api/spending/export.csv", params={"tz": "Europe/Paris"})
     assert resp.status_code == 200
@@ -421,7 +422,11 @@ async def test_the_export_is_every_column_but_usage_raw(client):
     assert first["conversation_title"] == "'=HYPERLINK(\"x\")"
     assert first["card_name"] == "'-1+1"
     assert (first["cost"], first["tokens_in"], first["status"]) == ("0.0123", "1000", "")
-    assert dict(zip(header, lines[1], strict=True))["card_name"] == "'@Serana"
+    second = dict(zip(header, lines[1], strict=True))
+    assert second["card_name"] == "'@Serana"
+    # A few tokens of a cheap model: written with a decimal point, never as 3e-05.
+    assert (second["cost"], second["price_in"], second["price_out"]) == (
+        "0.00003", "0.00000015", "50.0")
     assert "prompt_tokens" not in resp.text
     # A period narrows it.
     resp = await client.get("/api/spending/export.csv",

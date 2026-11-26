@@ -8,6 +8,7 @@ title); the name copied at call time only stands for a thing deleted."""
 import csv
 import io
 from collections.abc import AsyncIterator
+from decimal import Decimal
 from typing import TYPE_CHECKING, Literal
 
 import aiosqlite
@@ -433,6 +434,10 @@ _BATCH = 500
 def _cell(value):
     if isinstance(value, str) and value.startswith(_FORMULA):
         return "'" + value
+    if isinstance(value, float):
+        # The shortest digits that read back as the same number, with a decimal point: csv would
+        # write a few tokens of a cheap model as 3e-05, which a sheet may not read as an amount.
+        return format(Decimal(repr(value)), "f")
     return value
 
 
