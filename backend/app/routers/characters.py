@@ -1,3 +1,4 @@
+import logging
 from typing import Literal
 
 import aiosqlite
@@ -11,6 +12,8 @@ from ..repositories import characters as repo
 from ..repositories import conversations as convo_repo
 from ..repositories import lore as lore_repo
 from ..services import card_assistant, media, turns
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
@@ -32,7 +35,12 @@ async def search_characters(q: str = Query(""), db: aiosqlite.Connection = Depen
 @router.post("", status_code=201)
 async def create_character(payload: CharacterIn, db: aiosqlite.Connection = Depends(get_db)):
     saved = await repo.create(db, payload.model_dump(exclude={"assist_jobs"}))
-    await calls_repo.claim(db, payload.assist_jobs, saved["id"], saved["name"], saved["kind"])
+    try:
+        await calls_repo.claim(db, payload.assist_jobs, saved["id"], saved["name"], saved["kind"])
+    except Exception as exc:  # noqa: BLE001
+        # The card is made already: an error here would have the page make it a second time.
+        # Its name alone, as calls does: it should never happen.
+        logger.warning("the drafts of a new card could not be claimed: %s", type(exc).__name__)
     return saved
 
 

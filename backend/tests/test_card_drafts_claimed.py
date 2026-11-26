@@ -3,6 +3,7 @@ written for, and a card saved for the first time claims the drafts that wrote it
 
 import asyncio
 
+import aiosqlite
 import httpx
 
 from app.db import _connect
@@ -192,3 +193,13 @@ async def test_a_card_id_out_of_bounds_is_refused(client, monkeypatch):
     assert card_assistant._jobs == {}
     assert await recorded() == []
 
+
+async def test_a_claim_that_fails_still_saves_the_card_once(client, monkeypatch, caplog):
+    async def locked(*args):
+        raise aiosqlite.OperationalError("database is locked")
+
+    monkeypatch.setattr(calls_repo, "claim", locked)
+    card = await save(client, assist_jobs=["job-1"])
+
+    assert [c["id"] for c in (await client.get("/api/characters")).json()] == [card["id"]]
+    assert "OperationalError" in caplog.text and "locked" not in caplog.text
