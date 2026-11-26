@@ -309,13 +309,16 @@ class Recording:
         # A stand-in provider that only streams has no figures: its call is estimated.
         self._figures: CallFigures = getattr(provider, "figures", None) or CallFigures()
         self._marked: Outcome | None = None
+        self._error: BaseException | None = None
         self._row: dict = {}
         self._local = False
 
-    def mark(self, outcome: Outcome) -> None:
+    def mark(self, outcome: Outcome, *, error: BaseException | None = None) -> None:
         """How the call ended, when its caller knows better than the stream: an answer thrown
-        away is 'discarded'."""
+        away is 'discarded'. ``error``: what ended it, when the caller caught it rather than let
+        it through, for the status a refusal came with."""
         self._marked = outcome
+        self._error = error
 
     async def __aenter__(self) -> "Recording":
         model, service, who = self._model, self._service, self._who
@@ -373,7 +376,7 @@ class Recording:
                                                    outcome=outcome, local=self._local)
         ended = {
             "ended_at": instant(), "outcome": outcome,
-            "status": exc.status if isinstance(exc, ProviderError) else None,
+            "status": _status_of(exc or self._error),
             "model_served": figures.model_served, "upstream": figures.upstream,
             "generation_id": figures.generation_id,
             "tokens_in": tokens.tokens_in, "tokens_out": tokens.tokens_out,
@@ -396,6 +399,10 @@ class Recording:
             _after_end(row)
         except Exception as exc:  # noqa: BLE001
             _warn("what follows a call's end could not be scheduled", exc)
+
+
+def _status_of(error: BaseException | None) -> int | None:
+    return error.status if isinstance(error, ProviderError) else None
 
 
 def recording(provider: Provider, ai: tuple[dict, dict], who: Who, *, attempt: int = 0,
