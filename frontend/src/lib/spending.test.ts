@@ -141,6 +141,17 @@ describe("the tokens of a line", () => {
     ]);
     expect(translate("en", "spending.detail.in", { count: 12345 })).toBe("Read: 12,345 tokens");
   });
+
+  test("a count of calls is grouped as the language groups it", () => {
+    const counts = ["spending.calls", "spending.retried", "spending.freeCalls", "spending.free.replies",
+      "spending.rest", "spending.cleared"];
+    for (const key of counts) expect(translate("en", key, { count: 1214 })).toContain("1,214");
+    expect(translate("en", "spending.money.withUnpriced", { money: "$1.00", count: 1214 }))
+      .toBe("$1.00 + 1,214 calls without a price");
+    expect(translate("en", "spending.clear.count", { count: 1214, first: "November 20", last: "December 14" }))
+      .toMatch(/^1,214 calls, from November 20 to December 14\./);
+    expect(translate("de", "spending.calls", { count: 1214 })).toContain("1.214");
+  });
 });
 
 describe("the measured figure", () => {
