@@ -15,13 +15,8 @@ when Evermind starts, and a copy of it is kept first, as
 `evermind.before-3.9.0.db` in the data folder. Read this to know what changes.
 
 - **Reload Evermind on every device that had it open**, a phone above all.
-- **If you run from the source**, install again before starting: Evermind now
-  needs `tzdata`, so that "30 days" means your days wherever Python has no
-  list of time zones of its own (Windows).
-- **To go back to the previous release, put back `evermind.before-3.9.0.db`**,
-  as [Going back after an update](../INSTALL.md#going-back-after-an-update)
-  says. What you did since the update is lost. See "Going back" below for the
-  other way.
+- **To go back to 3.8.x, start it on the same database**: it ignores the
+  spending table.
 - **A "Spending" page**, from Settings (under "My AIs"), an AI's page, the panel
   of a conversation and a character's page: what your AIs really cost, by
   period, by AI, by character, by conversation and by use. Never under the
@@ -40,12 +35,14 @@ when Evermind starts, and a copy of it is kept first, as
   price."). An amount a service reported is never changed.
 - **Deleting a conversation or a character does not delete what it cost.** The
   window says so, and offers "without keeping its name". Clearing the history is
-  a gesture of its own, on the Spending page ("Clear the history..."), all of it
-  or what is before a date. "Export (CSV)" saves every call as a file: the only
-  place where calls are listed one by one.
-- **On OpenRouter**, after a reply you stopped, Evermind asks OpenRouter what
-  that reply cost, with the key you gave it for that service (a read, not a
-  reply). Nothing is sent anywhere else.
+  a gesture of its own, on the Spending page ("Clear the history…"), all of it
+  or what is before a date. "Export (CSV)" saves the calls of the period shown
+  as a file, one per line: the only place where calls are listed one by one.
+- **On OpenRouter**, after a call that ended without a cost (stopped, cut off
+  or not counted), Evermind asks OpenRouter what that call cost, with the key
+  you gave it for that service: at 20 seconds, again at 2 minutes if the record
+  is not there yet, and once more at start-up if it is still missing within the
+  hour (a read, not a reply). Nothing is sent anywhere else.
 - **A reply asks for one request less** on a phone: the end of a turn now carries
   what the page used to read again.
 - **No request sent to an AI changes.** What each AI is sent is the same as in
@@ -54,16 +51,19 @@ when Evermind starts, and a copy of it is kept first, as
   ignores the spending table and plays as before. Only the Spending page and the
   counting stop, and the calls made meanwhile are not counted when you come back
   to 3.9.0. `evermind.before-3.9.0.db` is only useful to undo the migration
-  itself.
+  itself, and what you did since the update is lost with it: see
+  [Going back after an update](../INSTALL.md#going-back-after-an-update).
 - **For a script that calls the API**: `/api/spending` (sums by period), its
   `/detail`, `/total`, `/export.csv`, `DELETE /api/spending` (`before`, `dry_run`)
-  and `POST /api/spending/forget` are new, and a day or a zone they cannot read
-  answers `422` (`bad_period`). `DELETE` of a conversation or a character takes
+  and `POST /api/spending/forget` are new, and a malformed day, zone or offset, or a
+  day outside 2000–2100, answers `422` (`bad_period`); a zone Python does not
+  know falls back to the offset. `DELETE` of a conversation or a character takes
   `?forget_name=1`. `POST /api/characters` takes `assist_jobs`. `GET /api/models`
   gives each AI a `per100`, `PUT /api/models/{id}` answers `repriced`, and
   `GET /api/conversations/{id}/turn` carries `glance` and `spent` once a turn
-  has ended. The body of a request to an AI does not change; OpenRouter receives
-  one `GET /generation` after a stopped reply.
+  has ended, `null` again once anything has been written. The body of a request
+  to an AI does not change; after a call that ended without a cost, OpenRouter
+  receives `GET /generation?id=…` with your key.
 
 ## From 3.7.x to 3.8.0
 

@@ -401,9 +401,11 @@ those copied names; only "Clear the history" removes rows.
   was free at home, and `cost_of` gives the cost: what the service reported; else,
   away from home, what the whole price makes; else nothing known. A refusal costs
   zero, never "no price". A price counts only whole (read and written).
-- **OpenRouter's record completes what it did not say.** A stopped call, or one
-  never counted, is read once from `GET {base}/generation?id=`: 20 seconds and 2
-  minutes after its end, and at start-up, for a call less than an hour old.
+- **OpenRouter's record completes what it did not say.** A call that ended
+  without a cost (stopped, cut off, failed midway, or not counted; any use) is
+  read from `GET {base}/generation?id=` with the service's key: 20 seconds after
+  its end, again at 2 minutes if the record is not there yet, and at start-up
+  while it is still missing and less than an hour old.
   Rows a killed process left `running` are ended `stopped` at start-up
   (`after_start`). A price typed later fills only the rows with no price for the
   same model id (`repositories/calls.reprice`, in the transaction that saves the
