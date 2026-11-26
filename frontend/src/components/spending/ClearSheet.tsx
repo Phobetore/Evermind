@@ -26,7 +26,8 @@ export function ClearSheet({ onClose, onCleared }: { onClose(): void; onCleared(
 
   // The choice made, the server counts what it would take; an older count is dropped.
   const asked = useRef(0);
-  const before = what === "before" && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined;
+  // A day the server does not read is no choice: nothing is asked for it.
+  const before = what === "before" && /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= FIRST_DAY && day <= LAST_DAY ? day : undefined;
   const chosen = what === "all" || before !== undefined;
   useEffect(() => {
     const mine = ++asked.current;

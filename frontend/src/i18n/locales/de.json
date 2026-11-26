@@ -691,7 +691,8 @@
     "internal": "In Evermind ist etwas schiefgelaufen: {message}",
     "keyNeeded": "Neue Adresse: Geben Sie den Schlüssel erneut ein oder wählen Sie „Ohne Schlüssel“. Evermind schickt ihn nur an die Adresse, für die Sie ihn angegeben haben.",
     "serviceInUse": "Dieser Dienst hat jetzt KIs: Er wurde nicht entfernt.",
-    "modelNoCredit": "Der Dienst lehnt ab, weil das Guthaben fehlt. Ohne Antwortobergrenze rechnet er mit der längstmöglichen Antwort: Laden Sie Ihr Konto auf oder geben Sie dieser KI eine Obergrenze (Meine KIs, Erweitert, „Mein Wert“). Er meldet: {message}"
+    "modelNoCredit": "Der Dienst lehnt ab, weil das Guthaben fehlt. Ohne Antwortobergrenze rechnet er mit der längstmöglichen Antwort: Laden Sie Ihr Konto auf oder geben Sie dieser KI eine Obergrenze (Meine KIs, Erweitert, „Mein Wert“). Er meldet: {message}",
+    "badPeriod": "Wählen Sie einen Tag zwischen 2000 und 2100."
   },
   "login": {
     "cookieRefused": "Ihr Browser hat die Anmeldung nicht behalten. Erlauben Sie Cookies für diese Adresse und versuchen Sie es noch einmal.",

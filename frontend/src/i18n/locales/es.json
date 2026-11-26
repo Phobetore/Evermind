@@ -691,7 +691,8 @@
     "internal": "Algo ha fallado dentro de Evermind: {message}",
     "keyNeeded": "Nueva dirección: vuelva a escribir la clave, o elija «Sin clave». Evermind solo la envía a la dirección para la que usted la dio.",
     "serviceInUse": "Este servicio tiene ahora IA: no se ha quitado.",
-    "modelNoCredit": "El servicio se niega por falta de crédito. Sin tope de respuesta, cuenta con la respuesta más larga posible: recargue su cuenta, o ponga un tope a esta IA (Mis IA, Avanzado, «Mi valor»). Indicó: {message}"
+    "modelNoCredit": "El servicio se niega por falta de crédito. Sin tope de respuesta, cuenta con la respuesta más larga posible: recargue su cuenta, o ponga un tope a esta IA (Mis IA, Avanzado, «Mi valor»). Indicó: {message}",
+    "badPeriod": "Elija un día entre 2000 y 2100."
   },
   "login": {
     "cookieRefused": "Su navegador no ha guardado el inicio de sesión. Permita las cookies para esta dirección e inténtelo de nuevo.",

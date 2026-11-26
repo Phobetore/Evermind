@@ -691,7 +691,8 @@
     "internal": "Something went wrong inside Evermind: {message}",
     "keyNeeded": "New address: type the key again, or choose \"No key\". Evermind only sends it to the address you gave it for.",
     "serviceInUse": "This service now holds AIs: it was not removed.",
-    "modelNoCredit": "The service refuses for lack of credit. With no reply ceiling, it counts on the longest reply possible: top up your account, or give this AI a ceiling (My AIs, Advanced, \"My value\"). It said: {message}"
+    "modelNoCredit": "The service refuses for lack of credit. With no reply ceiling, it counts on the longest reply possible: top up your account, or give this AI a ceiling (My AIs, Advanced, \"My value\"). It said: {message}",
+    "badPeriod": "Choose a day between 2000 and 2100."
   },
   "login": {
     "cookieRefused": "Your browser did not keep the sign-in. Allow cookies for this address and try again.",

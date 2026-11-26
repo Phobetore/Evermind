@@ -43,6 +43,7 @@ describe("an error the server named", () => {
     ["nothing_to_continue", "errors.nothingToContinue"],
     ["key_needed", "errors.keyNeeded"],
     ["service_in_use", "errors.serviceInUse"],
+    ["bad_period", "errors.badPeriod"],
   ])("%s is said as %s", (kind, key) => {
     expect(describeError(new DataError("English words", { kind, status: 400 }), t)).toBe(
       `${key} {"message":"English words"}`,
