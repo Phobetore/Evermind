@@ -215,6 +215,33 @@ async def test_a_look_waiting_for_its_time_is_cancelled_by_the_server_s_stop(
     assert records.requests == []
 
 
+async def test_a_look_an_end_schedules_while_the_server_stops_is_cancelled(
+        client, lists, records, monkeypatch):
+    monkeypatch.setattr(calls, "RECONCILE_AFTER_S", (20, 120))
+    ai = await openrouter_ai(client)
+    row = write_row("a", model_id=ai["id"], service_id=ai["service"]["id"])
+    real, began, release = calls._write, asyncio.Event(), asyncio.Event()
+
+    async def write(sql: str, params) -> int:
+        if sql.startswith("UPDATE calls SET ended_at"):
+            began.set()
+            await release.wait()
+        return await real(sql, params)
+
+    monkeypatch.setattr(calls, "_write", write)
+    ending = calls.Recording(None, ({}, {}), calls.Who("reply"), attempt=0, prompt_estimate=0)
+    ending.row_id = "a"
+    calls._spawn(ending._end({**dict.fromkeys(calls._ENDED), **row}))
+    await within(2, began.wait())
+    stopping = asyncio.ensure_future(calls.stop())
+    await asyncio.sleep(0.05)
+    # The end is written while the stop drains, and only then schedules its look.
+    release.set()
+    await within(1, stopping)
+    assert not calls._tasks
+    assert records.requests == []
+
+
 async def test_a_record_that_says_no_cost_writes_nothing(client, lists, records):
     ai = await openrouter_ai(client)
     records.routes["/api/v1/generation"] = {"data": {**RECORD["data"], "total_cost": None}}

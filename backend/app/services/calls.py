@@ -613,10 +613,12 @@ async def after_start() -> None:
 async def stop() -> None:
     """At the server's stop. A call's end is one short write, awaited so that a reply stopped by
     the stop is kept as stopped; an id write is cancelled, since the end writes the id again; a
-    look at a record is cancelled, since the next start looks again."""
-    for task in [*_id_writes, *_looks]:
-        task.cancel()
-    await drain()
+    look at a record is cancelled, since the next start looks again. An end written while the
+    stop waits schedules its look then: each round cancels what came since."""
+    while _tasks:
+        for task in [*_id_writes, *_looks]:
+            task.cancel()
+        await asyncio.gather(*list(_tasks), return_exceptions=True)
 
 
 async def drain() -> None:
