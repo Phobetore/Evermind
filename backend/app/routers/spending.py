@@ -87,8 +87,9 @@ async def total(model: str | None = None, card: str | None = None,
                 conversation: str | None = None, days: Literal["30", "all"] = "all",
                 tz: str | None = None, tzo: str | None = None,
                 db: aiosqlite.Connection = Depends(get_db)):
-    if sum(key is not None for key in (model, card, conversation)) != 1:
-        raise _bad("Name one AI, one character or one conversation.")
+    # None named is every call: the line under My AIs, at the weight of one total.
+    if sum(key is not None for key in (model, card, conversation)) > 1:
+        raise _bad("Name one AI, one character or one conversation, or none.")
     where, lo = _zone(tz, tzo), None
     if days == "30":
         # The 30 days a page means: today and the 29 before, from their local midnight.

@@ -414,13 +414,16 @@ async def detail(db: aiosqlite.Connection,
 async def total(db: aiosqlite.Connection, *, model: str | None, card: str | None,
                 conversation: str | None, lo: str | None) -> dict:
     """What one AI, one character or one conversation cost since ``lo`` (None: ever), for the
-    line on its own page. ``free``: it was called, and never for money."""
-    column, key = next((c, k) for c, k in (("model_id", model), ("card_id", card),
-                                            ("conversation_id", conversation)) if k is not None)
+    line on its own page; every call when none is named. ``free``: it was called, and never for
+    money."""
+    column, key = next(((c, k) for c, k in (("model_id", model), ("card_id", card),
+                                             ("conversation_id", conversation)) if k is not None),
+                       (None, None))
+    named = f"c.{column} = :key AND " if column else ""
     row = await _one(db, f"""
         SELECT SUM({SPENT}), COUNT(*), SUM({UNPRICED}), SUM(NOT {FREE})
         FROM calls c
-        WHERE c.{column} = :key AND c.outcome <> 'running' AND (:lo IS NULL OR c.started_at >= :lo)
+        WHERE {named}c.outcome <> 'running' AND (:lo IS NULL OR c.started_at >= :lo)
         """, {"key": key, "lo": lo})
     return {"total": _money(row[0]), "currency": "USD", "calls": row[1],
             "unpriced_calls": row[2] or 0, "free": row[1] > 0 and not row[3]}

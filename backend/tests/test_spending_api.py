@@ -665,9 +665,18 @@ async def test_thirty_days_of_a_total_start_at_the_local_midnight_29_days_ago(cl
     assert (resp.json()["total"], resp.json()["calls"]) == (0.01, 1)
     resp = await client.get("/api/spending/total", params={"card": "card-1"})
     assert resp.json()["total"] == 0.51
-    for params in ({}, {"card": "a", "model": "b"}):
-        resp = await client.get("/api/spending/total", params=params)
-        assert (resp.status_code, resp.json()["kind"]) == (422, "bad_period")
+    resp = await client.get("/api/spending/total", params={"card": "a", "model": "b"})
+    assert (resp.status_code, resp.json()["kind"]) == (422, "bad_period")
+
+
+async def test_a_total_naming_nothing_is_every_call(client):
+    # The line under My AIs: what every AI cost, at the weight of one total.
+    put_call(cost=0.5)
+    put_call(model_id="ai-2", card_id="card-2", conversation_id="convo-2", cost=0.25)
+    put_call(model_id="ai-3", cost=None, cost_source="none", price_source=None)
+    put_call(outcome="running", cost=1.0)
+    got = (await client.get("/api/spending/total", params={"days": "30"})).json()
+    assert (got["total"], got["calls"], got["unpriced_calls"], got["free"]) == (0.75, 3, 1, False)
 
 
 # A year of play.

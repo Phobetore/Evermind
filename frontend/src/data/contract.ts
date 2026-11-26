@@ -199,7 +199,8 @@ export interface DataSource {
     summary(q: SpendingQuery, asking?: Asking): Promise<Spending>;
     /** One line opened: `key` is its id, "" for the drafts of cards not saved yet. */
     detail(q: SpendingQuery & { cut: Cut; key: string }, asking?: Asking): Promise<SpendingDetail>;
-    /** One AI, one character or one conversation, over the last 30 days or since the start. */
+    /** One AI, one character or one conversation, over the last 30 days or since the start; every
+     *  call when none is named. */
     total(q: { model?: string; card?: string; conversation?: string; days: 30 | "all" }): Promise<SpentTotal>;
     /** Every call of the period, one a line: the one view call by call, and it leaves the page. */
     exportCsv(q: SpendingQuery): Promise<{ blob: Blob; filename: string }>;
