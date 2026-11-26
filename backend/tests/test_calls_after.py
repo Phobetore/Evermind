@@ -5,6 +5,7 @@ none.
 The generation records below are written by hand in the shape OpenRouter documents
 (GET /api/v1/generation, checked on 25 November 2026 against its reference). # shape unverified"""
 
+import asyncio
 import logging
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -221,6 +222,155 @@ async def test_a_record_that_says_no_cost_writes_nothing(client, lists, records)
     assert (rows()["a"]["cost_source"], rows()["a"]["reconciled_at"]) == ("none", None)
 
 
+def change_service(service_id: str, **columns) -> None:
+    conn = sqlite3.connect(db_path())
+    try:
+        conn.execute(f"UPDATE connections SET {', '.join(f'{c} = ?' for c in columns)}"
+                     " WHERE id = ?", (*columns.values(), service_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("change", [
+    # Moved to another address, of another family: the key goes nowhere but OpenRouter.
+    {"provider": "openai-compatible", "base_url": "http://elsewhere.example/v1",
+     "family": "generic", "family_url": None},
+    # Its key taken away: nothing to ask with.
+    {"api_key": ""},
+], ids=["moved", "no-key"])
+async def test_a_service_changed_since_the_call_is_never_asked(client, lists, records, change):
+    ai = await openrouter_ai(client)
+    write_row("a", model_id=ai["id"], service_id=ai["service"]["id"])
+    change_service(ai["service"]["id"], **change)
+    before = rows()
+    assert await calls.reconcile_row("a") is False
+    await looked_at(rows()["a"])
+    assert records.requests == []
+    assert rows() == before
+
+
+async def test_a_row_with_no_generation_id_or_still_running_is_never_asked(client, lists,
+                                                                          records):
+    ai = await openrouter_ai(client)
+    write_row("no-id", model_id=ai["id"], service_id=ai["service"]["id"], generation_id=None)
+    assert await calls.reconcile_row("no-id") is False
+    await looked_at(rows()["no-id"])
+    # Still running, its end is still to come (the server's start stops it first).
+    write_row("running", model_id=ai["id"], service_id=ai["service"]["id"], outcome="running",
+              ended_at=None)
+    assert await calls.reconcile_row("running") is False
+    assert records.requests == []
+
+
+@pytest.mark.parametrize("columns", [
+    {"generation_id": None}, {"cost_source": "reported", "cost": 0.002},
+    {"reconciled_at": "2026-11-26T10:00:00.000+00:00"}, {"outcome": "running"},
+    {"outcome": "refused"}, {"family": "generic"},
+    {"started_at": calls.instant(datetime.now(UTC) - timedelta(minutes=61))},
+], ids=["no-id", "reported", "reconciled", "running", "refused", "other-family", "too-old"])
+async def test_a_row_that_does_not_qualify_schedules_no_look(client, lists, records, columns):
+    # A look that would find nothing is not even waited for: each call's end would otherwise
+    # leave a task asleep for two minutes.
+    ai = await openrouter_ai(client)
+    calls._after_end(write_row("a", model_id=ai["id"], service_id=ai["service"]["id"],
+                               **columns))
+    assert not calls._tasks
+
+
+async def test_two_looks_at_once_write_once(client, lists, records, caplog):
+    ai = await openrouter_ai(client)
+    write_row("a", model_id=ai["id"], service_id=ai["service"]["id"])
+
+    async def slow(request):
+        await asyncio.sleep(0.2)
+        return RECORD
+
+    records.routes["/api/v1/generation"] = slow
+    caplog.set_level(logging.DEBUG, logger="app.services.calls")
+    found = await within(5, asyncio.gather(calls.reconcile_row("a"), calls.reconcile_row("a")))
+    assert sorted(found) == [False, True]
+    assert len(records.requests) == 2
+    said = [r.levelno for r in caplog.records if r.name == "app.services.calls"]
+    assert said == [logging.INFO]
+
+
+async def test_a_record_without_counts_leaves_the_estimate_said_as_one(client, lists, records):
+    ai = await openrouter_ai(client)
+    records.routes["/api/v1/generation"] = {"data": {
+        "id": GENERATION, "total_cost": 0.0042, "upstream_inference_cost": None,
+        "native_tokens_prompt": None, "native_tokens_completion": None, "is_byok": False}}
+    await looked_at(write_row("a", model_id=ai["id"], service_id=ai["service"]["id"]))
+    row = rows()["a"]
+    assert (row["cost"], row["cost_source"]) == (0.0042, "reported")
+    assert (row["tokens_in"], row["tokens_out"], row["tokens_source"]) == (1500, 20, "estimated")
+
+
+def _times_out(request: httpx.Request):
+    # A transport's error may carry what was sent, the key with it.
+    raise httpx.ReadTimeout(f"timed out: {request.headers['authorization']}", request=request)
+
+
+def _refuses(request: httpx.Request):
+    raise httpx.ConnectError(f"refused: {request.headers['authorization']}", request=request)
+
+
+@pytest.mark.parametrize("answer", [
+    _times_out,
+    _refuses,
+    httpx.Response(500, json={"error": {"message": "internal"}}),
+    httpx.Response(401, json={"error": {"message": "bad key"}}),
+    httpx.Response(200, content=b"<html>not json</html>"),
+    httpx.Response(200, json=["not", "a", "record"]),
+    {"data": {**RECORD["data"], "total_cost": -0.01}},
+    httpx.Response(200, content=b'{"data": {"total_cost": Infinity}}',
+                   headers={"content-type": "application/json"}),
+    httpx.Response(200, content=b'{"data": {"total_cost": NaN}}',
+                   headers={"content-type": "application/json"}),
+    {"data": {key: value for key, value in RECORD["data"].items() if key != "total_cost"}},
+], ids=["timeout", "unreachable", "500", "401", "not-json", "not-a-record", "negative",
+        "infinite", "nan", "no-total-cost"])
+async def test_a_look_that_fails_writes_nothing_and_says_nothing(client, lists, records, caplog,
+                                                                 answer):
+    ai = await openrouter_ai(client)
+    records.routes["/api/v1/generation"] = answer
+    caplog.set_level(logging.DEBUG)
+    await looked_at(write_row("a", model_id=ai["id"], service_id=ai["service"]["id"]))
+    assert records.requests
+    row = rows()["a"]
+    assert (row["cost_source"], row["reconciled_at"]) == ("none", None)
+    assert [r for r in caplog.records
+            if r.name.startswith("app") and r.levelno > logging.DEBUG] == []
+    assert KEY not in caplog.text
+
+
+async def test_the_looks_at_start_never_hold_the_start(client, lists, records):
+    ai = await openrouter_ai(client)
+    conn = sqlite3.connect(db_path())
+    try:
+        conn.executemany(
+            "INSERT INTO calls (id, started_at, ended_at, purpose, outcome, family, model_id,"
+            " service_id, generation_id, tokens_in, tokens_out, tokens_source, cost_source)"
+            " VALUES (?, ?, ?, 'reply', 'stopped', 'openrouter', ?, ?, ?, 1500, 20, 'estimated',"
+            " 'none')",
+            [(f"r{n}", calls.instant(), calls.instant(), ai["id"], ai["service"]["id"],
+              f"gen-{n}") for n in range(200)])
+        conn.commit()
+    finally:
+        conn.close()
+
+    async def never(request):
+        await asyncio.Event().wait()
+
+    records.routes["/api/v1/generation"] = never
+    await within(1, calls.after_start())
+    # The pass is under way, waiting on OpenRouter; the server's stop does not wait for it.
+    await asyncio.sleep(0.05)
+    assert records.requests
+    await within(1, calls.stop())
+    assert not calls._tasks
+
+
 # A price typed later.
 
 
@@ -239,6 +389,12 @@ def unpriced_rows(ai: dict, model: str) -> None:
 async def test_a_price_typed_later_fills_only_unpriced_rows(client):
     ai = await add_model(client, base_url=HOSTED, model="aurore", name="Aurore", as_added=True)
     unpriced_rows(ai, "aurore")
+    # Another AI, on another service, that asks for the same server id: its calls are its own.
+    other = await add_model(client, base_url="https://other.example.com/v1", model="aurore",
+                            name="Other", as_added=True)
+    write_row("other", model_id=other["id"], service_id=other["service"]["id"], family="generic",
+              generation_id=None, model_asked="aurore", outcome="whole", tokens_in=1000,
+              tokens_out=50)
     before = rows()
     resp = await client.put(f"/api/models/{ai['id']}", json={"price_own_in": 3,
                                                              "price_own_out": 15})
@@ -254,7 +410,7 @@ async def test_a_price_typed_later_fills_only_unpriced_rows(client):
         assert (row["cost_source"], row["local"]) == ("computed", 0)
         assert row["cost"] == pytest.approx(cost)
         assert (row["price_cache_read"], row["price_cache_write"]) == (None, None)
-    for row_id in ("refused", "running", "computed"):
+    for row_id in ("refused", "running", "computed", "other"):
         assert after[row_id] == before[row_id]
 
 
