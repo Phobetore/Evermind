@@ -258,8 +258,14 @@ async def test_the_pen_is_counted(client, monkeypatch):
     refused = await client.post(f"/api/conversations/{convo['id']}/impersonate")
     assert (refused.status_code, refused.json()["kind"]) == (502, AUTH_REFUSED)
 
+    # Spaces are no text: the pen says so, and the row too.
+    model.answers = [writing("   ")]
+    blank = await client.post(f"/api/conversations/{convo['id']}/impersonate")
+    assert (blank.status_code, blank.json()["kind"]) == (502, "model_empty")
+
     found = [(r["outcome"], r["status"], r["conversation_id"]) for r in await recorded("pen")]
-    assert found == [("whole", None, convo["id"]), ("refused", 401, convo["id"])]
+    assert found == [("whole", None, convo["id"]), ("refused", 401, convo["id"]),
+                     ("empty", None, convo["id"])]
 
 
 # The memory.
@@ -425,3 +431,8 @@ async def test_the_speed_test_is_counted(client, monkeypatch):
     assert (row["purpose"], row["outcome"], row["conversation_id"], row["model_id"]) == (
         "speed", "whole", None, ai["id"])
     assert row["tokens_in"] > 0
+
+    # Spaces are no text: the measure answers as before, and its row is empty.
+    model.answers = [writing("   ")]
+    assert (await client.post(f"/api/models/{ai['id']}/benchmark")).status_code == 200
+    assert [r["outcome"] for r in await recorded("speed")] == ["whole", "empty"]
