@@ -87,9 +87,14 @@ async def update_character(char_id: str, payload: CharacterUpdate,
 
 
 @router.delete("/{char_id}", status_code=204)
-async def delete_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def delete_character(char_id: str, forget_name: bool = False,
+                           db: aiosqlite.Connection = Depends(get_db)):
+    """Her calls stay, under her name and her conversations' titles; ``forget_name``: without
+    them."""
     for convo in await convo_repo.list_all(db, character_id=char_id):  # they go with it
         await turns.stop(convo["id"])
+    if forget_name and await repo.get(db, char_id):
+        await calls_repo.forget(db, "card", char_id)  # committed with the delete
     if not await repo.delete(db, char_id):
         raise NotFoundError("Character not found.", "character")
 

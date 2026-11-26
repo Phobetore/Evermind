@@ -294,6 +294,13 @@ class BranchIn(Input):
     client_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
+class ForgetIn(Input):
+    """The money of a conversation or a character kept, without its name."""
+
+    cut: Literal["conversation", "card"]
+    key: str = Field(min_length=1, max_length=64)
+
+
 class ConversationPatch(Input):
     title: str | None = None
     summary: str | None = None

@@ -16,6 +16,7 @@ from ..providers.catalog import (
     whole,
 )
 from ..services import ai_call
+from . import calls as calls_repo
 from . import connections as services_repo
 from . import settings as settings_repo
 from .base import new_id, now_iso
@@ -66,9 +67,10 @@ def _measured(average) -> int | None:
 
 
 def to_out(model_row, service_row, conversation_count: int = 0,
-           room: int | None = None) -> dict:
+           room: int | None = None, per100: dict | None = None) -> dict:
     """Public shape: the key never leaves, only its end. ``room`` is the reply room of the way
-    offered to new conversations, which its notices weigh."""
+    offered to new conversations, which its notices weigh. ``per100``: what a hundred of its
+    replies cost, measured (repositories/calls.py, per100_all); None under 20."""
     model, service = dict(model_row), dict(service_row)
     family = _family(service)
     counted = ai_call.window(model, family=family)
@@ -107,6 +109,7 @@ def to_out(model_row, service_row, conversation_count: int = 0,
         "usage_seen": None if model["usage_seen"] is None else bool(model["usage_seen"]),
         "anthropic": service["provider"] == "anthropic",
         "conversation_count": conversation_count,
+        "per100": per100,
         "created_at": model["created_at"], "updated_at": model["updated_at"],
     }
 
@@ -125,7 +128,9 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
     rows = await (await db.execute(f"{_JOINED} ORDER BY {_DEFAULT_FIRST}")).fetchall()
     services = await _services(db)
     room = ways.way_for(None, await settings_repo.get_all(db))["reply_room"]
-    out = [to_out(r, services[r["connection_id"]], r["conversation_count"], room) for r in rows]
+    measured = await calls_repo.per100_all(db)
+    out = [to_out(r, services[r["connection_id"]], r["conversation_count"], room,
+                  measured.get(r["id"])) for r in rows]
     if out:
         out[0]["is_default"] = True
     return out
