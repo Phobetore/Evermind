@@ -129,6 +129,43 @@ async def test_a_write_while_the_end_is_read_is_not_missed(client, lists, monkey
     assert (await state_of(client, convo["id"]))["glance"] is None
 
 
+async def test_an_end_that_cannot_be_read_changes_nothing_of_the_turn(client, lists, monkeypatch,
+                                                                      caplog):
+    from app.services import outlook
+
+    convo = await priced_story(client, monkeypatch)
+
+    async def broken(*args, **kwargs):
+        raise RuntimeError("no outlook today")
+
+    monkeypatch.setattr(outlook, "outlook", broken)
+    with caplog.at_level("WARNING", logger="app.services.turns"):
+        assert await send(client, convo["id"]) is None
+    state = await state_of(client, convo["id"])
+    assert (state["outcome"], state["glance"], state["spent"]) == (None, None, None)
+    assert (await messages_of(client, convo["id"]))[-1]["content"] == "*She nods.*"
+    warned = [r for r in caplog.records if r.name == "app.services.turns"]
+    assert [r.levelname for r in warned] == ["WARNING"]
+
+
+async def test_a_conversation_gone_as_the_end_is_read_leaves_nothing(client, lists, monkeypatch,
+                                                                     caplog):
+    from app.errors import NotFoundError
+    from app.services import outlook
+
+    convo = await priced_story(client, monkeypatch)
+
+    async def gone(*args, **kwargs):
+        raise NotFoundError("Conversation not found.", "conversation")
+
+    monkeypatch.setattr(outlook, "outlook", gone)
+    with caplog.at_level("DEBUG", logger="app.services.turns"):
+        assert await send(client, convo["id"]) is None
+    assert turns.end_of(convo["id"]) is None
+    assert (await state_of(client, convo["id"]))["outcome"] is None
+    assert [r for r in caplog.records if r.name == "app.services.turns"] == []
+
+
 @pytest.mark.parametrize(("method", "path", "counted"), [
     # A turn's own: its end is read before the stop answers, and maybe before the ask does.
     ("POST", "/api/chat", 0),
