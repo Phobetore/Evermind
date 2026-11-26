@@ -406,9 +406,39 @@ test("a period that cannot be read says so and reads again", async ({ page }) =>
   await expect(total(page)).toHaveCount(0);
   await expect(page.getByText(/\$3\.02|The 7 days before/)).toHaveCount(0);
   failing = false;
+  // On a slow link, the read asked again says it waits, in place of the failure it answers.
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await onSummary(page, async (url, route) => {
+    if (url.searchParams.get("from") === dayBefore(6)) await held;
+    await route.fallback();
+  });
   await page.getByRole("button", { name: "Reload" }).click();
+  await expect(page.locator("[aria-busy=true]").first()).toContainText("Loading…");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  release();
   await expect(total(page)).toHaveText("$1.00 + 205 calls without a price");
   await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("a first read that fails says it waits when asked again", async ({ page }) => {
+  await answerSpending(page);
+  let failing = true;
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await onSummary(page, async (_url, route) => {
+    if (failing) return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Down." }) });
+    await held;
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await expect(page.getByRole("alert")).toContainText("HTTP 500");
+  failing = false;
+  await page.getByRole("button", { name: "Reload" }).click();
+  await expect(page.locator("[aria-busy=true]").first()).toContainText("Loading…");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  release();
+  await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
 });
 
 test("a late answer of another period is dropped", async ({ page }) => {

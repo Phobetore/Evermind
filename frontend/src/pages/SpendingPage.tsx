@@ -93,7 +93,8 @@ function SpendingView() {
   const [model, setModel] = useState<Chosen | null>(null);
   // Each answer with the question it answers: one of another period or AI is never shown as this one's.
   const [answer, setAnswer] = useState<{ period: string; model: string; summary: Spending } | null>(null);
-  const [failure, setFailure] = useState<{ query: string; error: unknown } | null>(null);
+  // A failure asked again is `again` until it is answered: no amount comes back, and no error stays.
+  const [failure, setFailure] = useState<{ query: string; error: unknown; again?: boolean } | null>(null);
   // The room the total and the lists took when another question was asked, kept while it is.
   const [room, setRoom] = useState({ all: 0, list: 0 });
   // The name a line opened from the list shows before its detail is read, and whether to price it.
@@ -123,6 +124,7 @@ function SpendingView() {
   const read = useCallback(() => {
     const mine = ++answered.current;
     const asking: SpendingQuery = { from, to, model: modelId || undefined };
+    setFailure((before) => (before?.query === query ? { ...before, again: true } : before));
     spending.summary(asking).then(
       (found) => {
         if (mine !== answered.current) return;
@@ -257,6 +259,8 @@ function SpendingView() {
 
   const summary = answer?.summary ?? null;
   const failed = failure?.query === query ? failure : null;
+  // What is said in place of what failed: nothing while it is asked again.
+  const said = failed && !failed.again ? failed : null;
   const money = (cost: number, unpriced = 0) =>
     moneyText({ cost, unpriced, currency: summary?.currency ?? "USD" }, "total", locale, t);
   const since = summary ? localDate(new Date(summary.since)) : "";
@@ -269,8 +273,8 @@ function SpendingView() {
 
   let body: ReactNode;
   if (!answer) {
-    body = failed
-      ? <LoadFailure error={failed.error} onRetry={read} />
+    body = said
+      ? <LoadFailure error={said.error} onRetry={read} />
       : <p aria-busy="true" className="text-mist animate-pulse-soft">{t("common.loading")}</p>;
   } else {
     const shown = answer.summary;
@@ -281,7 +285,7 @@ function SpendingView() {
     const free = model !== null && (shown.free.some(([id]) => id === model.id)
       || (model.free && !shown.models.some(([id]) => id === model.id)));
     body = (
-      <Held waiting={periodWaits} room={room.all} failure={failed} onRetry={read} className="flex flex-col gap-6">
+      <Held waiting={periodWaits} room={room.all} failure={said} onRetry={read} className="flex flex-col gap-6">
         <div ref={allBox} className="flex flex-col gap-6">
           <section className="flex flex-col gap-1.5">
             <p data-total className="font-display text-4xl font-semibold text-parchment [overflow-wrap:anywhere]">
@@ -352,7 +356,7 @@ function SpendingView() {
               </section>
 
               <div className={clsx(wide && opened && "grid grid-cols-[minmax(0,1fr)_minmax(0,24rem)] items-start gap-6")}>
-                <Held waiting={listWaits} room={room.list} failure={failed} onRetry={read}>
+                <Held waiting={listWaits} room={room.list} failure={said} onRetry={read}>
                   <div ref={listBox}>
                     <CutList summary={shown} cut={cut} onOpen={openLine} />
                   </div>
