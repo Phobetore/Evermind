@@ -46,6 +46,9 @@ _outcomes: dict[str, dict] = {}
 # What the page would ask for once a turn ends, read as it ends, until the next one: the revision
 # of the story it was read on, what the AI reads of it under its way, and what it has cost.
 _ends: dict[str, dict] = {}
+# How many writes the API has been asked for, but a turn's own (app/writes.py). A way, an AI, a
+# card or a setting changed elsewhere moves no revision, yet changes what the next turn reads.
+_writes = 0
 
 
 async def running_for(conversation_id: str) -> Turn | None:
@@ -61,13 +64,21 @@ def outcome_of(conversation_id: str) -> dict | None:
 
 
 def end_of(conversation_id: str) -> dict | None:
-    return _ends.get(conversation_id)
+    """What the last turn's end read, while nothing has been written since."""
+    end = _ends.get(conversation_id)
+    return end if end is not None and end["writes"] == _writes else None
+
+
+def wrote() -> None:
+    global _writes
+    _writes += 1
 
 
 async def _note_end(db, conversation_id: str) -> None:
     """Read before the end is told, so that whoever learns of it finds this already there."""
     from . import outlook  # imported here: outlook reaches memory_service, which imports this
 
+    writes = _writes  # before the reads: a write that lands while they run leaves the end unsaid
     try:
         row = await (await db.execute(
             "SELECT revision FROM conversations WHERE id = ?", (conversation_id,))).fetchone()
@@ -81,7 +92,8 @@ async def _note_end(db, conversation_id: str) -> None:
     except Exception:
         logger.warning("What a turn's end carries could not be read", exc_info=True)
         return
-    _ends[conversation_id] = {"revision": row["revision"], "glance": glance, "spent": spent}
+    _ends[conversation_id] = {"revision": row["revision"], "writes": writes, "glance": glance,
+                              "spent": spent}
 
 
 async def _run(turn: Turn, request: ChatRequest) -> None:

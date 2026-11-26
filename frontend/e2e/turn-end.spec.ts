@@ -76,3 +76,28 @@ test("a sheet open at the turn's end still reads the whole", async ({ page, requ
   await stopTurn(request, convo.id);
   await whole;
 });
+
+test("a way changed elsewhere while the link was lost is the way shown once it comes back", async ({ page, request }) => {
+  test.setTimeout(90_000);
+  const convo = await conversationWithReply(request, { slowly: true });
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toHaveText("Balanced");
+  await page.locator("textarea").first().fill("Slowly now.");
+  await page.locator('button[title="Send"]').click();
+  await expect(page.locator('button[title="Stop generation"]')).toBeVisible();
+
+  // A phone on a bad link: nothing of the conversation reaches it, while another window stops the
+  // reply and plays it another way. That way moves no revision of the story.
+  let cut = true;
+  await page.route(`**/api/conversations/${convo.id}**`, (route) =>
+    cut ? route.abort("internetdisconnected") : route.continue());
+  await stopTurn(request, convo.id);
+  await request.patch(`${API}/api/conversations/${convo.id}`, { data: { play_style: "immersive" } });
+  cut = false;
+
+  await expect(chipOf(page)).toHaveText("Immersive", { timeout: 30_000 });
+  await expect(page.locator('button[title="Stop generation"]')).toBeHidden();
+  // Still so once the page has heard the end and read again what it would.
+  await page.waitForLoadState("networkidle");
+  await expect(chipOf(page)).toHaveText("Immersive");
+});
