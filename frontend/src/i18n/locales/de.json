@@ -1067,9 +1067,13 @@
     "detail": {
       "read": "Was die KI gelesen und geschrieben hat",
       "in": "Gelesen: {count:grouped} Tokens",
+      "in_one": "Gelesen: {count:grouped} Token",
       "out": "Geschrieben: {count:grouped} Tokens",
+      "out_one": "Geschrieben: {count:grouped} Token",
       "cached": "davon {count:grouped} aus dem Cache gelesen",
+      "cached_one": "davon {count:grouped} aus dem Cache gelesen",
       "reasoning": "davon {count:grouped} zum Nachdenken",
+      "reasoning_one": "davon {count:grouped} zum Nachdenken",
       "sources": "Woher der Betrag kommt",
       "share": "{name}: {money}",
       "cards": "Mit welchen Charakteren",

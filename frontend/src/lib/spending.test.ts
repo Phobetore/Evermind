@@ -121,6 +121,28 @@ describe("the period said in words", () => {
   });
 });
 
+describe("the tokens of a line", () => {
+  test("one token is said in the singular, in each language", () => {
+    const one = (locale: "fr" | "en" | "de" | "es") =>
+      ["in", "out", "cached", "reasoning"].map((k) => translate(locale, `spending.detail.${k}`, { count: 1 }));
+    expect(one("fr")).toEqual([
+      "Lu : 1 token", "Écrit : 1 token", "dont 1 relu depuis le cache", "dont 1 de réflexion",
+    ]);
+    // French says zero in the singular too.
+    expect(translate("fr", "spending.detail.out", { count: 0 })).toBe("Écrit : 0 token");
+    expect(one("en")).toEqual([
+      "Read: 1 token", "Written: 1 token", "of which 1 read from the cache", "of which 1 thinking",
+    ]);
+    expect(one("de")).toEqual([
+      "Gelesen: 1 Token", "Geschrieben: 1 Token", "davon 1 aus dem Cache gelesen", "davon 1 zum Nachdenken",
+    ]);
+    expect(one("es")).toEqual([
+      "Leído: 1 token", "Escrito: 1 token", "de los cuales 1 leído de la caché", "de los cuales 1 de razonamiento",
+    ]);
+    expect(translate("en", "spending.detail.in", { count: 12345 })).toBe("Read: 12,345 tokens");
+  });
+});
+
 describe("the measured figure", () => {
   test("what a hundred replies cost, from how many, and whose price", () => {
     expect(measuredText({ cost: 4.9, n: 100, typed: false }, "en", en))

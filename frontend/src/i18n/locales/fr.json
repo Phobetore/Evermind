@@ -1067,9 +1067,13 @@
     "detail": {
       "read": "Ce qu'elle a lu et écrit",
       "in": "Lus\u00a0: {count:grouped} tokens",
+      "in_one": "Lu\u00a0: {count:grouped} token",
       "out": "Écrits\u00a0: {count:grouped} tokens",
+      "out_one": "Écrit\u00a0: {count:grouped} token",
       "cached": "dont {count:grouped} relus depuis le cache",
+      "cached_one": "dont {count:grouped} relu depuis le cache",
       "reasoning": "dont {count:grouped} de réflexion",
+      "reasoning_one": "dont {count:grouped} de réflexion",
       "sources": "D'où vient le montant",
       "share": "{name}\u00a0: {money}",
       "cards": "Avec quels personnages",

@@ -1067,9 +1067,13 @@
     "detail": {
       "read": "What it read and wrote",
       "in": "Read: {count:grouped} tokens",
+      "in_one": "Read: {count:grouped} token",
       "out": "Written: {count:grouped} tokens",
+      "out_one": "Written: {count:grouped} token",
       "cached": "of which {count:grouped} read from the cache",
+      "cached_one": "of which {count:grouped} read from the cache",
       "reasoning": "of which {count:grouped} thinking",
+      "reasoning_one": "of which {count:grouped} thinking",
       "sources": "Where the amount comes from",
       "share": "{name}: {money}",
       "cards": "With which characters",

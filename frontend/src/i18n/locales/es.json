@@ -1067,9 +1067,13 @@
     "detail": {
       "read": "Lo que leyó y escribió",
       "in": "Leídos: {count:grouped} tokens",
+      "in_one": "Leído: {count:grouped} token",
       "out": "Escritos: {count:grouped} tokens",
+      "out_one": "Escrito: {count:grouped} token",
       "cached": "de los cuales {count:grouped} leídos de la caché",
+      "cached_one": "de los cuales {count:grouped} leído de la caché",
       "reasoning": "de los cuales {count:grouped} de razonamiento",
+      "reasoning_one": "de los cuales {count:grouped} de razonamiento",
       "sources": "De dónde viene el importe",
       "share": "{name}: {money}",
       "cards": "Con qué personajes",
