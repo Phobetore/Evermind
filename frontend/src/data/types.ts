@@ -28,6 +28,8 @@ export interface AssistInput {
   existing: Record<string, unknown>;
   /** Null: the default AI. */
   model_id: string | null;
+  /** The saved card being written, which what the job costs is counted under. */
+  card_id?: string;
 }
 
 /** A draft: any of the card's fields, and lorebook entries to add to it. */

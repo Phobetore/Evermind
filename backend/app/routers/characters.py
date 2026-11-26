@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Form, Query, UploadFile
 from ..db import get_db
 from ..errors import AppError, NotFoundError
 from ..models.schemas import CardAssistRequest, CharacterIn, CharacterUpdate
+from ..repositories import calls as calls_repo
 from ..repositories import characters as repo
 from ..repositories import conversations as convo_repo
 from ..repositories import lore as lore_repo
@@ -30,7 +31,9 @@ async def search_characters(q: str = Query(""), db: aiosqlite.Connection = Depen
 
 @router.post("", status_code=201)
 async def create_character(payload: CharacterIn, db: aiosqlite.Connection = Depends(get_db)):
-    return await repo.create(db, payload.model_dump())
+    saved = await repo.create(db, payload.model_dump(exclude={"assist_jobs"}))
+    await calls_repo.claim(db, payload.assist_jobs, saved["id"], saved["name"], saved["kind"])
+    return saved
 
 
 @router.post("/assist", status_code=202)

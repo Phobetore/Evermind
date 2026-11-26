@@ -60,6 +60,7 @@ def _reading(read: dict) -> dict:
     nobody has touched since equals it, and its entries are those the server kept."""
     stored = {**read, **_stored(read), "lore_entries": lore_repo.clean(read.get("lore_entries") or [])}
     stored.pop("card", None)
+    stored.pop("assist_jobs", None)  # what wrote a card here, not what the card said
     return stored
 
 

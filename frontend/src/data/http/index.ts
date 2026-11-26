@@ -44,7 +44,7 @@ export const data: DataSource = {
     search: (text: string, asking?: Asking) => fresh<string[]>(`api/characters/search?q=${seg(text)}`, asking),
     get: (id: string) => get<CharacterWithLore>(`api/characters/${seg(id)}`),
     /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
-    create: (input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard }) =>
+    create: (input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard; assist_jobs?: string[] }) =>
       post<Character>("api/characters", input),
     update: (
       id: string,

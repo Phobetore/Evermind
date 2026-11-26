@@ -46,8 +46,11 @@ export interface DataSource {
      *  An empty text finds nothing. */
     search(text: string, asking?: Asking): Promise<string[]>;
     get(id: string): Promise<CharacterWithLore>;
-    /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out. */
-    create(input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard }): Promise<Character>;
+    /** `lore_entries` is the whole lorebook: an entry with no keyword or no text is left out.
+     *  `assist_jobs`: the assistant's jobs that wrote it, whose cost then counts under its name. */
+    create(
+      input: CharacterInput & { lore_entries?: LoreEntryInput[]; card?: OriginalCard; assist_jobs?: string[] },
+    ): Promise<Character>;
     update(
       id: string,
       input: Partial<CharacterInput> & { is_favorite?: boolean; lore_entries?: LoreEntryInput[]; card?: OriginalCard },

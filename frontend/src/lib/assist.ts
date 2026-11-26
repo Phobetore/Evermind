@@ -46,9 +46,39 @@ export function forgetJob(scope: string): void {
   data.device.remove(PREFIX + scope);
 }
 
+const JOBS_PREFIX = "evermind:assist-jobs:";
+/** As many as a save may claim: the oldest go first. */
+const JOBS_KEPT = 50;
+
+/** Writes down a job that wrote this card, so that its first save claims what the job cost. */
+export function keepJobId(scope: string, id: string): void {
+  const ids = jobIdsOf(scope);
+  if (ids.includes(id)) return;
+  data.device.set(JOBS_PREFIX + scope, JSON.stringify([...ids, id].slice(-JOBS_KEPT)));
+}
+
+/** The jobs written down for this card; [] when nothing readable is kept. */
+export function jobIdsOf(scope: string): string[] {
+  try {
+    const kept: unknown = JSON.parse(data.device.get(JOBS_PREFIX + scope) ?? "[]");
+    return Array.isArray(kept) ? kept.filter((id): id is string => typeof id === "string" && id !== "") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function forgetJobIds(scope: string): void {
+  data.device.remove(JOBS_PREFIX + scope);
+}
+
 /** Moves what is remembered for a card not saved yet to the card it has become, so that the job
- *  follows it and the next new card does not find it. */
+ *  follows it and the next new card does not find it; the jobs that wrote it go along. */
 export function moveJob(from: string, to: string): void {
+  const ids = jobIdsOf(from);
+  if (ids.length > 0) {
+    data.device.set(JOBS_PREFIX + to, JSON.stringify(ids));
+    forgetJobIds(from);
+  }
   const job = rememberedJob(from);
   if (!job) return;
   rememberJob(to, job);

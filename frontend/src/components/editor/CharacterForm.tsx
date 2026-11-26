@@ -10,8 +10,8 @@ import { useConfirm } from "@/components/ui/Confirm";
 import { data, DataError, type AssistField, type AssistState, type CharacterInput, type OriginalCard } from "@/data";
 import { useT } from "@/i18n/useT";
 import {
-  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, moveJob, outcome, rememberJob, rememberedJob,
-  scopeOf,
+  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, forgetJobIds, jobIdsOf, keepJobId, moveJob, outcome,
+  rememberJob, rememberedJob, scopeOf,
 } from "@/lib/assist";
 import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard, type RereadMode } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
@@ -211,6 +211,12 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   }
 
   useEffect(() => {
+    // A new card that opens with no job to find again has lost the text of the drafts before it:
+    // what they cost is not this card's.
+    if (scope === "new" && !remembered) forgetJobIds(scope);
+  }, [scope, remembered]);
+
+  useEffect(() => {
     here.current = true;
     const picking = remembered ? setTimeout(() => watch(remembered.id)) : undefined;
     return () => {
@@ -258,16 +264,21 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       }
       delete existing.kind;
       existing.lore_entries = loreEntries.length > 0 ? loreEntries : undefined;
+      // A saved card names itself, and what the job costs counts under it.
+      const cardId = initial?.id || created.current || undefined;
       const { id } = await data.characters.assist.start({
         prompt: brief,
         kind: draft.kind,
         existing,
         model_id: assistAiId || null,
         client_id: clientId,
+        ...(cardId ? { card_id: cardId } : {}),
       });
       // Written down before anything else: from here the job is the server's, and a page that is
       // left or reloaded from now on finds it again.
       rememberJob(scopeNow(), { id, brief, kind: draft.kind });
+      // A card not saved yet claims it at its first save.
+      if (!cardId) keepJobId(scopeNow(), id);
       lostStart.current = null;
       if (here.current) watch(id);
     } catch (e) {
@@ -291,7 +302,9 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       const card = { ...draft, lore_entries: loreEntries, ...(pendingCard ? { card: pendingCard } : {}) };
       const saved = id
         ? await data.characters.update(id, card)
-        : await data.characters.create(card);
+        : await data.characters.create({ ...card, assist_jobs: jobIdsOf("new") });
+      // Claimed: the next new card starts with none.
+      if (!id) forgetJobIds("new");
       created.current = saved.id;
       // A job begun on this card while it was not saved is the new card's now.
       if (!initial) moveJob("new", saved.id);
