@@ -18,7 +18,7 @@ from ..services import periods
 
 router = APIRouter(prefix="/api/spending", tags=["spending"])
 
-_ZONE = re.compile(r"^[A-Za-z0-9_+\-/]{1,64}$")
+_ZONE = re.compile(r"[A-Za-z0-9_+\-/]{1,64}")
 _OFFSET_MAX = 840  # minutes: the farthest zones are 14 hours from UTC
 
 
@@ -27,7 +27,8 @@ def _bad(message: str) -> AppError:
 
 
 def _zone(tz: str | None, tzo: str | None) -> tzinfo:
-    if tz is not None and not _ZONE.match(tz):
+    # fullmatch: "$" would let a final newline through, and a zone name ending in one.
+    if tz is not None and not _ZONE.fullmatch(tz):
         raise _bad("That time zone cannot be read.")
     offset = None
     if tzo is not None:
@@ -44,9 +45,12 @@ def _day(value: str | None) -> date | None:
     if value is None:
         return None
     try:
-        return date.fromisoformat(value)
+        day = date.fromisoformat(value)
     except ValueError:
         raise _bad("That day cannot be read.") from None
+    if not periods.FIRST_DAY <= day <= periods.LAST_DAY:
+        raise _bad("That day is out of bounds.")
+    return day
 
 
 async def _period(db: aiosqlite.Connection, first: str | None, last: str | None,
@@ -112,8 +116,8 @@ async def export(first: str | None = Query(None, alias="from"),
 @router.delete("")
 async def clear(before: str | None = None, tz: str | None = None, tzo: str | None = None,
                 dry_run: bool = False, db: aiosqlite.Connection = Depends(get_db)):
-    day = _day(before)
-    cut = periods.midnight(day, _zone(tz, tzo)) if day else None
+    where, day = _zone(tz, tzo), _day(before)
+    cut = periods.midnight(day, where) if day else None
     return await repo.clear(db, cut, dry_run=dry_run)
 
 

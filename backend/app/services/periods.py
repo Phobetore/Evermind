@@ -11,6 +11,9 @@ from .calls import instant
 
 # Up to a month goes by day; beyond, a day would be too thin a bar on a phone.
 DAYS_BY_DAY = 31
+# The days a period may name. No call is older than 2000 nor will be after 2100; beyond, a date
+# overflows, or its weeks are more bounds than SQLite takes in one query.
+FIRST_DAY, LAST_DAY = date(2000, 1, 1), date(2100, 12, 31)
 
 
 @dataclass(frozen=True)
@@ -29,7 +32,9 @@ def zone(tz: str | None, tzo: int | None) -> tzinfo:
     if tz:
         try:
             return ZoneInfo(tz)
-        except (ZoneInfoNotFoundError, ValueError):
+        # OSError: a folder of the zone base ("America") or a name the system cannot open is
+        # no zone either.
+        except (ZoneInfoNotFoundError, ValueError, OSError):
             pass
     if tzo is not None:
         return timezone(timedelta(minutes=tzo))

@@ -132,10 +132,38 @@ async def test_the_previous_period_is_as_long_and_none_from_the_start(client):
 
 async def test_a_bad_period_is_refused(client):
     for params in ({"from": "2026-11-31"}, {"from": "2026-11-25", "to": "2026-11-24"},
-                   {"tz": "../../etc"}, {"tzo": "900"}, {"tzo": "east"}):
-        resp = await client.get("/api/spending", params=params)
-        assert resp.status_code == 422, params
-        assert resp.json()["kind"] == "bad_period"
+                   {"tz": "../../etc"}, {"tz": "Europe/Paris\n"}, {"tzo": "900"},
+                   {"tzo": "east"},
+                   # Days a calendar can write but no play of today reaches.
+                   {"from": "0001-01-01"}, {"to": "9999-12-31"},
+                   {"from": "1000-01-01", "to": "2026-11-26"}, {"from": "1800-01-01"}):
+        for path in ("", "/detail", "/export.csv"):
+            resp = await client.get(f"/api/spending{path}",
+                                    params={"cut": "use", "key": "reply", **params})
+            assert resp.status_code == 422, (path, params)
+            assert resp.json()["kind"] == "bad_period"
+    for params in ({"before": "0001-01-01"}, {"before": "9999-12-31"},
+                   {"tz": "Europe/Paris\n"}):
+        resp = await client.delete("/api/spending", params={"dry_run": 1, **params})
+        assert (resp.status_code, resp.json()["kind"]) == (422, "bad_period"), params
+    resp = await client.get("/api/spending/total", params={"model": "a", "tz": "Europe/Paris\n"})
+    assert (resp.status_code, resp.json()["kind"]) == (422, "bad_period")
+
+
+async def test_a_folder_of_the_zone_base_takes_the_page_offset(client):
+    put_call(started_at="2026-11-24T23:30:00.000+00:00")
+    period = {"from": "2026-11-24", "to": "2026-11-25", "tzo": "60"}
+    for name in ("America", "Etc", "Europe"):
+        got = await spending(client, **period, tz=name)
+        assert got["series"]["points"] == [["2026-11-24", 0, 0], ["2026-11-25", 0.01, 0]], name
+        for path, extra in (("/detail", {"cut": "use", "key": "reply"}), ("/export.csv", {}),
+                            ("/total", {"model": "ai-1", "days": "30"})):
+            resp = await client.get(f"/api/spending{path}", params={**period, "tz": name, **extra})
+            assert resp.status_code == 200, (path, name)
+        resp = await client.delete("/api/spending", params={"tz": name, "tzo": "60",
+                                                            "before": "2026-11-01",
+                                                            "dry_run": 1})
+        assert resp.status_code == 200, name
 
 
 # What a sum counts.

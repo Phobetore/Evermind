@@ -40,6 +40,9 @@ def test_an_unknown_zone_takes_the_page_offset():
     assert periods.zone("Mars/Base", None).utcoffset(None) == timedelta(0)
     # A known zone wins over the offset.
     assert periods.zone("Asia/Tokyo", 60).utcoffset(datetime(2026, 1, 1)) == timedelta(hours=9)
+    # A folder of the zone base, or a name it cannot open, is no zone either.
+    for name in ("America", "Etc", "Europe", "Europe/Paris\n"):
+        assert periods.zone(name, 60).utcoffset(None) == timedelta(hours=1), name
 
 
 def test_more_than_31_days_go_by_weeks_from_a_monday():
