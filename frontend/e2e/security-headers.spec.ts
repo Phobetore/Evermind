@@ -103,8 +103,12 @@ test("no page of the app breaks the policy it is served with @desktop", async ({
   // Spending, the replies of the conversation above among its lines: one of them open beside the
   // list, then the clearing counting what it would take (and taking nothing).
   await page.goto("/#/spending?cut=use&key=reply&per=all");
-  await expect(page.locator("[data-line-detail]")).toContainText("Replies");
+  // Beside the list on a wide screen, in a sheet on a phone: either way, its AIs read.
+  await expect(page.locator("[data-line-detail]")).toContainText("With which AIs");
   await noViolations(page, "Spending with a line open");
+  // A sheet on a phone covers the page: the line is closed first, in either place.
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page.locator("[data-line-detail]")).toHaveCount(0);
   await page.getByRole("button", { name: "Clear the history…" }).click();
   const clearing = page.getByRole("dialog", { name: "Clear the history" });
   await clearing.getByRole("radio", { name: "Everything" }).check();
