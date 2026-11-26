@@ -20,14 +20,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [python, javascript-typescript]
+        # actions: the workflows themselves.
+        language: [python, javascript-typescript, actions]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
-          language: ${{ matrix.language }}
+          # "languages", with its s: under any other name the input is ignored, and each
+          # job analyses every language it finds, under a category that names one.
+          languages: ${{ matrix.language }}
           queries: security-and-quality
+          config-file: ./.github/codeql/codeql-config.yml
 
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:

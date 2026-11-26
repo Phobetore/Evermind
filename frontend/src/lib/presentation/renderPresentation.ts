@@ -1025,7 +1025,6 @@ function cardRules(found: Found) {
       if (node.type !== "element") continue;
       const element = node;
       const properties: Properties = element.properties;
-      let inner = context;
 
       if (element.tagName === "a") {
         const target = linkTarget(properties.href, appOrigin);
@@ -1054,7 +1053,7 @@ function cardRules(found: Found) {
       if (element.tagName in HEADINGS) element.tagName = HEADINGS[element.tagName];
       if (element.tagName === "ol") numberLongList(found, element);
 
-      inner = placeStyle(element, context);
+      const inner = placeStyle(element, context);
 
       if (element.tagName === "img") {
         for (const name of ["width", "height"]) {
