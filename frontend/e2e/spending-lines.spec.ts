@@ -232,23 +232,67 @@ test("a free conversation has no line", async ({ page, request }) => {
   }
 });
 
+/** The words under the input: what sits between the story's scroll and the page's foot (the status
+ *  row, the line of a reply cut short, a failed write, the input and what it says above it). */
+async function underTheInput(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const box = document.querySelector("textarea")!;
+    let input: HTMLElement = box;
+    while (!input.querySelector("[data-status-row]")) input = input.parentElement!;
+    const said = [input.innerText];
+    for (let before = input.previousElementSibling as HTMLElement | null; before; before = before.previousElementSibling as HTMLElement | null) {
+      const scrolls = (el: Element) => ["auto", "scroll"].includes(getComputedStyle(el).overflowY) && !el.hasAttribute("data-truncated-text");
+      if (scrolls(before) || [...before.querySelectorAll("*")].some(scrolls)) break;
+      said.push(before.innerText);
+    }
+    return said.join("\n");
+  });
+}
+
+async function noPrice(page: Page, where: string) {
+  const said = await underTheInput(page);
+  expect(said, where).not.toContain("$");
+  expect(said.toLowerCase(), where).not.toContain("price");
+  for (const text of await page.locator("[data-status-row]").allInnerTexts()) {
+    expect(text, where).not.toContain("$");
+    expect(text.toLowerCase(), where).not.toContain("price");
+  }
+}
+
 test("no price under the input, ever", async ({ page, request }) => {
+  test.setTimeout(240_000);
   const ai = await pricedAi(request, `Quiet ${stamp()}`);
   try {
-    const { convo } = await conversationOn(request, ai, { costs: 1000000 });
-    await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
-    await page.goto(`/#/chat/${convo.id}`);
-    const row = page.locator("[data-status-row]");
-    await expect(row).toBeVisible();
-    for (const text of await row.allInnerTexts()) {
-      expect(text).not.toContain("$");
-      expect(text.toLowerCase()).not.toContain("price");
+    // Waiting for a first word, being written, refused, cut by the connection, cut by its ceiling.
+    for (const how of ["MOCK_QUIET", "SLOWLY", "MOCK_FAILS", "MOCK_FAILS_MIDWAY", "MOCK_HITS_CEILING"]) {
+      const { convo } = await conversationOn(request, ai, { costs: 1000000 });
+      await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
+      await request.patch(`${API}/api/conversations/${convo.id}`, { data: { author_note: `${how} MOCK_SAYS_coin MOCK_COSTS_1000000` } });
+      await page.goto("about:blank");
+      await page.goto(`/#/chat/${convo.id}`);
+      await expect(page.locator("[data-status-row]")).toBeVisible();
+      await noPrice(page, `${how}, before`);
+
+      const ended = replyEnds(page, convo.id);
+      await page.locator("textarea").first().fill("And then?");
+      await page.locator('button[title="Send"]').click();
+      await expect.poll(() => turnRunning(request, convo.id)).toBe(true);
+      await noPrice(page, `${how}, while it runs`);
+      if (how === "SLOWLY") {
+        await expect(page.getByText("coin one two")).toBeVisible();
+        await noPrice(page, `${how}, being written`);
+      }
+      await ended;
+      if (how === "MOCK_FAILS" || how === "MOCK_FAILS_MIDWAY") await expect(page.getByRole("alert").first()).toBeVisible();
+      if (how === "MOCK_HITS_CEILING") await expect(page.locator("[data-ceiling]")).toBeVisible();
+      await noPrice(page, `${how}, after`);
     }
+
     // The panel's line is the one place of the conversation with an amount.
     const panel = await openPanel(page);
     await expect(panel.locator('a[href^="#/spending"]')).toContainText("$");
     await closePanel(page, panel);
-    for (const text of await row.allInnerTexts()) expect(text).not.toContain("$");
+    await noPrice(page, "the panel closed");
   } finally {
     await drop(request, ai);
   }
