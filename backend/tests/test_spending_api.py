@@ -601,7 +601,13 @@ async def test_the_detail_of_an_ai(client):
 async def test_the_detail_of_an_ai_lists_its_dearest_characters_then_the_rest(client):
     put_calls([row_of(card_id=f"card-{n:02}", card_name=f"Card {n}", cost=(n + 1) / 1000)
                for n in range(15)])
+    # Another AI's characters and money stay out of this AI's list, a character both served too.
+    put_call(model_id="ai-2", model_name="Brume", card_id="card-other", card_name="Other",
+             cost=0.5)
+    put_call(model_id="ai-2", model_name="Brume", card_id="card-14", card_name="Card 14",
+             cost=0.3)
     got = await detail(client, "model", "ai-1")
+    assert "card-other" not in [c[0] for c in got["cards"]]
     assert len(got["cards"]) == 12
     assert [c[0] for c in got["cards"][:2]] == ["card-14", "card-13"]
     assert got["cards"][0] == ["card-14", "Card 14", "character", 0.015, 1, True]
