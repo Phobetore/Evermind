@@ -200,7 +200,9 @@ async def test_free_rows_are_never_an_amount(client):
     assert set(free) == {"ai-home", "ai-net", "ai-free"}
     assert (free["ai-home"][2], free["ai-net"][2], free["ai-free"][2]) == (
         "pc", "network", "service")
-    assert free["ai-home"][3:] == [1, 1000]
+    assert free["ai-home"][3:5] == [1, 1000]
+    # The service it ran on, for "free on OpenRouter": the row's copy when the AI is gone.
+    assert free["ai-free"][5] == "Lumen"
     [byok] = got["models"]
     assert (byok[0], byok[3], byok[4]) == ("ai-byok", 0, 0.0123)
     assert got["unpriced"] == {"calls": 0, "tokens_in": 0, "tokens_out": 0}

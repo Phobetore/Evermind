@@ -417,7 +417,7 @@ export interface Spending {
     cost_upstream: number, upstream: string | null, calls: number, replies: number, tokens_in: number,
     tokens_out: number, unpriced_calls: number, deleted: boolean][];
   free: [model_id: string | null, name: string | null, where: "pc" | "network" | "service", replies: number,
-    tokens_in: number][];
+    tokens_in: number, service_name: string | null][];
   /** A null `card_id`: the drafts of cards not saved yet, "New card". */
   cards: [card_id: string | null, name: string | null, kind: Kind | null, cost: number, calls: number,
     unpriced_calls: number, free_only: boolean, deleted: boolean][];

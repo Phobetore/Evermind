@@ -242,8 +242,10 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
         SELECT c.model_id, COALESCE(m.name, c.model_name),
                CASE WHEN c.loopback = 1 THEN 'pc' WHEN c.local = 1 THEN 'network'
                     ELSE 'service' END,
-               SUM({REPLIES}), SUM(c.tokens_in) AS tokens, MAX(c.started_at) AS last
+               SUM({REPLIES}), SUM(c.tokens_in) AS tokens, MAX(c.started_at) AS last,
+               COALESCE(s.name, c.service_name)
         FROM calls c LEFT JOIN models m ON m.id = c.model_id
+             LEFT JOIN connections s ON s.id = m.connection_id
         WHERE {IN_PERIOD} AND {FREE}
         GROUP BY c.model_id ORDER BY tokens DESC, last DESC""", args)
     cards, cards_rest = await _cards(db, args)
@@ -260,7 +262,7 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
         "series": {"step": p.step, "points": await _series(db, p)},
         "models": [[r[0], r[1], r[2], _money(r[3]), _money(r[4]), r[5], r[6], r[7], r[8], r[9],
                     r[10], bool(r[11])] for r in models],
-        "free": [[r[0], r[1], r[2], r[3], r[4]] for r in free],
+        "free": [[r[0], r[1], r[2], r[3], r[4], r[6]] for r in free],
         "cards": cards, "cards_rest": cards_rest,
         "conversations": conversations, "conversations_rest": conversations_rest,
         "unpriced": {"calls": head[9] or 0, "tokens_in": head[10] or 0,
