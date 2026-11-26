@@ -167,6 +167,16 @@ can move the buttons from under the click.
   (`frontend/src/lib/estimate.ts`), the server never
 - `POST /api/models/{id}/observed`: records the size an AI really reads when its server
   cut a story without saying so; the conversation then plays again with it
+- `GET /api/spending`, `/api/spending/detail`, `/api/spending/total`,
+  `/api/spending/export.csv`, `DELETE /api/spending` (`before`, `dry_run`) and
+  `POST /api/spending/forget`: what the calls cost, as sums (see "Spending"); the
+  periods are the device's days (`tz`, and `tzo` for a zone Python does not know),
+  and a day or a zone that cannot be read answers `422` (`bad_period`).
+  `DELETE /api/conversations/{id}` and `DELETE /api/characters/{id}` take
+  `?forget_name=1`; `POST /api/characters` takes `assist_jobs`; `GET /api/models`
+  gives each AI a `per100`; `PUT /api/models/{id}` answers `repriced`; and
+  `GET .../turn` carries `glance` and `spent` once the turn has ended, until
+  anything is written through the API
 - `GET /api/library`: the cards in `library/`. The browser reads and writes card
   files itself (`frontend/src/lib/cards.ts`), and installs or imports a card by
   creating a character
@@ -364,6 +374,55 @@ should.
   (`requests_before.json`), compared byte for byte with what an AI sends now.
   When the engine, a provider or a service that builds a request changes,
   record the file again on the code of `main` itself, not on a branch.
+
+## Spending
+
+Every request sent to a model's server leaves one row in `calls` (migration
+`023_calls.sql`), and the rows are only ever summed. The table has **no foreign
+key**, on purpose: what a conversation, a character or an AI cost stays spent once
+it is deleted, so the ids are plain text and the names are copied onto the row at
+call time. Deleting with `?forget_name=1`, or `POST /api/spending/forget`, blanks
+those copied names; only "Clear the history" removes rows.
+
+- **`services/calls.py` is the recorder.** `recording(...)` is an asynchronous
+  context manager: it inserts the row when the request starts (`running`, the
+  prompt as the engine estimates it) and completes it when it ends, however it
+  ends. Each write is on a short connection of its own, committed at once, so
+  that a caller's rollback or a stop never takes the row with it, and a recording
+  is never opened inside a caller's `write_transaction`. A write that fails is
+  logged as a warning and the call goes on. Six callers open it: the turn
+  (`chat_service.run_turn`, each pass), the pen, the memory pass (each request of
+  `_ask`), the condensation, the card assistant and the speed test.
+- **The rules are pure functions beside it.** `outcome_of` says how a call ended
+  (`whole`, `stopped`, `failed`, `refused`, `empty`, `discarded`: an error before
+  the server had the request is a refusal, and a refusal reads and writes
+  nothing), `tokens_of` takes the server's counts and estimates what it did not
+  say, `pricing_of` copies the price as applied, `at_home` says whether a call
+  was free at home, and `cost_of` gives the cost: what the service reported; else,
+  away from home, what the whole price makes; else nothing known. A refusal costs
+  zero, never "no price". A price counts only whole (read and written).
+- **OpenRouter's record completes what it did not say.** A stopped call, or one
+  never counted, is read once from `GET {base}/generation?id=`: 20 seconds and 2
+  minutes after its end, and at start-up, for a call less than an hour old.
+  Rows a killed process left `running` are ended `stopped` at start-up
+  (`after_start`). A price typed later fills only the rows with no price for the
+  same model id (`repositories/calls.reprice`, in the transaction that saves the
+  price). Tests replace `calls.client_factory`, and `conftest.py` awaits
+  `calls.drain()` after each test.
+- **`repositories/calls.py` makes every sum in SQL**; no row is read into Python,
+  and no list of calls is served but the CSV. `services/periods.py` turns the
+  device's days into UTC instants (a day is 23, 24 or 25 hours long when the
+  clocks change); the bars are cut by a table of bounds joined to the rows.
+- **The page asks for little**: one request to open Spending, one to change
+  period, one for a line's detail, and `/api/spending/total` for the lines under
+  My AIs, an AI's page and a character's page. The panel of a conversation reads
+  its sum once, then follows the `spent` that the end of each turn carries
+  (`services/turns.py`), which also carries `glance`, so that a reply costs the
+  page one request less than in 3.8.0.
+- **No request to a model changes.** `backend/tests/test_requests_3_8.py` compares
+  the requests recorded on 3.8.0 (`fixtures/requests_3_8.json`) with what each AI
+  is sent now, with no exception. Run it with `tests/cases_kept.py` before every
+  commit that touches a provider, the engine or a service that builds a request.
 
 ## Ways of playing
 

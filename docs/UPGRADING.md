@@ -8,6 +8,63 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead. Coming from further back, read every section from your version up.
 
+## From 3.8.x to 3.9.0
+
+This update asks for a restart and a reload of your pages. The database changes
+when Evermind starts, and a copy of it is kept first, as
+`evermind.before-3.9.0.db` in the data folder. Read this to know what changes.
+
+- **Reload Evermind on every device that had it open**, a phone above all.
+- **If you run from the source**, install again before starting: Evermind now
+  needs `tzdata`, so that "30 days" means your days wherever Python has no
+  list of time zones of its own (Windows).
+- **To go back to the previous release, put back `evermind.before-3.9.0.db`**,
+  as [Going back after an update](../INSTALL.md#going-back-after-an-update)
+  says. What you did since the update is lost. See "Going back" below for the
+  other way.
+- **A "Spending" page**, from Settings (under "My AIs"), an AI's page, the panel
+  of a conversation and a character's page: what your AIs really cost, by
+  period, by AI, by character, by conversation and by use. Never under the
+  typing area.
+- **It counts from the update.** Nothing was noted before, and the page says so
+  ("Evermind has been counting since ...").
+- **Every call counts**: replies, replies made again, continuations, "Write mine
+  for me", automatic memory, the card assistant and speed tests, stopped or cut
+  short ones included. A call refused at once, or that never reached the server,
+  costs nothing.
+- **In My AIs and on an AI's page**, the estimate "per 100 messages" gives way
+  to what your last 100 messages really cost, once 20 replies have a known
+  price. The two lists of a conversation keep the estimate.
+- **A price typed later** fills in the earlier calls of that AI that had none,
+  and says how many ("Also applied to your 12 earlier calls, which had no
+  price."). An amount a service reported is never changed.
+- **Deleting a conversation or a character does not delete what it cost.** The
+  window says so, and offers "without keeping its name". Clearing the history is
+  a gesture of its own, on the Spending page ("Clear the history..."), all of it
+  or what is before a date. "Export (CSV)" saves every call as a file: the only
+  place where calls are listed one by one.
+- **On OpenRouter**, after a reply you stopped, Evermind asks OpenRouter what
+  that reply cost, with the key you gave it for that service (a read, not a
+  reply). Nothing is sent anywhere else.
+- **A reply asks for one request less** on a phone: the end of a turn now carries
+  what the page used to read again.
+- **No request sent to an AI changes.** What each AI is sent is the same as in
+  3.8.0.
+- **Going back.** The previous release starts on the migrated database: it
+  ignores the spending table and plays as before. Only the Spending page and the
+  counting stop, and the calls made meanwhile are not counted when you come back
+  to 3.9.0. `evermind.before-3.9.0.db` is only useful to undo the migration
+  itself.
+- **For a script that calls the API**: `/api/spending` (sums by period), its
+  `/detail`, `/total`, `/export.csv`, `DELETE /api/spending` (`before`, `dry_run`)
+  and `POST /api/spending/forget` are new, and a day or a zone they cannot read
+  answers `422` (`bad_period`). `DELETE` of a conversation or a character takes
+  `?forget_name=1`. `POST /api/characters` takes `assist_jobs`. `GET /api/models`
+  gives each AI a `per100`, `PUT /api/models/{id}` answers `repriced`, and
+  `GET /api/conversations/{id}/turn` carries `glance` and `spent` once a turn
+  has ended. The body of a request to an AI does not change; OpenRouter receives
+  one `GET /generation` after a stopped reply.
+
 ## From 3.7.x to 3.8.0
 
 This update asks for a restart and a reload of your pages. The database changes
