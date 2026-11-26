@@ -74,6 +74,12 @@ def wrote() -> None:
     _writes += 1
 
 
+def forget(conversation_id: str) -> None:
+    """A conversation deleted: nothing of its last turn is kept for it."""
+    _outcomes.pop(conversation_id, None)
+    _ends.pop(conversation_id, None)
+
+
 async def _note_end(db, conversation_id: str) -> None:
     """Read before the end is told, so that whoever learns of it finds this already there."""
     from . import outlook  # imported here: outlook reaches memory_service, which imports this

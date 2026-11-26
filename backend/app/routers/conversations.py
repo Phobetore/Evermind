@@ -170,6 +170,7 @@ async def delete_conversation(convo_id: str, forget_name: bool = False,
         await calls_repo.forget(db, "conversation", convo_id)  # committed with the delete
     if not await repo.delete(db, convo_id):
         raise NotFoundError("Conversation not found.", "conversation")
+    turns.forget(convo_id)
 
 
 @router.patch("/messages/{message_id}")

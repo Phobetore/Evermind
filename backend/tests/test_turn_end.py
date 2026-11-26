@@ -166,6 +166,28 @@ async def test_a_conversation_gone_as_the_end_is_read_leaves_nothing(client, lis
     assert [r for r in caplog.records if r.name == "app.services.turns"] == []
 
 
+async def test_a_deleted_conversation_leaves_no_end_behind(client, lists, monkeypatch):
+    convo = await priced_story(client, monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert convo["id"] in turns._ends
+    turns._outcomes[convo["id"]] = {"kind": "empty", "message": "", "mode": "send"}
+
+    assert (await client.delete(f"/api/conversations/{convo['id']}")).status_code == 204
+    assert convo["id"] not in turns._ends
+    assert convo["id"] not in turns._outcomes
+
+
+async def test_a_deleted_character_leaves_no_end_of_its_conversations(client, lists, monkeypatch):
+    convo = await priced_story(client, monkeypatch)
+    assert await send(client, convo["id"]) is None
+    turns._outcomes[convo["id"]] = {"kind": "empty", "message": "", "mode": "send"}
+
+    resp = await client.delete(f"/api/characters/{convo['character_id']}")
+    assert resp.status_code == 204, resp.text
+    assert convo["id"] not in turns._ends
+    assert convo["id"] not in turns._outcomes
+
+
 @pytest.mark.parametrize(("method", "path", "counted"), [
     # A turn's own: its end is read before the stop answers, and maybe before the ask does.
     ("POST", "/api/chat", 0),
