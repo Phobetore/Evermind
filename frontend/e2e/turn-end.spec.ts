@@ -101,3 +101,64 @@ test("a way changed elsewhere while the link was lost is the way shown once it c
   await page.waitForLoadState("networkidle");
   await expect(chipOf(page)).toHaveText("Immersive");
 });
+
+test("a page opening on a turn already over reads the chip's pair itself", async ({ page, request }) => {
+  // The end the server holds may predate what came after the reply on its own, a memory pass: a
+  // page that did not see the turn run reads what the next turn reads, once.
+  const convo = await makeConversation(request);
+  await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
+  const urls = asked(page);
+  await page.goto(`/#/chat/${convo.id}`);
+  await expect(chipOf(page)).toHaveText("Balanced");
+  const short = () => urls.filter((url) => url.includes("/outlook?only=current")).length;
+  await expect.poll(short).toBe(1);
+  await page.waitForLoadState("networkidle");
+  expect(short()).toBe(1);
+});
+
+test("a short read sent before the end does not overwrite what the end carried", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const small = await addModel(request, {
+    base_url: MOCK, model: `turn-end-${stamp()}`, name: `Small ${stamp()}`, changes: { context_own: 4096 },
+  });
+  try {
+    const convo = await makeConversation(request);
+    await request.patch(`${API}/api/conversations/${convo.id}`, {
+      data: { model_id: small.id, play_style: "immersive", author_note: "MOCK_SAYS_tide" },
+    });
+    for (let turn = 0; turn < 3; turn++) {
+      await chat(request, { conversation_id: convo.id, mode: "send", content: `${turn}. The tide came in.` });
+    }
+
+    // The page's first short read is answered by the server at once, on the story before the
+    // reply, and reaches the page only after the reply's end: a slow link.
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let late: Promise<unknown> | null = null;
+    await page.route(`**/api/conversations/${convo.id}/outlook?only=current`, async (route) => {
+      if (late) return route.continue();
+      const answered = route.fetch();
+      late = page.waitForResponse((r) => r.request() === route.request());
+      const response = await answered;
+      await released;
+      await route.fulfill({ response });
+    });
+    await page.goto(`/#/chat/${convo.id}`);
+    await expect(chipOf(page)).toHaveText("Immersive");
+    await expect.poll(() => late !== null).toBe(true);
+
+    const ended = replyEnds(page, convo.id);
+    await page.locator("textarea").first().fill("The rain kept on over the harbour and nobody spoke of the ship. ".repeat(60));
+    await page.locator('button[title="Send"]').click();
+    await ended;
+    const after = await outlookOf(request, convo.id);
+    await expect(chipOf(page)).toHaveText(`Immersive · rereads ${after.messages_included} of 9`);
+
+    release();
+    await late;
+    await page.waitForLoadState("networkidle");
+    await expect(chipOf(page)).toHaveText(`Immersive · rereads ${after.messages_included} of 9`);
+  } finally {
+    await request.delete(`${API}/api/models/${small.id}`);
+  }
+});
