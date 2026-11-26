@@ -292,7 +292,13 @@ async def _insert(db: aiosqlite.Connection, service_id: str, service: dict, fami
 
 async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict | None:
     """``fields`` as ModelUpdate gave them, only those sent. A model id changed forgets in the
-    same write all that was read and measured of the one before; what was typed stays."""
+    same write all that was read and measured of the one before; what was typed stays. A whole
+    price typed prices, in the same write, the calls of this AI's server id that had none; the AI
+    comes back with ``repriced``, how many."""
+    # Imported here: services/calls imports learning, which imports this module.
+    from ..services.calls import pricing_of
+    from . import calls as calls_repo
+
     sets: dict = {}
     for key in ("name", "model", "context_own", *SAMPLING, "price_own_in", "price_own_out"):
         if key in fields:
@@ -320,7 +326,16 @@ async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict 
         sets["updated_at"] = now_iso()
         await db.execute(f"UPDATE models SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
                          (*sets.values(), model_id))
-    return await get(db, model_id)
+        repriced = 0
+        if "price_own_in" in fields or "price_own_out" in fields:
+            saved = await get_row(db, model_id)
+            pricing = pricing_of(saved)
+            # A price typed, not one read again once the typed one is taken away: a read price
+            # that changes touches no call.
+            if pricing.source == "typed":
+                repriced = await calls_repo.reprice(db, model_id, saved["model"], pricing)
+    updated = await get(db, model_id)
+    return {**updated, "repriced": repriced} if updated else None
 
 
 async def successor(db: aiosqlite.Connection, model_id: str) -> dict | None:

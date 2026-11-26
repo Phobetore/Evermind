@@ -9,6 +9,10 @@ breaks a call: a write that fails is logged and the call goes on.
 
 A recording is never opened inside a caller's write_transaction: BEGIN IMMEDIATE holds the
 database, and the recorder's write would wait db.BUSY_TIMEOUT_S, then fail.
+
+After its end, one thing alone completes a row here: OpenRouter's record of its generation, for a
+call that ended there with no cost said (stopped, or never counted), read once the generation is
+done on OpenRouter's side. A price typed later is the other (repositories/calls.py, reprice).
 """
 
 import asyncio
@@ -18,11 +22,13 @@ import math
 from collections.abc import Callable, Coroutine
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+import httpx
+
 from ..db import _connect
-from ..providers.base import CallFigures, Provider, ProviderError
+from ..providers.base import LIST_DELAYS, CallFigures, Provider, ProviderError
 from ..providers.catalog import LOCAL_FAMILIES, family_of, is_local, is_loopback
 from ..repositories.base import new_id
 from .learning import counts_of
@@ -236,21 +242,18 @@ def outcome_of(error: BaseException | None, figures: CallFigures, *, stopped: bo
 _tasks: set[asyncio.Task] = set()
 # The generation-id writes among them, which a call's end writes again.
 _id_writes: set[asyncio.Task] = set()
+# The looks at OpenRouter's records among them, which the server's stop does not wait for.
+_looks: set[asyncio.Task] = set()
 
 
-def _after_end_nothing(row: dict) -> None:
-    pass
-
-
-# Called with each finished row, once written.
-_after_end: Callable[[dict], None] = _after_end_nothing
-
-
-def _spawn(work: Coroutine[Any, Any, None], *, id_write: bool = False) -> asyncio.Task:
+def _spawn(work: Coroutine[Any, Any, None], *, id_write: bool = False,
+           look: bool = False) -> asyncio.Task:
     task = asyncio.get_running_loop().create_task(work)
     _tasks.add(task)
     if id_write:
         _id_writes.add(task)
+    if look:
+        _looks.add(task)
     task.add_done_callback(_forget)
     return task
 
@@ -258,15 +261,18 @@ def _spawn(work: Coroutine[Any, Any, None], *, id_write: bool = False) -> asynci
 def _forget(task: asyncio.Task) -> None:
     _tasks.discard(task)
     _id_writes.discard(task)
+    _looks.discard(task)
     if not task.cancelled():
         task.exception()
 
 
-async def _write(sql: str, params: tuple | dict) -> None:
+async def _write(sql: str, params: tuple | dict) -> int:
+    """Returns how many rows it changed."""
     conn = await _connect()
     try:
-        await conn.execute(sql, params)
+        cursor = await conn.execute(sql, params)
         await conn.commit()
+        return cursor.rowcount
     finally:
         await conn.close()
 
@@ -438,6 +444,152 @@ async def discard(row_id: str | None) -> None:
         _warn("a discarded call could not be marked", exc)
 
 
+# OpenRouter's record of a generation.
+
+RECONCILE_AFTER_S = (20, 120)      # after the call's end: first look, then the last one
+RECONCILE_WITHIN_S = 3600          # past an hour after its start, a row is left as it is
+
+
+def client_factory() -> httpx.AsyncClient:
+    """The one door of the records' requests. The tests replace it."""
+    return httpx.AsyncClient(timeout=LIST_DELAYS)
+
+
+# A row OpenRouter's record may complete: a generation it names, no cost it said, an end that
+# reached it, and recent enough for the record to be kept.
+_DUE = ("generation_id IS NOT NULL AND cost_source <> 'reported' AND reconciled_at IS NULL"
+        " AND outcome NOT IN ('running', 'refused') AND family = 'openrouter'"
+        " AND started_at >= :since")
+
+
+def _since() -> str:
+    return instant(datetime.now(UTC) - timedelta(seconds=RECONCILE_WITHIN_S))
+
+
+def _due(row: dict) -> bool:
+    """_DUE, for a row as a call's end has it."""
+    return (row.get("generation_id") is not None and row.get("cost_source") != "reported"
+            and row.get("reconciled_at") is None
+            and row.get("outcome") not in ("running", "refused")
+            and row.get("family") == "openrouter" and (row.get("started_at") or "") >= _since())
+
+
+async def _due_row(row_id: str) -> tuple[str, dict] | None:
+    """(generation id, service with its key) of a row still due, the service as it is now."""
+    conn = await _connect()
+    try:
+        row = await (await conn.execute(
+            f"SELECT generation_id, service_id FROM calls WHERE id = :id AND {_DUE}",
+            {"id": row_id, "since": _since()})).fetchone()
+        if row is None:
+            return None
+        service = await (await conn.execute("SELECT * FROM connections WHERE id = ?",
+                                            (row["service_id"],))).fetchone()
+    finally:
+        await conn.close()
+    return (row["generation_id"], dict(service)) if service is not None else None
+
+
+async def _record(generation_id: str, service: dict) -> dict | None:
+    """The record's data, once OpenRouter has it; None for anything else. A 404 is what a record
+    not written yet answers."""
+    base = (service.get("base_url") or "").rstrip("/")
+    async with client_factory() as client:
+        response = await client.get(f"{base}/generation", params={"id": generation_id},
+                                    headers={"Authorization": f"Bearer {service['api_key']}"},
+                                    timeout=LIST_DELAYS)
+    if response.status_code == 404:
+        return None
+    if response.status_code != 200:
+        logger.debug("a generation record answered %s", response.status_code)
+        return None
+    try:
+        data = response.json().get("data")
+    except (ValueError, AttributeError):
+        logger.debug("a generation record could not be read")
+        return None
+    return data if isinstance(data, dict) else None
+
+
+async def reconcile_row(row_id: str) -> bool:
+    """One look at OpenRouter's record of the row's generation; True once written. The service is
+    read again as it is now, for its key; gone, or no longer OpenRouter, nothing is asked."""
+    try:
+        due = await _due_row(row_id)
+        if due is None:
+            return False
+        generation_id, service = due
+        if _family(service) != "openrouter" or not service.get("api_key"):
+            return False
+        data = await _record(generation_id, service)
+        if data is None or (cost := _money(data.get("total_cost"))) is None:
+            return False
+        counts = {key: _count(data.get(f"native_tokens_{name}")) for key, name in (
+            ("tokens_in", "prompt"), ("tokens_out", "completion"),
+            ("tokens_reasoning", "reasoning"), ("tokens_cached", "cached"))}
+        changed = await _write(
+            "UPDATE calls SET cost = :cost, cost_upstream = COALESCE(:upstream, cost_upstream),"
+            " cost_source = 'reported',"
+            " tokens_in = COALESCE(:tokens_in, tokens_in),"
+            " tokens_out = COALESCE(:tokens_out, tokens_out),"
+            " tokens_reasoning = COALESCE(:tokens_reasoning, tokens_reasoning),"
+            " tokens_cached = COALESCE(:tokens_cached, tokens_cached),"
+            # The record's counts are the server's own; a record without them leaves an estimate
+            # said as one.
+            " tokens_source = CASE WHEN :tokens_in IS NOT NULL AND :tokens_out IS NOT NULL"
+            " THEN 'server' ELSE tokens_source END,"
+            " reconciled_at = :now"
+            " WHERE id = :id AND reconciled_at IS NULL AND cost_source <> 'reported'",
+            {"id": row_id, "cost": cost, "upstream": _money(data.get("upstream_inference_cost")),
+             "now": instant(), **counts})
+    except Exception as exc:  # noqa: BLE001
+        # A look that fails is looked at again, or left: never worth more than this.
+        logger.debug("a generation record could not be looked at: %s", type(exc).__name__)
+        return False
+    if changed:
+        logger.info("the cost of a call was read from OpenRouter's record")
+    return bool(changed)
+
+
+async def _look_after_end(row_id: str) -> None:
+    first, last = RECONCILE_AFTER_S
+    await asyncio.sleep(first)
+    if await reconcile_row(row_id):
+        return
+    await asyncio.sleep(max(0, last - first))
+    await reconcile_row(row_id)
+
+
+def reconcile_soon(row: dict) -> None:
+    """Looks at the row's record twice after its end: OpenRouter may not have written it yet."""
+    _spawn(_look_after_end(row["id"]), look=True)
+
+
+def _reconcile_if_due(row: dict) -> None:
+    if _due(row):
+        reconcile_soon(row)
+
+
+# Called with each finished row, once written.
+_after_end: Callable[[dict], None] = _reconcile_if_due
+
+
+async def _look_at_every_due() -> None:
+    try:
+        conn = await _connect()
+        try:
+            due = await (await conn.execute(
+                f"SELECT id FROM calls WHERE {_DUE} ORDER BY started_at",
+                {"since": _since()})).fetchall()
+        finally:
+            await conn.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("the calls due a look could not be read: %s", type(exc).__name__)
+        return
+    for row in due:
+        await reconcile_row(row["id"])
+
+
 async def after_start() -> None:
     """Rows a process left 'running' (killed, or stopped before their end was written) ended
     then: stopped, with the prompt estimated at their start and nothing known of what came.
@@ -453,12 +605,16 @@ async def after_start() -> None:
                      " WHERE outcome = 'running'", ())
     except Exception as exc:  # noqa: BLE001
         _warn("calls left running could not be stopped", exc)
+    # Those of them OpenRouter may complete, each looked at once, in the background: the start
+    # does not wait on a service.
+    _spawn(_look_at_every_due(), look=True)
 
 
 async def stop() -> None:
     """At the server's stop. A call's end is one short write, awaited so that a reply stopped by
-    the stop is kept as stopped; an id write is cancelled, since the end writes the id again."""
-    for task in list(_id_writes):
+    the stop is kept as stopped; an id write is cancelled, since the end writes the id again; a
+    look at a record is cancelled, since the next start looks again."""
+    for task in [*_id_writes, *_looks]:
         task.cancel()
     await drain()
 

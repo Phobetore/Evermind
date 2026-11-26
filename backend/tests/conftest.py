@@ -97,6 +97,15 @@ def _no_list_read_from_a_real_server(monkeypatch):
     catalog._cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _no_record_read_from_openrouter(monkeypatch):
+    # A call that ends on OpenRouter with no cost said looks at its record there, through this one
+    # door: here it opens on nothing, at once, so that no test waits for the look it never meant.
+    monkeypatch.setattr(calls, "client_factory",
+                        lambda: httpx.AsyncClient(transport=httpx.MockTransport(_unreachable)))
+    monkeypatch.setattr(calls, "RECONCILE_AFTER_S", (0, 0))
+
+
 @pytest.fixture()
 async def make_client(tmp_path, monkeypatch):
     """Open clients on fresh applications that all share one data directory.
