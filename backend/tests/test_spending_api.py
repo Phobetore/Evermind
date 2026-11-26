@@ -117,9 +117,13 @@ async def test_the_bars_split_the_replies_from_the_rest_and_add_up_to_the_total(
 
 
 async def test_a_call_still_running_is_not_counted(client):
-    put_call(outcome="running", cost=None, cost_source="none")
+    # Priced as it was sent, as a row left running by a killed process is until it is stopped.
+    put_call(outcome="running", cost=0.5)
     got = await spending(client)
     assert (got["total"], got["calls"], got["models"]) == (0, 0, [])
+    assert all(point[1:] == [0, 0] for point in got["series"]["points"])
+    resp = await client.get("/api/spending/total", params={"conversation": "convo-1"})
+    assert (resp.json()["total"], resp.json()["calls"]) == (0, 0)
 
 
 async def test_the_previous_period_is_as_long_and_none_from_the_start(client):
@@ -261,6 +265,33 @@ async def test_the_dearest_50_then_the_rest(client):
     assert got["cards_rest"] is None
 
 
+async def test_a_line_says_when_it_was_never_for_money(client):
+    put_call(conversation_id="c-home", card_id="card-home", local=1, loopback=1, cost=None,
+             cost_source="none")
+    put_call(conversation_id="c-paid", card_id="card-paid")
+    got = await spending(client)
+    conversations, cards = by_id(got["conversations"]), by_id(got["cards"])
+    assert (conversations["c-home"][6], conversations["c-paid"][6]) == (True, False)
+    assert (cards["card-home"][6], cards["card-paid"][6]) == (True, False)
+
+
+async def test_an_ai_deleted_keeps_its_line_and_says_so(client):
+    ai = await measured_ai(client)
+    put_call(model_id=ai["id"], cost=0.02)
+    put_call(model_id="gone", model_name="Brume")
+    got = by_id((await spending(client))["models"])
+    assert (got[ai["id"]][1], got[ai["id"]][11]) == ("Aurore", False)
+    assert (got["gone"][1], got["gone"][11]) == ("Brume", True)
+
+
+async def test_lines_of_equal_cost_come_latest_first(client):
+    put_call(conversation_id="c-a", card_id="card-a", started_at="2026-11-24T10:00:00.000+00:00")
+    put_call(conversation_id="c-b", card_id="card-b", started_at="2026-11-24T11:00:00.000+00:00")
+    got = await spending(client)
+    assert [c[0] for c in got["conversations"]] == ["c-b", "c-a"]
+    assert [c[0] for c in got["cards"]] == ["card-b", "card-a"]
+
+
 async def test_a_new_card_s_drafts_are_one_line_and_speed_is_no_card(client):
     put_call(purpose="card", card_id=None, card_name=None, conversation_id=None, job_id="job-1")
     put_call(purpose="card", card_id=None, card_name=None, conversation_id=None, job_id="job-2")
@@ -322,8 +353,16 @@ async def test_forgetting_a_card_forgets_its_conversations_titles(client):
     card_id = convo["character_id"]
     put_call(conversation_id=convo["id"], card_id=card_id)
     put_call(purpose="card", conversation_id=None, conversation_title=None, card_id=card_id)
+    # A row of one of her conversations that names no card goes by the conversation.
+    put_call(purpose="memory", conversation_id=convo["id"], card_id=None, card_name=None)
     resp = await client.delete(f"/api/characters/{card_id}", params={"forget_name": 1})
     assert resp.status_code == 204
+    conn = sqlite3.connect(db_path())
+    try:
+        assert conn.execute("SELECT conversation_title FROM calls WHERE card_id IS NULL"
+                            ).fetchall() == [(None,)]
+    finally:
+        conn.close()
     got = await spending(client)
     [card] = got["cards"]
     assert (card[0], card[1], card[3], card[7]) == (card_id, None, 0.02, True)
@@ -336,8 +375,10 @@ async def test_forget_on_its_own(client):
     resp = await client.post("/api/spending/forget", json={"cut": "conversation", "key": "gone"})
     assert resp.json() == {"forgotten": 1}
     assert (await spending(client))["conversations"][0][1] is None
-    resp = await client.post("/api/spending/forget", json={"cut": "everything", "key": "gone"})
-    assert resp.status_code == 422
+    for payload in ({"cut": "everything", "key": "gone"}, {"cut": "card", "key": "k" * 65},
+                    {"cut": "card", "key": ""}):
+        resp = await client.post("/api/spending/forget", json=payload)
+        assert resp.status_code == 422, payload
 
 
 async def test_a_branch_copies_no_call(client):
@@ -372,10 +413,13 @@ async def test_clearing_before_a_date(client):
     for day in ("2026-11-01", "2026-11-10", "2026-11-20"):
         put_call(started_at=f"{day}T12:00:00.000+00:00")
     params = {"before": "2026-11-20", "tz": "Europe/Paris"}
+    noted = spending_since()
     dry = await client.delete("/api/spending", params={**params, "dry_run": 1})
     assert dry.json() == {"calls": 2, "first": "2026-11-01T12:00:00.000+00:00",
                           "last": "2026-11-10T12:00:00.000+00:00"}
     assert count_rows() == 3
+    assert (await spending(client))["since"] == "2026-11-01T12:00:00.000+00:00"
+    assert spending_since() == noted
     real = await client.delete("/api/spending", params=params)
     assert real.json() == {"deleted": 2, "since": "2026-11-20T12:00:00.000+00:00"}
     assert count_rows() == 1
@@ -428,10 +472,22 @@ async def test_the_export_is_every_column_but_usage_raw(client):
     assert (second["cost"], second["price_in"], second["price_out"]) == (
         "0.00003", "0.00000015", "50.0")
     assert "prompt_tokens" not in resp.text
-    # A period narrows it.
+    # A period narrows it, at either end.
     resp = await client.get("/api/spending/export.csv",
                             params={"from": "2026-11-03", "to": "2026-11-03", "tz": "Europe/Paris"})
     assert len(list(csv.reader(io.StringIO(resp.text)))) == 2
+    resp = await client.get("/api/spending/export.csv", params={"to": "2026-11-02", **PARIS})
+    [_, line] = list(csv.reader(io.StringIO(resp.text)))
+    assert line[1] == "2026-11-02T12:00:00.000+00:00"
+
+
+async def test_the_export_quotes_every_cell_a_sheet_would_run(client):
+    put_call(conversation_title="+1", card_name="	Serana", model_name="Aurore - fast")
+    resp = await client.get("/api/spending/export.csv")
+    header, line = list(csv.reader(io.StringIO(resp.text)))
+    got = dict(zip(header, line, strict=True))
+    assert (got["conversation_title"], got["card_name"], got["model_name"]) == (
+        "'+1", "'	Serana", "Aurore - fast")
 
 
 # The measured figure.
