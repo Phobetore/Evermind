@@ -51,7 +51,9 @@ async def test_a_draft_is_one_card_row_with_its_job(client, monkeypatch):
 
     first, second = await recorded("card")
     assert (first["job_id"], first["outcome"], first["model_id"]) == (named, "whole", ai["id"])
-    assert card_of(first) == (None, "Nyra", "character")
+    # A card not saved yet keeps no name: nothing shows it, nothing could forget it, and the
+    # export would hold it. Its first save's claim writes the saved card's.
+    assert card_of(first) == (None, None, "character")
     assert first["conversation_id"] is None and first["tokens_in"] > 0
     # A card with no name yet: the page names it a new card.
     assert (second["job_id"], card_of(second)) == (blank, (None, None, "scenario"))

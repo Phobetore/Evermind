@@ -265,9 +265,11 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     job = Job(uuid.uuid4().hex, request.client_id, dict(request.existing or {}), _now())
     _jobs[job.id] = job
     _forget()
-    # A card not saved yet has no id: its first save claims the row by the job's.
+    # A card not saved yet has no id, and keeps no name, which nothing could forget: its first
+    # save claims the row by the job's, and writes the name it was saved under.
     who = calls.Who("card", card_id=request.card_id,
-                    card_name=text_of(request.existing.get("name")) or None,
+                    card_name=(text_of(request.existing.get("name")) or None)
+                    if request.card_id else None,
                     card_kind=request.kind, job_id=job.id)
     job.task = asyncio.create_task(_run(job, provider, payload, connection, ai, who))
     return job.id
