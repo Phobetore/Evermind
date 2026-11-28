@@ -711,6 +711,15 @@ async def test_the_detail_of_a_character_lists_her_dearest_conversations_then_th
     assert alone["conversations"][0][2] == 0.3  # rounded, as every amount served
 
 
+async def test_a_character_s_conversation_played_only_at_home_says_so(client):
+    put_call(conversation_id="c-home", local=1, loopback=1, cost=None, cost_source="none")
+    put_call(conversation_id="c-paid")
+    card = await detail(client, "card", "card-1")
+    # [id, title, cost, calls, unpriced_calls, free_only, deleted]
+    assert {c[0]: (c[5], c[6]) for c in card["conversations"]} == {
+        "c-home": (True, True), "c-paid": (False, True)}
+
+
 async def test_a_line_with_nothing_in_the_period_is_not_found(client):
     put_call(started_at="2026-01-01T12:00:00.000+00:00")
     for cut, key in (("conversation", "convo-1"), ("use", "pen"), ("use", "nothing"),

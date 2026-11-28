@@ -352,23 +352,24 @@ async def _detail_of_card(db, key: str, args: dict) -> dict | None:
         WITH g AS (
             SELECT c.conversation_id AS id, COALESCE(v.title, c.conversation_title) AS title,
                    SUM({SPENT}) AS cost, COUNT(*) AS n, SUM({UNPRICED}) AS unpriced,
-                   v.id IS NULL AS deleted, MAX(c.started_at) AS last
+                   SUM(NOT {FREE}) = 0 AS free_only, v.id IS NULL AS deleted,
+                   MAX(c.started_at) AS last
             FROM calls c LEFT JOIN conversations v ON v.id = c.conversation_id
             WHERE {IN_PERIOD} AND {where} AND c.conversation_id IS NOT NULL
             GROUP BY c.conversation_id),
         {_RANKED}
         SELECT MIN(k) AS slot, id, title, SUM(cost) AS cost, SUM(n) AS n,
-               SUM(unpriced) AS unpriced, deleted, COUNT(*)
+               SUM(unpriced) AS unpriced, free_only, deleted, COUNT(*)
         FROM r GROUP BY CASE WHEN k <= {LISTED_IN_DETAIL} THEN k ELSE {LISTED_IN_DETAIL + 1} END
         ORDER BY slot""", args)
-    conversations, conversations_rest = _split(rows, 6, LISTED_IN_DETAIL)
+    conversations, conversations_rest = _split(rows, 7, LISTED_IN_DETAIL)
     return {
         "name": (card["name"] if card else head[3]) if key else None,
         "kind": card["kind"] if card else head[4],
         "deleted": bool(key) and card is None,
         "cost": _rounded(head[1]), "calls": head[0], "unpriced_calls": head[2],
         "models": await _models_of(db, where, args),
-        "conversations": [[*line[:5], bool(line[5])] for line in conversations],
+        "conversations": [[*line[:5], bool(line[5]), bool(line[6])] for line in conversations],
         "conversations_rest": conversations_rest,
     }
 

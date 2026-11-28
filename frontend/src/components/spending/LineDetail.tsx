@@ -120,7 +120,7 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
           <>
             {models((detail as SpendingDetailOfCard).models)}
             <Part title={t("spending.detail.conversations")}>
-              {(detail as SpendingDetailOfCard).conversations.map(([id, title, c, , unpriced, deleted]) =>
+              {(detail as SpendingDetailOfCard).conversations.map(([id, title, c, , unpriced, , deleted]) =>
                 share(conversationName(title, null, deleted, t), money(c, unpriced), id))}
             </Part>
           </>

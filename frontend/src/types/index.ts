@@ -471,7 +471,7 @@ export interface SpendingDetailOfCard {
   models: SpendingModelLine[];
   /** Her dearest 12, then the rest in one line. */
   conversations: [id: string, title: string | null, cost: number, calls: number, unpriced_calls: number,
-    deleted: boolean][];
+    free_only: boolean, deleted: boolean][];
   conversations_rest: SpendingRest | null;
 }
 
