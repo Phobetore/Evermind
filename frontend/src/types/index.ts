@@ -469,8 +469,10 @@ export interface SpendingDetailOfCard {
   calls: number;
   unpriced_calls: number;
   models: SpendingModelLine[];
+  /** Her dearest 12, then the rest in one line. */
   conversations: [id: string, title: string | null, cost: number, calls: number, unpriced_calls: number,
     deleted: boolean][];
+  conversations_rest: SpendingRest | null;
 }
 
 export interface SpendingDetailOfConversation {

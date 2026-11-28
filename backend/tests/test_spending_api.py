@@ -692,6 +692,25 @@ async def test_the_detail_of_a_character_and_of_a_use(client):
     assert (memory["cost"], memory["calls"], memory["models"][0][0]) == (0.001, 1, "ai-1")
 
 
+async def test_the_detail_of_a_character_lists_her_dearest_conversations_then_the_rest(client):
+    put_calls([row_of(conversation_id=f"c-{n:03}", conversation_title=f"A long evening, part {n}",
+                      cost=(n + 1) / 1000) for n in range(100)])
+    resp = await client.get("/api/spending/detail", params={"cut": "card", "key": "card-1"})
+    assert len(resp.content) < 2 * 1024, len(resp.content)
+    card = resp.json()
+    assert len(card["conversations"]) == 12
+    assert [c[0] for c in card["conversations"][:2]] == ["c-099", "c-098"]
+    lines, cost, calls_, unpriced = card["conversations_rest"]
+    assert (lines, calls_, unpriced) == (88, 88, 0)
+    assert cost == pytest.approx(sum(range(1, 89)) / 1000)
+    assert (await detail(client, "card", "card-1", **{"from": "2000-01-01"}))["calls"] == 100
+    put_call(card_id="card-2", conversation_id="c-alone", cost=0.1)
+    put_call(card_id="card-2", conversation_id="c-alone", cost=0.2)
+    alone = await detail(client, "card", "card-2")
+    assert alone["conversations_rest"] is None
+    assert alone["conversations"][0][2] == 0.3  # rounded, as every amount served
+
+
 async def test_a_line_with_nothing_in_the_period_is_not_found(client):
     put_call(started_at="2026-01-01T12:00:00.000+00:00")
     for cut, key in (("conversation", "convo-1"), ("use", "pen"), ("use", "nothing"),

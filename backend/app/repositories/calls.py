@@ -123,16 +123,18 @@ async def _uses(db, where: str, args: dict, *, unpriced_tokens: bool = True,
 
 
 def _split(rows: list, width: int, cut: int = LISTED) -> tuple[list[list], list | None]:
-    """The rows of a ranked list (slot first, then ``width`` columns, then the lines the slot
-    holds): the ``cut`` dearest, and the rest in one line [lines, cost, calls, unpriced_calls]."""
+    """The rows of a ranked list (slot first, then ``width`` columns, among them ``cost``, then
+    the lines the slot holds): the ``cut`` dearest, and the rest in one line [lines, cost, calls,
+    unpriced_calls]."""
     listed, rest = [], None
+    cost_at = rows[0].keys().index("cost") - 1 if rows else 0
     for r in rows:
         if r[0] <= cut:
             listed.append(list(r[1:width + 1]))
         else:
             rest = [r[width + 1], _rounded(r["cost"]), r["n"], r["unpriced"]]
     for line in listed:
-        line[3] = _rounded(line[3])
+        line[cost_at] = _rounded(line[cost_at])
     return listed, rest
 
 
@@ -344,20 +346,30 @@ async def _detail_of_card(db, key: str, args: dict) -> dict | None:
         return None
     card = await _one(db, "SELECT name, kind FROM characters WHERE id = ?", (key,)) \
         if key else None
-    conversations = await _all(db, f"""
-        SELECT c.conversation_id, COALESCE(v.title, c.conversation_title), SUM({SPENT}) AS cost,
-               COUNT(*), SUM({UNPRICED}), v.id IS NULL, MAX(c.started_at) AS last
-        FROM calls c LEFT JOIN conversations v ON v.id = c.conversation_id
-        WHERE {IN_PERIOD} AND {where} AND c.conversation_id IS NOT NULL
-        GROUP BY c.conversation_id ORDER BY cost DESC, last DESC""", args)
+    # Her conversations, cut as the detail of an AI cuts its characters: a character played for a
+    # year would make the line opened several KB.
+    rows = await _all(db, f"""
+        WITH g AS (
+            SELECT c.conversation_id AS id, COALESCE(v.title, c.conversation_title) AS title,
+                   SUM({SPENT}) AS cost, COUNT(*) AS n, SUM({UNPRICED}) AS unpriced,
+                   v.id IS NULL AS deleted, MAX(c.started_at) AS last
+            FROM calls c LEFT JOIN conversations v ON v.id = c.conversation_id
+            WHERE {IN_PERIOD} AND {where} AND c.conversation_id IS NOT NULL
+            GROUP BY c.conversation_id),
+        {_RANKED}
+        SELECT MIN(k) AS slot, id, title, SUM(cost) AS cost, SUM(n) AS n,
+               SUM(unpriced) AS unpriced, deleted, COUNT(*)
+        FROM r GROUP BY CASE WHEN k <= {LISTED_IN_DETAIL} THEN k ELSE {LISTED_IN_DETAIL + 1} END
+        ORDER BY slot""", args)
+    conversations, conversations_rest = _split(rows, 6, LISTED_IN_DETAIL)
     return {
         "name": (card["name"] if card else head[3]) if key else None,
         "kind": card["kind"] if card else head[4],
         "deleted": bool(key) and card is None,
         "cost": _rounded(head[1]), "calls": head[0], "unpriced_calls": head[2],
         "models": await _models_of(db, where, args),
-        "conversations": [[r[0], r[1], _rounded(r[2]), r[3], r[4], bool(r[5])]
-                          for r in conversations],
+        "conversations": [[*line[:5], bool(line[5])] for line in conversations],
+        "conversations_rest": conversations_rest,
     }
 
 

@@ -142,7 +142,7 @@ const gone: SpendingDetailOfConversation = {
 const serana: SpendingDetailOfCard = {
   name: "Serana", kind: "character", deleted: false, cost: 1.6, calls: 300, unpriced_calls: 184,
   models: [["ai-sylve", "Sylve Mini", 1.6, 116, 0, false], ["ai-gateway", "Gateway", 0, 184, 184, false]],
-  conversations: [["conv-inn", "At the inn", 1.6, 300, 184, false]],
+  conversations: [["conv-inn", "At the inn", 1.6, 300, 184, false]], conversations_rest: null,
 };
 
 const memory: SpendingDetailOfUse = {
