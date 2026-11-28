@@ -129,11 +129,11 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
 
   // Characters and conversations: those only with free AIs after the rest, the rest in one line.
   const rows = cut === "card"
-    ? summary.cards.map(([id, name, kind, cost, count, unpriced, freeOnly, deleted]) => ({
+    ? summary.cards.map(([id, name, kind, cost, count, unpriced, , , freeOnly, deleted]) => ({
       key: id ?? "", name: cardName(id, name, deleted, t), tags: tagsOf(deleted, id !== null && name !== null, kind, t),
       cost, count, unpriced, freeOnly, small: undefined as string | undefined,
     }))
-    : summary.conversations.map(([id, title, card, cost, count, unpriced, freeOnly, deleted]) => ({
+    : summary.conversations.map(([id, title, card, cost, count, unpriced, , , freeOnly, deleted]) => ({
       key: id, name: conversationName(title, card, deleted, t), tags: tagsOf(deleted, !!title, null, t),
       cost, count, unpriced, freeOnly, small: title ? card ?? undefined : undefined,
     }));

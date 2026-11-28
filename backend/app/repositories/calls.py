@@ -138,6 +138,9 @@ def _split(rows: list, width: int, cut: int = LISTED) -> tuple[list[list], list 
     return listed, rest
 
 
+# What the calls with no price read and wrote, for a line with no price at all.
+_UNPRICED_TOKENS = (f"SUM(CASE WHEN {UNPRICED} THEN c.tokens_in ELSE 0 END) AS unpriced_in,"
+                    f" SUM(CASE WHEN {UNPRICED} THEN c.tokens_out ELSE 0 END) AS unpriced_out")
 # Ranked by what was spent, then by how often, then the latest first: the same order each time.
 _RANKED = ("r AS (SELECT g.*, ROW_NUMBER() OVER (ORDER BY cost DESC, n DESC, last DESC, id)"
            " AS k FROM g)")
@@ -152,7 +155,7 @@ async def _cards(db, args: dict, where: str = OF_MODEL,
                    CASE WHEN c.card_id IS NULL THEN NULL ELSE COALESCE(ch.name, c.card_name) END
                        AS name,
                    COALESCE(ch.kind, c.card_kind) AS kind, SUM({SPENT}) AS cost, COUNT(*) AS n,
-                   SUM({UNPRICED}) AS unpriced, SUM(NOT {FREE}) = 0 AS free_only,
+                   SUM({UNPRICED}) AS unpriced, {_UNPRICED_TOKENS}, SUM(NOT {FREE}) = 0 AS free_only,
                    c.card_id IS NOT NULL AND ch.id IS NULL AS deleted, MAX(c.started_at) AS last
             FROM calls c LEFT JOIN characters ch ON ch.id = c.card_id
             WHERE {IN_PERIOD} AND {where}
@@ -160,12 +163,13 @@ async def _cards(db, args: dict, where: str = OF_MODEL,
             GROUP BY c.card_id),
         {_RANKED}
         SELECT MIN(k) AS slot, id, name, kind, SUM(cost) AS cost, SUM(n) AS n,
-               SUM(unpriced) AS unpriced, free_only, deleted, COUNT(*)
+               SUM(unpriced) AS unpriced, SUM(unpriced_in), SUM(unpriced_out), free_only,
+               deleted, COUNT(*)
         FROM r GROUP BY CASE WHEN k <= {cut} THEN k ELSE {cut + 1} END ORDER BY slot""",
                           args)
-    listed, rest = _split(rows, 8, cut)
+    listed, rest = _split(rows, 10, cut)
     for line in listed:
-        line[6], line[7] = bool(line[6]), bool(line[7])
+        line[8], line[9] = bool(line[8]), bool(line[9])
     return listed, rest
 
 
@@ -174,7 +178,8 @@ async def _conversations(db, args: dict) -> tuple[list[list], list | None]:
         WITH g AS (
             SELECT c.conversation_id AS id, COALESCE(v.title, c.conversation_title) AS title,
                    COALESCE(vc.name, c.card_name) AS card_name, SUM({SPENT}) AS cost,
-                   COUNT(*) AS n, SUM({UNPRICED}) AS unpriced, SUM(NOT {FREE}) = 0 AS free_only,
+                   COUNT(*) AS n, SUM({UNPRICED}) AS unpriced, {_UNPRICED_TOKENS},
+                   SUM(NOT {FREE}) = 0 AS free_only,
                    v.id IS NULL AS deleted, MAX(c.started_at) AS last
             FROM calls c LEFT JOIN conversations v ON v.id = c.conversation_id
                  LEFT JOIN characters vc ON vc.id = v.character_id
@@ -182,12 +187,13 @@ async def _conversations(db, args: dict) -> tuple[list[list], list | None]:
             GROUP BY c.conversation_id),
         {_RANKED}
         SELECT MIN(k) AS slot, id, title, card_name, SUM(cost) AS cost, SUM(n) AS n,
-               SUM(unpriced) AS unpriced, free_only, deleted, COUNT(*)
+               SUM(unpriced) AS unpriced, SUM(unpriced_in), SUM(unpriced_out), free_only,
+               deleted, COUNT(*)
         FROM r GROUP BY CASE WHEN k <= {LISTED} THEN k ELSE {LISTED + 1} END ORDER BY slot""",
                           args)
-    listed, rest = _split(rows, 8)
+    listed, rest = _split(rows, 10)
     for line in listed:
-        line[6], line[7] = bool(line[6]), bool(line[7])
+        line[8], line[9] = bool(line[8]), bool(line[9])
     return listed, rest
 
 
@@ -323,7 +329,7 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
                     "computed_typed": _money(head[10]), "estimated": _money(head[11])},
         "at_most": bool(head[12]),
         "uses": await _uses(db, where, args, unpriced_tokens=False, free=False),
-        "cards": [[line[0], line[1], line[2], line[3], line[4], line[7]] for line in cards],
+        "cards": [[line[0], line[1], line[2], line[3], line[4], line[9]] for line in cards],
         "cards_rest": cards_rest,
     }
 

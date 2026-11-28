@@ -246,6 +246,9 @@ async def test_a_line_says_its_unpriced_calls(client):
     assert got["models"][0][10] == 1
     assert got["conversations"][0][5] == 1
     assert got["cards"][0][5] == 1
+    # The tokens of the calls with no price, on each line, for a line with no price at all.
+    assert got["conversations"][0][6:8] == [1200, 80]
+    assert got["cards"][0][6:8] == [1200, 80]
     assert got["unpriced"] == {"calls": 1, "tokens_in": 1200, "tokens_out": 80}
     assert got["uses"] == [["reply", 0.01, 2, 0, 1, 1200, 80, 0]]
 
@@ -288,8 +291,8 @@ async def test_a_line_says_when_it_was_never_for_money(client):
     put_call(conversation_id="c-paid", card_id="card-paid")
     got = await spending(client)
     conversations, cards = by_id(got["conversations"]), by_id(got["cards"])
-    assert (conversations["c-home"][6], conversations["c-paid"][6]) == (True, False)
-    assert (cards["card-home"][6], cards["card-paid"][6]) == (True, False)
+    assert (conversations["c-home"][8], conversations["c-paid"][8]) == (True, False)
+    assert (cards["card-home"][8], cards["card-paid"][8]) == (True, False)
 
 
 async def test_an_ai_deleted_keeps_its_line_and_says_so(client):
@@ -316,7 +319,7 @@ async def test_a_new_card_s_drafts_are_one_line_and_speed_is_no_card(client):
              conversation_id=None)
     got = await spending(client)
     [new_card] = got["cards"]
-    assert (new_card[0], new_card[1], new_card[4], new_card[7]) == (None, None, 2, False)
+    assert (new_card[0], new_card[1], new_card[4], new_card[9]) == (None, None, 2, False)
     assert got["conversations"] == []
     new = await detail(client, "card", "")
     assert (new["name"], new["calls"], new["deleted"]) == (None, 2, False)
@@ -329,9 +332,9 @@ async def test_a_deleted_conversation_keeps_its_rows_under_its_name(client):
     assert (await client.delete(f"/api/conversations/{convo['id']}")).status_code == 204
     got = await spending(client)
     [line] = got["conversations"]
-    assert (line[0], line[1], line[2], line[3], line[7]) == (
+    assert (line[0], line[1], line[2], line[3], line[9]) == (
         convo["id"], "At the inn", "Serana", 0.01, True)
-    assert got["cards"][0][7] is False
+    assert got["cards"][0][9] is False
     assert count_rows() == 1
 
 
@@ -343,7 +346,7 @@ async def test_a_renamed_conversation_shows_its_name_of_today(client):
     assert resp.status_code == 200, resp.text
     got = await spending(client)
     [line] = got["conversations"]
-    assert (line[1], line[2], line[7]) == ("By the sea", "Serana", False)
+    assert (line[1], line[2], line[9]) == ("By the sea", "Serana", False)
     assert got["cards"][0][1] == "Serana"
     shown = await detail(client, "conversation", convo["id"])
     assert (shown["title"], shown["card_name"], shown["deleted"]) == (
@@ -357,7 +360,7 @@ async def test_forget_name_on_delete_keeps_the_money_without_the_name(client):
     resp = await client.delete(f"/api/conversations/{convo['id']}", params={"forget_name": 1})
     assert resp.status_code == 204
     got = by_id((await spending(client))["conversations"])
-    assert (got[convo["id"]][1], got[convo["id"]][3], got[convo["id"]][7]) == (None, 0.01, True)
+    assert (got[convo["id"]][1], got[convo["id"]][3], got[convo["id"]][9]) == (None, 0.01, True)
     assert got["another"][1] == "Kept"
     # A conversation that is not there is not found, and nothing is forgotten.
     resp = await client.delete("/api/conversations/another", params={"forget_name": 1})
@@ -382,9 +385,9 @@ async def test_forgetting_a_card_forgets_its_conversations_titles(client):
         conn.close()
     got = await spending(client)
     [card] = got["cards"]
-    assert (card[0], card[1], card[3], card[7]) == (card_id, None, 0.02, True)
+    assert (card[0], card[1], card[3], card[9]) == (card_id, None, 0.02, True)
     [line] = got["conversations"]
-    assert (line[1], line[2], line[7]) == (None, None, True)
+    assert (line[1], line[2], line[9]) == (None, None, True)
 
 
 async def test_forget_on_its_own(client):

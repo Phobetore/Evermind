@@ -69,17 +69,17 @@ export function month(): Spending {
       ["ai-eclair", "Eclair Free", "service", 5, 4000, "OpenRouter"],
     ],
     cards: [
-      ["card-home", "Home only", "character", 0, 14, 0, true, false],
-      ["card-serana", "Serana", "character", 1.6, 300, 184, false, false],
-      ["card-vigil", "The Elmswood Vigil", "scenario", 0.2, 10, 0, false, false],
-      ["card-old", "Old friend", "character", 0.05, 3, 0, false, true],
-      [null, null, null, 0.04, 2, 0, false, false],
+      ["card-home", "Home only", "character", 0, 14, 0, 0, 0, true, false],
+      ["card-serana", "Serana", "character", 1.6, 300, 184, 98765, 4321, false, false],
+      ["card-vigil", "The Elmswood Vigil", "scenario", 0.2, 10, 0, 0, 0, false, false],
+      ["card-old", "Old friend", "character", 0.05, 3, 0, 0, 0, false, true],
+      [null, null, null, 0.04, 2, 0, 0, 0, false, false],
     ],
     cards_rest: null,
     conversations: [
-      ["conv-free", "Quiet evening", "Home only", 0, 14, 0, true, false],
-      ["conv-inn", "At the inn", "Serana", 1.64, 230, 205, false, false],
-      ["conv-gone", "Lost road", "Old friend", 0.05, 3, 0, false, true],
+      ["conv-free", "Quiet evening", "Home only", 0, 14, 0, 0, 0, true, false],
+      ["conv-inn", "At the inn", "Serana", 1.64, 230, 205, 123456, 7890, false, false],
+      ["conv-gone", "Lost road", "Old friend", 0.05, 3, 0, 0, 0, false, true],
     ],
     conversations_rest: null,
     unpriced: { calls: 205, tokens_in: 123456, tokens_out: 7890 },
@@ -99,11 +99,11 @@ export function year(): Spending {
     series: { step: "week", points: weeks },
     cards: Array.from({ length: 50 }, (_, i) =>
       [`card-${i}`, `${names[i % 5]} of the Long Name Hollow ${i}`, i % 9 ? "character" : "scenario", 2 - i / 50, 900 - i,
-        0, false, i % 13 === 0] as Spending["cards"][number]),
+        0, 0, 0, false, i % 13 === 0] as Spending["cards"][number]),
     cards_rest: [12, 0.42, 300, 0],
     conversations: Array.from({ length: 50 }, (_, i) =>
       [`conv-${i}`, `A very long evening at the Elmswood inn, part ${i}`, names[i % 5], 1.5 - i / 50, 700 - i, i % 4,
-        false, i % 11 === 0] as Spending["conversations"][number]),
+        (i % 4) * 4000, (i % 4) * 300, false, i % 11 === 0] as Spending["conversations"][number]),
     conversations_rest: [250, 3.1, 4100, 12],
   };
 }

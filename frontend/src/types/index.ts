@@ -421,10 +421,12 @@ export interface Spending {
     tokens_in: number, service_name: string | null][];
   /** A null `card_id`: the drafts of cards not saved yet, "New card". */
   cards: [card_id: string | null, name: string | null, kind: Kind | null, cost: number, calls: number,
-    unpriced_calls: number, free_only: boolean, deleted: boolean][];
+    unpriced_calls: number, unpriced_tokens_in: number, unpriced_tokens_out: number, free_only: boolean,
+    deleted: boolean][];
   cards_rest: SpendingRest | null;
   conversations: [id: string, title: string | null, card_name: string | null, cost: number, calls: number,
-    unpriced_calls: number, free_only: boolean, deleted: boolean][];
+    unpriced_calls: number, unpriced_tokens_in: number, unpriced_tokens_out: number, free_only: boolean,
+    deleted: boolean][];
   conversations_rest: SpendingRest | null;
   unpriced: { calls: number; tokens_in: number; tokens_out: number };
 }
