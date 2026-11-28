@@ -125,12 +125,22 @@ jobs:
   # an API the browser withholds outside a secure context, or a message that
   # disappears while a reply streams. This drives a real browser against the
   # real stack.
+  #
+  # In four parts, each on a machine of its own, with its own servers and its
+  # own data: the suite takes an hour in one go, and no file of it leans on one
+  # that ran before, so a part starts from nothing as the whole does.
   e2e:
-    name: End to end
+    name: End to end (${{ matrix.part }}/4)
     runs-on: ubuntu-latest
-    # A hang fails here, rather than running for hours. The suite alone takes
-    # about 45 minutes.
-    timeout-minutes: 75
+    # A hang fails here, rather than running for hours. A part takes about a
+    # quarter of an hour.
+    timeout-minutes: 40
+    strategy:
+      # A part that fails says nothing of the others: they finish, and say all
+      # that is broken in one run.
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -161,16 +171,28 @@ jobs:
 
       - name: Run
         working-directory: frontend
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.part }}/4
 
       # Only on a failure, and only then: a trace is worth having when something
       # broke on a machine you cannot look at, and worth nothing otherwise.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
-          name: playwright-trace
+          name: playwright-trace-${{ matrix.part }}
           path: frontend/test-results/
           retention-days: 7
+
+  # The rule that guards main asks for one check named "End to end". This is it:
+  # green when every part is, and red when one failed, was cancelled or never ran.
+  e2e-whole:
+    name: End to end
+    if: always()
+    needs: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        run: test "${{ needs.e2e.result }}" = "success"
 
   # The image was only ever built when cutting a release, so a broken COPY or a
   # stale base image stayed invisible behind a green CI until publishing failed.
