@@ -146,6 +146,13 @@ const serana: SpendingDetailOfCard = {
   conversations_rest: [88, 0.5, 120, 0],
 };
 
+/** A deleted character whose name is kept, with her deleted conversation. */
+const old: SpendingDetailOfCard = {
+  name: "Old friend", kind: "character", deleted: true, cost: 0.05, calls: 3, unpriced_calls: 0,
+  models: [["ai-sylve", "Sylve Mini", 0.05, 3, 0, false]],
+  conversations: [["conv-gone", "Lost road", 0.05, 3, 0, false, true]], conversations_rest: null,
+};
+
 const memory: SpendingDetailOfUse = {
   use: "memory", cost: 1.54, calls: 40, retried: 0, unpriced_calls: 21, unpriced_tokens_in: 98000,
   unpriced_tokens_out: 6000,
@@ -158,6 +165,7 @@ const DETAILS: Record<string, unknown> = {
   "conversation:conv-inn": inn,
   "conversation:conv-gone": gone,
   "card:card-serana": serana,
+  "card:card-old": old,
   "use:memory": memory,
 };
 

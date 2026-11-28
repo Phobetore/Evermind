@@ -307,13 +307,13 @@ test("free ais are apart and never an amount", async ({ page }) => {
   await expect(free).toContainText("Free");
   await expect(free).toContainText("Brume 12B");
   await expect(free).toContainText("on this PC");
-  await expect(free).toContainText("free on OpenRouter");
+  await expect(free).toContainText(`free on \u2068OpenRouter\u2069`);
   await expect(free).not.toContainText("$");
   // Last of the list.
   expect(await list(page).evaluate((el) => el.lastElementChild?.hasAttribute("data-free"))).toBe(true);
   const openrouter = list(page).locator("[data-service]").filter({ hasText: "OpenRouter" });
   await expect(openrouter).toContainText("Claude Byok");
-  await expect(openrouter).toContainText("of which $0.01 billed by Anthropic");
+  await expect(openrouter).toContainText(`of which $0.01 billed by \u2068Anthropic\u2069`);
 });
 
 test("the one-ai filter narrows the list, never the total", async ({ page }) => {
@@ -324,7 +324,7 @@ test("the one-ai filter narrows the list, never the total", async ({ page }) => 
   const read = page.waitForRequest((r) => new URL(r.url()).searchParams.get("model") === "ai-sylve");
   await page.getByRole("combobox").selectOption({ label: "Sylve Mini" });
   await read;
-  await expect(page.getByText("With Sylve Mini: $1.43")).toBeVisible();
+  await expect(page.getByText(`With \u2068Sylve Mini\u2069: $1.43`)).toBeVisible();
   await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
   await expect(line(page, "Lost road")).toHaveCount(0);
   expect(asked.summary).toHaveLength(2);
@@ -402,6 +402,8 @@ test("a deleted line can forget its name", async ({ page }) => {
   await forgot;
   expect(asked.forget).toEqual([{ cut: "conversation", key: "conv-gone" }]);
   await expect(page.getByRole("dialog")).toContainText("Deleted conversation");
+  // A name forgotten is not offered to be forgotten again.
+  await expect(detail(page).getByRole("button", { name: "Forget this name" })).toHaveCount(0);
   await page.getByRole("button", { name: "Close" }).click();
   await expect(line(page, "Deleted conversation")).toBeVisible();
   await expect(line(page, "Lost road")).toHaveCount(0);
@@ -667,8 +669,8 @@ test("a free ai chosen in the filter is free, never an amount", async ({ page })
   const read = page.waitForRequest((r) => new URL(r.url()).searchParams.get("model") === "ai-brume");
   await page.getByRole("combobox").selectOption({ label: "Brume 12B" });
   await read;
-  await expect(page.getByText("With Brume 12B: free")).toBeVisible();
-  await expect(page.getByText(/^With Brume 12B: \$/)).toHaveCount(0);
+  await expect(page.getByText(`With \u2068Brume 12B\u2069: free`)).toBeVisible();
+  await expect(page.getByText(/^With \u2068Brume 12B\u2069: \$/)).toHaveCount(0);
 });
 
 test("the ai filtered stays chosen in a period where it made no call", async ({ page }) => {
@@ -676,14 +678,14 @@ test("the ai filtered stays chosen in a period where it made no call", async ({ 
   await page.goto("/#/spending");
   await page.getByRole("button", { name: "By conversation" }).click();
   await page.getByRole("combobox").selectOption({ label: "Sylve Mini" });
-  await expect(page.getByText("With Sylve Mini: $1.43")).toBeVisible();
+  await expect(page.getByText(`With \u2068Sylve Mini\u2069: $1.43`)).toBeVisible();
   await page.getByRole("button", { name: "7 days", exact: true }).click();
   await expect(total(page)).toHaveText("$1.00 + 205 calls without a price");
   expect(asked.summary.at(-1)!.searchParams.get("model")).toBe("ai-sylve");
   // What the select shows is what the page asks.
   await expect(page.getByRole("combobox")).toHaveValue("ai-sylve");
   await expect(page.getByRole("combobox").locator("option:checked")).toHaveText("Sylve Mini");
-  await expect(page.getByText("With Sylve Mini: nothing")).toBeVisible();
+  await expect(page.getByText(`With \u2068Sylve Mini\u2069: nothing`)).toBeVisible();
   await page.getByRole("combobox").selectOption({ label: "All AIs" });
   await expect.poll(() => asked.summary.at(-1)!.searchParams.get("model")).toBeNull();
 });
@@ -813,6 +815,8 @@ test("lines only with free ais come last, under their title", async ({ page }) =
     const title = rows.findIndex((text) => text.trim() === "Only with free AIs");
     expect(title, cut).toBe(rows.length - 2);
     expect(rows.at(-1), cut).toContain(free);
+    // Once: not among the others too.
+    expect(rows.filter((text) => text.includes(free)), cut).toHaveLength(1);
   }
 });
 
@@ -993,4 +997,148 @@ test("a finger chooses a bar by a tap or a slide sideways, never by scrolling th
   const along = (await page.locator("[data-bars]").boundingBox())!;
   await slide([along.x + 10, along.y + along.height / 2], [along.x + along.width - 4, along.y + along.height / 2]);
   await expect(legend).toContainText(`${inWords(dayBefore(0))}: `);
+});
+
+/** The summary that `failing` names fails once; from `hold()` on, every read waits for `release()`. */
+function failThenHold(page: Page, failing: (url: URL) => boolean) {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const state = { failed: false, holding: false };
+  const route = onSummary(page, async (url, r) => {
+    if (failing(url) && !state.failed) {
+      state.failed = true;
+      return r.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Down." }) });
+    }
+    if (state.holding) await held;
+    await r.fallback();
+  });
+  return { route, hold: () => (state.holding = true), release: () => release() };
+}
+
+async function waitsWithoutItsFailure(page: Page) {
+  await expect(page.locator("[aria-busy=true]").first()).toContainText("Loading…");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+}
+
+test("a period chosen back to the one that failed says it waits, not its failure", async ({ page }) => {
+  await answerSpending(page);
+  const read = failThenHold(page, (url) => url.searchParams.get("from") === dayBefore(29));
+  await read.route;
+  await page.goto("/#/spending");
+  await expect(page.getByRole("alert")).toContainText("HTTP 500");
+  read.hold();
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await page.getByRole("button", { name: "30 days", exact: true }).click();
+  await waitsWithoutItsFailure(page);
+  read.release();
+  await expect(total(page)).toHaveText("$3.02 + 205 calls without a price");
+});
+
+test("an ai chosen back to the one that failed says it waits, not its failure", async ({ page }) => {
+  await answerSpending(page);
+  const read = failThenHold(page, (url) => url.searchParams.get("model") === "ai-brume");
+  await read.route;
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await page.getByRole("combobox").selectOption({ label: "Brume 12B" });
+  await expect(page.getByRole("alert")).toContainText("HTTP 500");
+  read.hold();
+  await page.getByRole("combobox").selectOption({ label: "Sylve Mini" });
+  await page.getByRole("combobox").selectOption({ label: "Brume 12B" });
+  await waitsWithoutItsFailure(page);
+  read.release();
+  await expect(page.getByText(`With \u2068Brume 12B\u2069: free`)).toBeVisible();
+});
+
+test("everything read again after a failed read says it waits, not its failure", async ({ page }) => {
+  await answerSpending(page);
+  let fail = false;
+  let holding = false;
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await onSummary(page, async (_url, route) => {
+    if (fail) {
+      fail = false;
+      return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Down." }) });
+    }
+    if (holding) await held;
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await expect(total(page)).toBeVisible();
+  const clearAll = async () => {
+    await page.getByRole("button", { name: "Clear the history…" }).click();
+    const sheet = page.getByRole("dialog");
+    await sheet.getByRole("radio", { name: "Everything" }).check();
+    await expect(sheet.getByRole("button", { name: "Clear", exact: true })).toBeEnabled();
+    await sheet.getByRole("button", { name: "Clear", exact: true }).click();
+    await expect(sheet).toHaveCount(0);
+  };
+  fail = true;
+  await clearAll();
+  await expect(page.getByRole("alert")).toContainText("HTTP 500");
+  holding = true;
+  await clearAll();
+  await waitsWithoutItsFailure(page);
+  release();
+  await expect(total(page)).toBeVisible();
+});
+
+test("a character's name forgotten reads the summary again: her conversations' titles go with it", async ({ page }) => {
+  let forgotten = false;
+  const asked = await answerSpending(page, () => {
+    const s = month();
+    if (!forgotten) return s;
+    return {
+      ...s,
+      cards: s.cards.map((c) => (c[0] === "card-old" ? [c[0], null, ...c.slice(2)] as typeof c : c)),
+      conversations: s.conversations.map((c) => (c[0] === "conv-gone" ? [c[0], null, null, ...c.slice(3)] as typeof c : c)),
+    };
+  });
+  await page.route("**/api/spending/forget", async (route) => {
+    forgotten = true;
+    await route.fallback();
+  });
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By character" }).click();
+  await line(page, "Old friend").click();
+  const reads = asked.summary.length;
+  await detail(page).getByRole("button", { name: "Forget this name" }).click();
+  await expect.poll(() => asked.summary.length).toBe(reads + 1);
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(line(page, "Deleted character")).toBeVisible();
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await expect(line(page, "Deleted conversation")).toBeVisible();
+  await expect(line(page, "Lost road")).toHaveCount(0);
+});
+
+test("clear stays off when nothing would go", async ({ page }) => {
+  await answerSpending(page);
+  await page.route("**/api/spending?**", async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== "DELETE" || url.searchParams.get("dry_run") !== "1") return route.fallback();
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ calls: 0, first: null, last: null }) });
+  });
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "Clear the history…" }).click();
+  const sheet = page.getByRole("dialog");
+  await sheet.getByRole("radio", { name: "Everything" }).check();
+  await expect(sheet).toContainText("Nothing to clear before this date.");
+  await expect(sheet.getByRole("button", { name: "Clear", exact: true })).toBeDisabled();
+});
+
+test("a free ai chosen stays free in a period where it made no call", async ({ page }) => {
+  await answerSpending(page, (url) => {
+    const s = month();
+    if (url.searchParams.get("from") !== dayBefore(6)) return s;
+    return { ...s, free: s.free.filter(([id]) => id !== "ai-brume") };
+  });
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await page.getByRole("combobox").selectOption({ label: "Brume 12B" });
+  await expect(page.getByText(`With \u2068Brume 12B\u2069: free`)).toBeVisible();
+  await page.getByRole("button", { name: "7 days", exact: true }).click();
+  await expect(page.getByRole("combobox")).toHaveValue("ai-brume");
+  await expect(page.getByText(`With \u2068Brume 12B\u2069: free`)).toBeVisible();
+  await expect(page.getByText(/^With \u2068Brume 12B\u2069: (nothing|\$)/)).toHaveCount(0);
 });
