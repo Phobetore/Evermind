@@ -10,45 +10,51 @@ import { Link } from "react-router";
 type Query = { model?: string; card?: string; conversation?: string; days: 30 | "all" };
 
 /** What one AI, one character, one conversation, or everything has cost, as a line that opens
- *  Spending on it. Reads the total itself unless `known` is given; draws nothing while it is
- *  unknown, in an edition without Spending, or, with `hideWhenNothing`, when nothing cost money
- *  and nothing went unpriced: a free AI's line would only say "$0". */
-export function SpentLine({ query, sentence, name, to, known, hideWhenNothing, onRead }: {
+ *  Spending on it. Reads the total as it appears, and again each time `reread` changes; between
+ *  two reads, each `known` it is given is what it shows. Draws nothing while it is unknown, in an
+ *  edition without Spending, or, with `hideWhenNothing`, when nothing cost money and nothing went
+ *  unpriced: a free AI's line would only say "$0". */
+export function SpentLine({ query, sentence, name, to, known, reread = 0, hideWhenNothing }: {
   query: Query;
   sentence: "settings" | "ai" | "conversation" | "card";
   name?: string;
   /** #/spending?cut=…&key=…&per=… */
   to: string;
-  /** What the caller holds already: null while it holds nothing, and then the line reads once. */
+  /** What the caller learns as it goes, such as the end of each turn: what it holds as the line
+   *  appears is not taken, the line reads its own. */
   known?: SpentTotal | null;
+  /** Changes when what the line holds may have moved without the caller knowing by how much. */
+  reread?: number;
   hideWhenNothing: boolean;
-  /** Told what the line read, for a caller that keeps it between two appearances. */
-  onRead?: (spent: SpentTotal) => void;
 }) {
   const { t, locale } = useI18n();
-  const [read, setRead] = useState<SpentTotal | null>(null);
   const shown = spendingShown(data);
-  // Once, as it first appears: after that, what it was given keeps it current.
-  const asked = useRef(false);
-  // What the caller gave last: a read that lands after it gave something is older than that.
-  const given = useRef(known);
+  // What the caller held as the line appeared is not taken: the line reads its own.
+  const [initial] = useState(known);
+  const given = known !== initial ? (known ?? null) : null;
+  // Each read lands with what had been given when it was sent: one sent before the last amount
+  // given is older than it.
+  const [read, setRead] = useState<{ spent: SpentTotal; under: SpentTotal | null } | null>(null);
+  const givenNow = useRef(given);
   useEffect(() => {
-    given.current = known;
+    givenNow.current = given;
   });
   const { model, card, conversation, days } = query;
   useEffect(() => {
-    if (!shown || known || asked.current) return;
-    asked.current = true;
+    if (!shown) return;
+    const under = givenNow.current;
+    let gone = false;
     data.spending!.total({ model, card, conversation, days }).then((spent) => {
-      if (given.current) return;
-      setRead(spent);
-      onRead?.(spent);
+      if (!gone) setRead({ spent, under });
     }, () => {
       // A line that leads somewhere is no place for a failure: it stays away.
     });
-  }, [shown, known, model, card, conversation, days, onRead]);
+    return () => {
+      gone = true;
+    };
+  }, [shown, model, card, conversation, days, reread]);
+  const spent = read && read.under === given ? read.spent : (given ?? read?.spent ?? null);
 
-  const spent = known ?? read;
   if (!spentLineShown(data, spent, hideWhenNothing) || !spent) return null;
   const money = moneyText({ cost: spent.total, unpriced: spent.unpriced_calls, currency: spent.currency }, "total", locale, t);
   const said = sentence === "settings"

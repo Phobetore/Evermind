@@ -30,7 +30,6 @@ export function ChatSidePanel({
   persona,
   storyCuts = 0,
   spent = null,
-  onSpentRead,
   takeFocus = false,
   onClose,
   onConversationChange,
@@ -43,10 +42,9 @@ export function ChatSidePanel({
   persona: Persona | null;
   /** Changes when the server takes the memory back, with a cut or a reply written over. */
   storyCuts?: number;
-  /** What the conversation has cost, as the last turn's end said it: null until one has. */
+  /** What the conversation has cost, as the last turn's end said it: the line follows it while the
+   *  panel is open, and reads its own as it opens. */
   spent?: SpentTotal | null;
-  /** What the line read as the panel first showed it, kept by the page for the next opening. */
-  onSpentRead?: (spent: SpentTotal) => void;
   /** Opened by hand: the focus starts on its close button. */
   takeFocus?: boolean;
   onClose: () => void;
@@ -93,6 +91,15 @@ export function ChatSidePanel({
   const asking = useRef(false);
   const remembering = memorizing || elsewhere === "extract" || elsewhere === "pass";
   const condensing = consolidating || elsewhere === "consolidate";
+  // Each end of an operation on the memory the panel shows: it called the AI, and no turn's end
+  // says what that cost, so the line of what was spent reads it again.
+  const [memoryEnds, setMemoryEnds] = useState(0);
+  const memoryBusy = remembering || condensing;
+  const wasBusy = useRef(memoryBusy);
+  useEffect(() => {
+    if (wasBusy.current && !memoryBusy) setMemoryEnds((n) => n + 1);
+    wasBusy.current = memoryBusy;
+  }, [memoryBusy]);
   const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
@@ -738,7 +745,7 @@ export function ChatSidePanel({
           sentence="conversation"
           to={`#/spending?cut=conversation&key=${encodeURIComponent(conversation.id)}&per=all`}
           known={spent}
-          onRead={onSpentRead}
+          reread={memoryEnds}
           hideWhenNothing
         />
       </div>

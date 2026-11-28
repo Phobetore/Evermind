@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page, type Response } from "@playwright/test";
 import { API } from "../playwright.config";
-import { MOCK, MOCK_ROOT, answer, boxHears, chat, makeCharacter, misfits, replyEnds, rootAt, turnRunning } from "./fixtures";
+import { MOCK, MOCK_ROOT, answer, boxHears, chat, makeCharacter, misfits, remembered, replyEnds, rootAt, turnRunning } from "./fixtures";
 
 /**
  * The lines that lead to Spending (Settings, an AI's page, a conversation's panel, a character's
@@ -163,11 +163,13 @@ test("a price typed on an ai's page says the earlier calls it priced", async ({ 
   }
 });
 
-test("the conversation panel follows each reply without asking", async ({ page, request }) => {
+test("the conversation panel reads once as it opens, follows each reply without asking, and once more when a memory pass ends", async ({ page, request }) => {
   const ai = await pricedAi(request, `Tally ${stamp()}`);
   try {
     const { convo } = await conversationOn(request, ai, { costs: 1000000 });
     await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
+    // Wide: the panel beside the story, open while a reply is written.
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/#/chat/${convo.id}`);
     const asked = spendingAsked(page);
     let panel = await openPanel(page);
@@ -175,25 +177,29 @@ test("the conversation panel follows each reply without asking", async ({ page, 
     await expect(lead).toHaveText(/^This conversation: \$\d+\.\d\d since the start$/);
     await expect(lead).toHaveAttribute("href", `#/spending?cut=conversation&key=${convo.id}&per=all`);
     const before = await lead.innerText();
-    // Read once, as it first appears.
     expect(asked).toHaveLength(1);
+    // Each opening reads it: a pass may have run while it was closed.
     await closePanel(page, panel);
-    // Opened again before any reply: what was read is kept.
     panel = await openPanel(page);
     await expect(lead).toHaveText(before);
-    await closePanel(page, panel);
-    expect(asked).toHaveLength(1);
+    await expect.poll(() => asked.length).toBe(2);
 
     const ended = replyEnds(page, convo.id);
     await page.locator("textarea").first().fill("And then?");
     await page.locator('button[title="Send"]').click();
     await ended;
-    panel = await openPanel(page);
-    const after = panel.locator('a[href^="#/spending"]');
-    await expect(after).toHaveText(/^This conversation: \$\d+\.\d\d since the start$/);
-    await expect(after).not.toHaveText(before);
+    await expect(lead).toHaveText(/^This conversation: \$\d+\.\d\d since the start$/);
+    await expect(lead).not.toHaveText(before);
     // The turn's end carried it: nothing was asked of Spending for the reply.
-    expect(asked).toHaveLength(1);
+    expect(asked).toHaveLength(2);
+
+    // A memory pass calls the AI: its end reads the line again.
+    const done = remembered(page);
+    await panel.getByRole("button", { name: "Remember", exact: true }).click();
+    await done;
+    await expect.poll(() => asked.length).toBe(3);
+    await page.waitForTimeout(500);
+    expect(asked).toHaveLength(3);
   } finally {
     await drop(request, ai);
   }

@@ -1044,8 +1044,6 @@ function ChatView({ id }: { id: string }) {
           persona={persona}
           storyCuts={storyCuts}
           spent={spent}
-          // A first read never replaces what a turn's end gave while it was on its way.
-          onSpentRead={(read) => setSpent((was) => was ?? read)}
           takeFocus={panelByHand}
           onClose={() => showPanel(false)}
           onConversationChange={(patch) => {
