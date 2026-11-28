@@ -126,6 +126,15 @@ const aurore: SpendingDetailOfModel = {
   uses: [["reply", 0.12, 2, 0, 0]], cards: [["card-serana", "Serana", "character", 0.12, 2, false]], cards_rest: null,
 };
 
+/** An AI with no price: none of its calls has an amount, so no share of one is above zero. */
+const gateway: SpendingDetailOfModel = {
+  name: "Gateway", service_name: "Home gateway", deleted: false, priceable: true, per100: null, cost: 0,
+  cost_upstream: 0, upstream: null, calls: 205, unpriced_calls: 205, tokens: { in: 123456, out: 7890, cached: 0, reasoning: 0 },
+  sources: NO_SOURCES, at_most: false,
+  uses: [["reply", 0, 190, 0, 190], ["memory", 0, 15, 0, 15]],
+  cards: [["card-serana", "Serana", "character", 0, 184, false]], cards_rest: null,
+};
+
 const inn: SpendingDetailOfConversation = {
   title: "At the inn", card_name: "Serana", deleted: false, cost: 1.64, calls: 230, unpriced_calls: 205,
   models: [["ai-sylve", "Sylve Mini", 1.6, 20, 0, false], ["ai-gateway", "Gateway", 0, 205, 205, false],
@@ -162,6 +171,7 @@ const memory: SpendingDetailOfUse = {
 const DETAILS: Record<string, unknown> = {
   "model:ai-sylve": sylve,
   "model:ai-aurore": aurore,
+  "model:ai-gateway": gateway,
   "conversation:conv-inn": inn,
   "conversation:conv-gone": gone,
   "card:card-serana": serana,

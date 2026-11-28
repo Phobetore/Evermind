@@ -216,8 +216,10 @@ function Part({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-/** Where an amount comes from: a line for each share that is not zero. `atMost`: a computed amount
- *  read from the cache with no price for it, said so, and why. `children`: lines of its own after. */
+/** Where an amount comes from: a line for each share that is not zero, and nothing at all when none
+ *  is. `atMost`: a computed amount read from the cache with no price for it, said so, and why.
+ *  `children`: lines of its own after (what a service billed through a key of one's own is in a
+ *  share too). */
 export function Sources({ sources, money, atMost = false, children }: {
   sources: SpendingSources;
   money(cost: number): string;
@@ -225,11 +227,13 @@ export function Sources({ sources, money, atMost = false, children }: {
   children?: React.ReactNode;
 }) {
   const { t } = useI18n();
+  const shares = SOURCES.filter((source) => sources[source] > 0);
+  if (shares.length === 0) return null;
   return (
     <section className="flex flex-col gap-1">
       <h3 className="ui-label">{t("spending.detail.sources")}</h3>
       <ul className="flex flex-col gap-0.5">
-        {SOURCES.filter((source) => sources[source] > 0).map((source) => {
+        {shares.map((source) => {
           const said = money(sources[source]);
           const most = atMost && (source === "computed_read" || source === "computed_typed");
           return (

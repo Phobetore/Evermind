@@ -833,6 +833,21 @@ test("how it is counted says where the amount comes from", async ({ page }) => {
   ]);
 });
 
+test("where the amount comes from is not drawn when no share is above zero", async ({ page }) => {
+  await answerSpending(page, () => ({ ...month(), sources: { reported: 0, computed_read: 0, computed_typed: 0, estimated: 0 } }));
+  await page.goto("/#/spending");
+  await expect(total(page)).toBeVisible();
+  const how = page.locator("details");
+  await how.locator("summary").click();
+  await expect(how.locator("p").first()).toBeVisible();
+  await expect(how.getByRole("heading", { name: "Where the amount comes from" })).toHaveCount(0);
+  // Nor in the detail of an AI with no price, whose calls are all in the period.
+  await page.goto("/#/spending?cut=model&key=ai-gateway");
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { name: "What it read and wrote" })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Where the amount comes from" })).toHaveCount(0);
+});
+
 test("a line with no price at all says its tokens, in every cut", async ({ page }) => {
   await answerSpending(page, () => {
     const s = month();
