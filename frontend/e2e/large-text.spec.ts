@@ -53,4 +53,13 @@ for (const locale of [...LOCALES, "es"] as const) {
     expect(await misfits(page)).toEqual([]);
   });
 
+  test(`a character's form behind its window of deletion fits, in ${locale}`, async ({ page, request }) => {
+    const card = await makeCharacter(request, { name: "Wilhelmina" });
+    await large(page, locale);
+    await page.goto(`/#/characters/${card.id}/edit`);
+    await at32(page);
+    await page.locator("main button.btn-danger, main button:has(svg.lucide-trash-2)").first().click();
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    expect(await misfits(page)).toEqual([]);
+  });
 }

@@ -67,7 +67,7 @@ export function TagInput({
         }}
         onBlur={commit}
         placeholder={value.length === 0 ? effectivePlaceholder : ""}
-        className="min-w-32 flex-1 bg-transparent text-sm outline-none placeholder:text-mist-dim"
+        className="min-w-[min(8rem,100%)] flex-1 bg-transparent text-sm outline-none placeholder:text-mist-dim"
       />
     </div>
   );
