@@ -277,6 +277,29 @@ test("a name written right to left stays apart from the words around it", async 
   await expect(detail(page).locator("li").filter({ hasText: NIGHT })).toHaveText(`\u2068${NIGHT}\u2069: $1.60 + 184 calls without a price`);
 });
 
+test("deleted agrees with what each line is, in french", async ({ page }) => {
+  await inLocale(page, "fr");
+  await answerSpending(page, () => {
+    const s = month();
+    return { ...s, models: s.models.map((m) => (m[0] === "ai-aurore" ? [...m.slice(0, 11), true] as typeof m : m)) };
+  });
+  await page.goto("/#/spending");
+  await expect(line(page, "Aurore")).toContainText("Auroresupprimée");
+  await page.getByRole("button", { name: "Par personnage" }).click();
+  await expect(line(page, "Old friend")).toContainText("Old friendsupprimé");
+  await expect(line(page, "Old friend")).not.toContainText("supprimée");
+  await page.getByRole("button", { name: "Par conversation" }).click();
+  await expect(line(page, "Lost road")).toContainText("Lost roadsupprimée");
+});
+
+test("retried attempts agree with the calls they are of, in spanish", async ({ page }) => {
+  await inLocale(page, "es");
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "Por uso" }).click();
+  await expect(line(page, "Respuestas")).toContainText("300 llamadas · de las cuales 4 intentos repetidos");
+});
+
 test("free ais are apart and never an amount", async ({ page }) => {
   await answerSpending(page);
   await page.goto("/#/spending");

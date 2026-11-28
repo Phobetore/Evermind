@@ -126,6 +126,21 @@ test("an ai's page says what was spent with it and opens it", async ({ page, req
   }
 });
 
+test("an ai's line names the same 30 days as settings, in french", async ({ page, request }) => {
+  const ai = await pricedAi(request, `Lanterne ${stamp()}`);
+  try {
+    await page.addInitScript(() => localStorage.setItem("evermind:locale", "fr"));
+    await page.route("**/api/spending/total?**", (route) => route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({ total: 2.1, currency: "USD", calls: 3, unpriced_calls: 0, free: false }),
+    }));
+    await page.goto(`/#/settings/ai/${ai.id}`);
+    await expect(page.locator('main a[href^="#/spending"]')).toHaveText(/^Dépensé avec elle\u00a0: 2,10\s?\$ ces 30 derniers jours$/);
+  } finally {
+    await drop(request, ai);
+  }
+});
+
 test("a price typed on an ai's page says the earlier calls it priced", async ({ page, request }) => {
   // A gateway of no known family: it has no price until one is typed.
   const ai = await aiOn(request, MOCK, "generic", "evermind-demo", `Unpriced ${stamp()}`);
@@ -350,10 +365,10 @@ test("deleting a conversation says its spending stays, and the tick forgets its 
       // The title, isolated in the question: one written right to left keeps it in its order.
       await expect(box).toContainText(`"\u2068${title}\u2069"`);
       await expect(box).toContainText("Its spending stays in Spending, under its name.");
-      const forget = box.getByRole("checkbox", { name: "without keeping its name" });
+      const forget = box.getByRole("checkbox", { name: "Do not keep its name there" });
       await expect(forget).not.toBeChecked();
       // Its words are what a finger touches: the label takes the whole height of a thumb.
-      if (tick) await box.locator("label", { hasText: "without keeping its name" }).click();
+      if (tick) await box.locator("label", { hasText: "Do not keep its name there" }).click();
       await expect(forget).toBeChecked({ checked: tick });
       await answer(page, true);
       await expect(row).toHaveCount(0);
@@ -380,8 +395,8 @@ test("deleting a character says its spending stays", async ({ page, request }) =
   await page.getByRole("button", { name: "Delete" }).click();
   const box = page.getByRole("alertdialog");
   await expect(box).toContainText("Its spending stays in Spending, under its name.");
-  await box.locator("label", { hasText: "without keeping its name" }).click();
-  await expect(box.getByRole("checkbox", { name: "without keeping its name" })).toBeChecked();
+  await box.locator("label", { hasText: "Do not keep its name there" }).click();
+  await expect(box.getByRole("checkbox", { name: "Do not keep its name there" })).toBeChecked();
   await boxHears(page);
   await box.getByRole("button").last().click();
   await expect(page).toHaveURL(/#\/$/);

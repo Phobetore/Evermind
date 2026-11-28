@@ -25,11 +25,14 @@ export function conversationName(title: string | null, card: string | null, dele
   return card ?? "";
 }
 
-/** "deleted", and "Scenario" for a scenario: what a name alone does not say. */
-export function tagsOf(deleted: boolean, named: boolean, kind: Kind | null, t: Translate): string[] {
+/** "deleted", agreeing with what the line is, and "Scenario" for a scenario: what a name alone
+ *  does not say. */
+export function tagsOf(
+  what: "model" | "card" | "conversation", deleted: boolean, named: boolean, kind: Kind | null, t: Translate,
+): string[] {
   const tags: string[] = [];
   if (kind === "scenario") tags.push(t("chat.panel.kindScenario"));
-  if (deleted && named) tags.push(t("spending.deleted"));
+  if (deleted && named) tags.push(t(`spending.gone.${what}`));
   return tags;
 }
 
@@ -63,7 +66,7 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
                     key={id ?? name ?? ""}
                     lineKey={id ?? ""}
                     name={name ?? ""}
-                    tags={tagsOf(deleted, true, null, t)}
+                    tags={tagsOf("model", deleted, true, null, t)}
                     amount={money(cost + upstream, unpriced)}
                     share={dearest ? (cost + upstream) / dearest : 0}
                     small={[calls(count), noPrice && t("spending.tokens", { read: tokensIn, written: tokensOut })]}
@@ -132,11 +135,11 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
   // Characters and conversations: those only with free AIs after the rest, the rest in one line.
   const rows = cut === "card"
     ? summary.cards.map(([id, name, kind, cost, count, unpriced, , , freeOnly, deleted]) => ({
-      key: id ?? "", name: cardName(id, name, deleted, t), tags: tagsOf(deleted, id !== null && name !== null, kind, t),
+      key: id ?? "", name: cardName(id, name, deleted, t), tags: tagsOf("card", deleted, id !== null && name !== null, kind, t),
       cost, count, unpriced, freeOnly, small: undefined as ReactNode,
     }))
     : summary.conversations.map(([id, title, card, cost, count, unpriced, , , freeOnly, deleted]) => ({
-      key: id, name: conversationName(title, card, deleted, t), tags: tagsOf(deleted, !!title, null, t),
+      key: id, name: conversationName(title, card, deleted, t), tags: tagsOf("conversation", deleted, !!title, null, t),
       cost, count, unpriced, freeOnly, small: title && card ? <bdi>{card}</bdi> : undefined,
     }));
   const rest: SpendingRest | null = cut === "card" ? summary.cards_rest : summary.conversations_rest;

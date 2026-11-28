@@ -1050,7 +1050,11 @@
       "pages_one": "≈ 1 page read",
       "only": "Only with free AIs"
     },
-    "deleted": "deleted",
+    "gone": {
+      "model": "deleted",
+      "card": "deleted",
+      "conversation": "deleted"
+    },
     "forget": "Forget this name",
     "deletedConversation": "Deleted conversation",
     "deletedCard": "Deleted character",
@@ -1115,7 +1119,7 @@
       "card": "Spent with {name} since the start: {money}"
     },
     "kept": "Its spending stays in Spending, under its name.",
-    "forgetTick": "without keeping its name"
+    "forgetTick": "Do not keep its name there"
   },
   "ways": {
     "names": {

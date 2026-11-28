@@ -1021,8 +1021,8 @@
       "card": "Asistente de fichas",
       "speed": "Pruebas de velocidad"
     },
-    "retried": "de los cuales {count:grouped} intentos repetidos",
-    "retried_one": "de los cuales 1 intento repetido",
+    "retried": "de las cuales {count:grouped} intentos repetidos",
+    "retried_one": "de las cuales 1 intento repetido",
     "calls": "{count:grouped} llamadas",
     "calls_one": "1 llamada",
     "freeCalls": "y {count:grouped} llamadas a IA gratuitas",
@@ -1050,7 +1050,11 @@
       "pages_one": "≈ 1 página leída",
       "only": "Solo con IA gratuitas"
     },
-    "deleted": "eliminado",
+    "gone": {
+      "model": "eliminada",
+      "card": "eliminado",
+      "conversation": "eliminada"
+    },
     "forget": "Olvidar este nombre",
     "deletedConversation": "Conversación eliminada",
     "deletedCard": "Personaje eliminado",
@@ -1115,7 +1119,7 @@
       "card": "Gastado con {name} desde el inicio: {money}"
     },
     "kept": "Sus gastos se quedan en Gastos, con su nombre.",
-    "forgetTick": "sin conservar su nombre"
+    "forgetTick": "No conservar su nombre allí"
   },
   "ways": {
     "names": {

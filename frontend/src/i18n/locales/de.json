@@ -1050,7 +1050,11 @@
       "pages_one": "≈ 1 Seite gelesen",
       "only": "Nur mit kostenlosen KIs"
     },
-    "deleted": "gelöscht",
+    "gone": {
+      "model": "gelöscht",
+      "card": "gelöscht",
+      "conversation": "gelöscht"
+    },
     "forget": "Diesen Namen vergessen",
     "deletedConversation": "Gelöschte Unterhaltung",
     "deletedCard": "Gelöschter Charakter",
@@ -1115,7 +1119,7 @@
       "card": "Mit {name} seit Beginn ausgegeben: {money}"
     },
     "kept": "Was dafür ausgegeben wurde, bleibt unter Ausgaben, unter dem bisherigen Namen.",
-    "forgetTick": "ohne den Namen zu behalten"
+    "forgetTick": "Den Namen dort nicht behalten"
   },
   "ways": {
     "names": {

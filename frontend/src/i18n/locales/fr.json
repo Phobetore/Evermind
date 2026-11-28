@@ -1050,7 +1050,11 @@
       "pages_one": "≈ 1 page lue",
       "only": "Seulement avec des IA gratuites"
     },
-    "deleted": "supprimé",
+    "gone": {
+      "model": "supprimée",
+      "card": "supprimé",
+      "conversation": "supprimée"
+    },
     "forget": "Oublier ce nom",
     "deletedConversation": "Conversation supprimée",
     "deletedCard": "Personnage supprimé",
@@ -1110,12 +1114,12 @@
     "cleared_one": "Historique effacé\u00a0: 1 appel.",
     "link": {
       "settings": "{money} ces 30 derniers jours",
-      "ai": "Dépensé avec elle\u00a0: {money} ces 30 jours",
+      "ai": "Dépensé avec elle\u00a0: {money} ces 30 derniers jours",
       "conversation": "Cette conversation\u00a0: {money} depuis le début",
       "card": "Dépensé avec {name} depuis le début\u00a0: {money}"
     },
     "kept": "Ses dépenses restent dans Dépenses, sous son nom.",
-    "forgetTick": "sans garder son nom"
+    "forgetTick": "Ne pas y garder son nom"
   },
   "ways": {
     "names": {
