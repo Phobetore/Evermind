@@ -231,8 +231,11 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
                SUM(CASE WHEN {UNPRICED} THEN c.tokens_out ELSE 0 END),
                SUM(NOT ({REPLIES}) AND {UNPRICED}), SUM(NOT ({REPLIES}) AND {FREE})
         FROM calls c WHERE {IN_PERIOD}""", args)
+    counted_from = await since(db)
     previous = None
-    if p.previous is not None:
+    # None from the start, and for days that end before counting began: nothing of them was
+    # ever counted, and "nothing" would not be true.
+    if p.previous is not None and p.previous[1] > counted_from:
         before = await _one(db, f"SELECT SUM({SPENT}), SUM({UNPRICED}) FROM calls c"
                                 f" WHERE {IN_PERIOD}", {"lo": p.previous[0], "hi": p.previous[1]})
         previous = {"cost": _rounded(before[0]), "unpriced_calls": before[1] or 0}
@@ -258,7 +261,7 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
     cards, cards_rest = await _cards(db, args)
     conversations, conversations_rest = await _conversations(db, args)
     return {
-        "since": await since(db), "currency": "USD",
+        "since": counted_from, "currency": "USD",
         "total": _rounded(head[0]),
         "model_total": _rounded(head[2]) if model_id is not None else None,
         "previous": previous, "calls": head[1],

@@ -136,6 +136,17 @@ async def test_the_previous_period_is_as_long_and_none_from_the_start(client):
     assert (await spending(client, to="2026-11-25", **PARIS))["previous"] is None
 
 
+async def test_days_before_counting_began_are_no_period_before(client):
+    today = datetime.now(ZoneInfo("Europe/Paris")).date()
+    days = {"from": (today - timedelta(days=1)).isoformat(), "to": today.isoformat(), **PARIS}
+    # Counting began today: nothing of the two days before was ever counted.
+    assert (await spending(client, **days))["previous"] is None
+    # Counting began in the middle of them: what was counted of them is said.
+    began = datetime.now(UTC) - timedelta(days=2, hours=12)
+    put_call(started_at=calls.instant(began), cost=0.02)
+    assert (await spending(client, **days))["previous"] == {"cost": 0.02, "unpriced_calls": 0}
+
+
 async def test_what_was_spent_outside_replies_and_before_says_what_had_no_price(client):
     # A memory pass on an AI with no price, another at home, and the days before with no price.
     put_call(started_at="2026-11-02T10:00:00.000+00:00", purpose="memory", cost=None,
