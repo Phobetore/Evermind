@@ -85,9 +85,11 @@ export function ChatListPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    // Gutters of 24px at most: layout, not text, so that a very large text keeps its room.
+    <div className="mx-auto max-w-3xl px-[min(1.5rem,24px)] py-10">
       <header className="mb-8 animate-rise">
-        <h1 className="font-display text-3xl font-semibold">{t("nav.conversations")}</h1>
+        {/* One long word at the largest text ("Unterhaltungen", "Conversaciones"): broken, not past the screen. */}
+        <h1 className="font-display text-3xl font-semibold break-words hyphens-auto">{t("nav.conversations")}</h1>
         <p className="mt-1 text-mist">{t("chatList.subtitle")}</p>
       </header>
 

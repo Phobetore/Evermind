@@ -40,3 +40,17 @@ for (const locale of LOCALES) {
   });
 }
 
+for (const locale of [...LOCALES, "es"] as const) {
+  test(`the list of conversations behind its window of deletion fits, in ${locale}`, async ({ page, request }) => {
+    const { convo } = await characterWithConversation(request);
+    await large(page, locale);
+    await page.goto("/#/chat");
+    await at32(page);
+    const row = page.locator(`main a[href="#/chat/${convo.id}"]`);
+    await row.scrollIntoViewIfNeeded();
+    await row.locator("button").last().click();
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    expect(await misfits(page)).toEqual([]);
+  });
+
+}
