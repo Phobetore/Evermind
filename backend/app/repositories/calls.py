@@ -434,7 +434,7 @@ async def total(db: aiosqlite.Connection, *, model: str | None, card: str | None
 # Kept out of the file: the server's usage object is for a later reading, not for a sheet.
 _NOT_EXPORTED = ("usage_raw",)
 # A cell a spreadsheet would run as a formula.
-_FORMULA = ("=", "+", "-", "@", "\t")
+_FORMULA = ("=", "+", "-", "@", "\t", "\r")
 _BATCH = 500
 
 

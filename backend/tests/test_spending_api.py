@@ -499,12 +499,15 @@ async def test_the_export_is_every_column_but_usage_raw(client):
 
 
 async def test_the_export_quotes_every_cell_a_sheet_would_run(client):
-    put_call(conversation_title="+1", card_name="	Serana", model_name="Aurore - fast")
+    put_call(conversation_title="+1", card_name="	Serana", model_name="Aurore - fast",
+             service_name="\r=1+1")
     resp = await client.get("/api/spending/export.csv")
     header, line = list(csv.reader(io.StringIO(resp.text)))
     got = dict(zip(header, line, strict=True))
     assert (got["conversation_title"], got["card_name"], got["model_name"]) == (
         "'+1", "'	Serana", "Aurore - fast")
+    # A sheet drops a carriage return in front of a cell and runs what follows it.
+    assert got["service_name"] == "'\r=1+1"
 
 
 # The measured figure.
