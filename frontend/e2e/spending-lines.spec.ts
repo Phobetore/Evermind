@@ -83,8 +83,10 @@ async function lineFits(page: Page, lead: ReturnType<Page["locator"]>, where: st
 }
 
 test("settings leads to spending in one tap", async ({ page }) => {
+  // Another period kept on this device: the line names 30 days, and opens on them.
+  await page.addInitScript(() => localStorage.setItem("evermind:spending:period", "7"));
   await page.goto("/#/settings");
-  const lead = page.locator('main a[href="#/spending"]');
+  const lead = page.locator('main a[href="#/spending?per=30"]');
   await expect(lead).toHaveText(/^Spending · (\$[\d,.]+|less than \$0\.01|price not given|\$[\d,.]+ \+ [\d,]+ calls? without a price) in the last 30 days$/);
   // Under the title of My AIs, before its list.
   const box = await lead.boundingBox();
@@ -92,8 +94,11 @@ test("settings leads to spending in one tap", async ({ page }) => {
   expect(box!.y).toBeGreaterThan(title!.y);
   expect(box!.height).toBeGreaterThanOrEqual(44);
   await lead.click();
-  await expect(page).toHaveURL(/#\/spending$/);
+  await expect(page).toHaveURL(/#\/spending\?per=30$/);
   await expect(page.locator("[data-total]")).toBeVisible();
+  await expect(page.getByRole("button", { name: "30 days", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // The period of this visit only: the one kept is still the device's.
+  expect(await page.evaluate(() => localStorage.getItem("evermind:spending:period"))).toBe("7");
 });
 
 test("an ai's page says what was spent with it and opens it", async ({ page, request }) => {

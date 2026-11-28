@@ -125,7 +125,7 @@ export function SettingsPage() {
           </div>
           {/* What all of them cost of late, even when it is nothing: the way to Spending. */}
           <div className="-mt-2 mb-3">
-            <SpentLine query={{ days: 30 }} sentence="settings" to="#/spending" hideWhenNothing={false} />
+            <SpentLine query={{ days: 30 }} sentence="settings" to="#/spending?per=30" hideWhenNothing={false} />
           </div>
           {adding && (
             <AddAiFlow
