@@ -2,6 +2,8 @@
 under its way, and what the conversation has cost, so that a reply costs the phone no request
 of its own for them."""
 
+from contextlib import suppress
+
 import pytest
 
 from app.services import calls, turns
@@ -220,6 +222,31 @@ async def test_a_story_moved_with_no_write_of_the_api_is_not_carried(client, lis
     db = await _connect()
     try:
         await convo_repo.add_message(db, convo["id"], "user", ["Meanwhile"])
+    finally:
+        await db.close()
+    state = await state_of(client, convo["id"])
+    assert (state["glance"], state["spent"]) == (None, None)
+
+
+@pytest.mark.parametrize("operation", ["pass", "consolidate"])
+async def test_a_memory_operation_that_ends_voids_the_end(client, lists, monkeypatch, operation):
+    # A memory pass writes inside the process, never through the API, and its call is counted:
+    # once it has ended, the end read before it no longer says what the conversation cost.
+    from app.db import _connect
+    from app.errors import AppError
+    from app.services import memory_service
+
+    convo = await priced_story(client, monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert turns.end_of(convo["id"]) is not None
+
+    db = await _connect()
+    try:
+        with suppress(AppError):  # whatever its outcome
+            if operation == "pass":
+                await within(5, memory_service.run_maintenance(db, convo["id"], hold_back=0))
+            else:
+                await within(5, memory_service.consolidate(db, convo["id"]))
     finally:
         await db.close()
     state = await state_of(client, convo["id"])

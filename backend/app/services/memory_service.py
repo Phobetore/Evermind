@@ -229,6 +229,9 @@ async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
         return await work()
     finally:
         _running.pop(convo_id, None)
+        # It wrote inside the process, never through the API, and its calls are counted: the
+        # end of a turn read before it says neither what the story is nor what it cost.
+        chat_turns.wrote()
 
 
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
