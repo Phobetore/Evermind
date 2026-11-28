@@ -913,3 +913,42 @@ test("a line beside the list takes the focus and gives it back to its line @desk
   await expect(detail(page)).toHaveCount(0);
   await expect(list(page).locator('[data-key="ai-sylve"] > button').first()).toBeFocused();
 });
+
+test.describe("on a touch tablet", () => {
+  test.use({ hasTouch: true });
+
+  test("set the price and the cross beside the list are a finger's size", async ({ page }) => {
+    await answerSpending(page, () => {
+      const s = month();
+      return { ...s, models: s.models.map((m) => (m[0] === "ai-sylve" ? [...m.slice(0, 10), 7, false] as typeof m : m)) };
+    });
+    const size = async (locator: ReturnType<Page["locator"]>) => {
+      const box = (await locator.boundingBox())!;
+      return [Math.round(box.width) >= 44, Math.round(box.height) >= 44];
+    };
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await page.goto("/#/spending");
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const offer = list(page).locator('[data-key="ai-gateway"]').getByRole("button", { name: "Set the price" });
+    expect(await size(offer)).toEqual([true, true]);
+    await page.route("**/api/spending/detail?**", (route) => route.fulfill({
+      status: 200, contentType: "application/json",
+      body: JSON.stringify({
+        name: "Gateway", service_name: "Home gateway", deleted: false, priceable: true, per100: null, cost: 0,
+        cost_upstream: 0, upstream: null, calls: 205, unpriced_calls: 205, tokens: { in: 123456, out: 7890, cached: 0, reasoning: 0 },
+        sources: { reported: 0, computed_read: 0, computed_typed: 0, estimated: 0 }, at_most: false,
+        uses: [["reply", 0, 190, 0, 190]], cards: [], cards_rest: null,
+      }),
+    }));
+    await line(page, "Gateway").click();
+    const inSheet = page.getByRole("dialog").getByRole("button", { name: "Set the price" });
+    expect(await size(inSheet)).toEqual([true, true]);
+    await page.keyboard.press("Escape");
+
+    // Turned sideways: the line stands beside the list.
+    await page.setViewportSize({ width: 1180, height: 820 });
+    await line(page, "Gateway").click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect(await size(detail(page).getByRole("button", { name: "Close" }))).toEqual([true, true]);
+  });
+});

@@ -78,7 +78,7 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
                     after={priceable && (
                       <button
                         type="button"
-                        className="btn btn-ghost ml-3 max-w-full whitespace-normal !py-1 text-sm"
+                        className="btn btn-ghost ml-3 max-w-full whitespace-normal !py-1 text-sm pointer-coarse:min-h-11"
                         onClick={() => onOpen({ cut, key: id, name: name ?? "", price: true })}
                       >
                         {t("spending.setPrice")}

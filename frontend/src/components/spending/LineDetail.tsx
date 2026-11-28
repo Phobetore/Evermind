@@ -184,7 +184,7 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
           <h2 ref={heading} tabIndex={-1} className="font-display text-lg font-semibold break-words hyphens-auto outline-none"><bdi>{name}</bdi></h2>
           <p className="mt-0.5 text-xs text-mist">{during}</p>
         </div>
-        <button type="button" onClick={onClose} aria-label={t("common.close")} className="-mr-2 shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment">
+        <button type="button" onClick={onClose} aria-label={t("common.close")} className="-mr-2 shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment pointer-coarse:p-3">
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -281,7 +281,7 @@ function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repric
       {(detail.priceable || pricing) && (pricing
         ? <PriceEditor modelId={modelId} onRepriced={onRepriced} />
         : (
-          <button type="button" className="btn btn-ghost self-start max-w-full whitespace-normal !py-1.5 text-sm" onClick={onPrice}>
+          <button type="button" className="btn btn-ghost self-start max-w-full whitespace-normal !py-1.5 text-sm pointer-coarse:min-h-11" onClick={onPrice}>
             {t("spending.setPrice")}
           </button>
         ))}
