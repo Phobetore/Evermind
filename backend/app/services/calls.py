@@ -30,8 +30,8 @@ import httpx
 from ..db import _connect
 from ..providers.base import LIST_DELAYS, CallFigures, Provider, ProviderError
 from ..providers.catalog import at_home_free, family_of, is_loopback
+from ..prompting.tokens import counts_of, tokens_of_chars
 from ..repositories.base import new_id
-from .learning import counts_of
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +91,8 @@ class Tokens:
 
 
 def estimated_out(chars: int) -> int:
-    """Tokens for characters that arrived, as the engine estimates text (prompting/tokens.py)."""
-    return 0 if chars <= 0 else int(chars / 3.5) + 1
+    """Tokens for characters that arrived, as the engine estimates text."""
+    return tokens_of_chars(chars)
 
 
 def _count(value: object) -> int | None:

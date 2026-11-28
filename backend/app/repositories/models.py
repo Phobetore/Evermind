@@ -16,6 +16,7 @@ from ..providers.catalog import (
     whole,
 )
 from ..services import ai_call
+from ..services.calls import pricing_of
 from . import calls as calls_repo
 from . import connections as services_repo
 from . import settings as settings_repo
@@ -297,10 +298,6 @@ async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict 
     same write all that was read and measured of the one before; what was typed stays. A whole
     price typed prices, in the same write, the calls of this AI's server id that had none; the AI
     comes back with ``repriced``, how many."""
-    # Imported here: services/calls imports learning, which imports this module.
-    from ..services.calls import pricing_of
-    from . import calls as calls_repo
-
     sets: dict = {}
     for key in ("name", "model", "context_own", *SAMPLING, "price_own_in", "price_own_out"):
         if key in fields:

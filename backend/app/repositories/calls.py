@@ -14,14 +14,11 @@ from typing import TYPE_CHECKING, Literal
 import aiosqlite
 
 from ..db import _connect, write_transaction
-# The module, not its names: services/calls.py is still being read when this one is imported
-# through it.
-from ..services import calls as recorder
+from ..services.calls import Pricing, instant, pricing_of
 from . import settings as settings_repo
 from .base import loads
 
 if TYPE_CHECKING:
-    from ..services.calls import Pricing
     from ..services.periods import Period
 
 
@@ -39,7 +36,7 @@ async def claim(db: aiosqlite.Connection, job_ids: list[str], card_id: str, name
     return cursor.rowcount
 
 
-async def reprice(db: aiosqlite.Connection, model_id: str, model: str, pricing: "Pricing") -> int:
+async def reprice(db: aiosqlite.Connection, model_id: str, model: str, pricing: Pricing) -> int:
     """Inside the caller's transaction: the rows of that AI and that server id with no price get
     the price typed now. Returns how many.
 
@@ -85,7 +82,8 @@ LISTED = 50
 LISTED_IN_DETAIL = 12
 
 
-def _money(value) -> float:
+def _rounded(value) -> float:
+    """An amount to the millionth of a dollar, nothing as 0."""
     return round(value or 0.0, 6)
 
 
@@ -102,7 +100,7 @@ async def since(db: aiosqlite.Connection) -> str:
     row = await _one(db, "SELECT (SELECT value FROM settings WHERE key = 'spending_since'),"
                          " (SELECT MIN(started_at) FROM calls)")
     noted, oldest = loads(row[0], None), row[1]
-    return min(v for v in (noted, oldest, recorder.instant()) if isinstance(v, str))
+    return min(v for v in (noted, oldest, instant()) if isinstance(v, str))
 
 
 async def _uses(db, where: str, args: dict, *, unpriced_tokens: bool = True,
@@ -115,7 +113,7 @@ async def _uses(db, where: str, args: dict, *, unpriced_tokens: bool = True,
         GROUP BY u ORDER BY cost DESC, n DESC, u""", args)
     out = []
     for r in rows:
-        line = [r[0], _money(r[1]), r[2], r[3], r[4]]
+        line = [r[0], _rounded(r[1]), r[2], r[3], r[4]]
         if unpriced_tokens:
             line += [r[5], r[6]]
         if free:
@@ -132,9 +130,9 @@ def _split(rows: list, width: int, cut: int = LISTED) -> tuple[list[list], list 
         if r[0] <= cut:
             listed.append(list(r[1:width + 1]))
         else:
-            rest = [r[width + 1], _money(r["cost"]), r["n"], r["unpriced"]]
+            rest = [r[width + 1], _rounded(r["cost"]), r["n"], r["unpriced"]]
     for line in listed:
-        line[3] = _money(line[3])
+        line[3] = _rounded(line[3])
     return listed, rest
 
 
@@ -209,7 +207,7 @@ async def _series(db, p: "Period") -> list[list]:
         FROM b LEFT JOIN calls c
              ON c.started_at >= b.lo AND c.started_at < b.hi AND c.outcome <> 'running'
         GROUP BY b.i ORDER BY b.i""", tuple(args))
-    return [[p.buckets[r[0]][0], _money(r[1]), _money(r[2])] for r in rows]
+    return [[p.buckets[r[0]][0], _rounded(r[1]), _rounded(r[2])] for r in rows]
 
 
 async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -> dict:
@@ -235,7 +233,7 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
     if p.previous is not None:
         before = await _one(db, f"SELECT SUM({SPENT}), SUM({UNPRICED}) FROM calls c"
                                 f" WHERE {IN_PERIOD}", {"lo": p.previous[0], "hi": p.previous[1]})
-        previous = {"cost": _money(before[0]), "unpriced_calls": before[1] or 0}
+        previous = {"cost": _rounded(before[0]), "unpriced_calls": before[1] or 0}
     models = await _all(db, f"""
         SELECT c.model_id, COALESCE(m.name, c.model_name), COALESCE(s.name, c.service_name),
                SUM(COALESCE(c.cost, 0)) AS cost, SUM(COALESCE(c.cost_upstream, 0)) AS upstream_cost,
@@ -259,16 +257,16 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
     conversations, conversations_rest = await _conversations(db, args)
     return {
         "since": await since(db), "currency": "USD",
-        "total": _money(head[0]),
-        "model_total": _money(head[2]) if model_id is not None else None,
+        "total": _rounded(head[0]),
+        "model_total": _rounded(head[2]) if model_id is not None else None,
         "previous": previous, "calls": head[1],
-        "sources": {"reported": _money(head[3]), "computed_read": _money(head[4]),
-                    "computed_typed": _money(head[5]), "estimated": _money(head[6])},
-        "outside_replies": {"cost": _money(head[7]), "calls": head[8] or 0,
+        "sources": {"reported": _rounded(head[3]), "computed_read": _rounded(head[4]),
+                    "computed_typed": _rounded(head[5]), "estimated": _rounded(head[6])},
+        "outside_replies": {"cost": _rounded(head[7]), "calls": head[8] or 0,
                             "unpriced_calls": head[12] or 0, "free_calls": head[13] or 0},
         "uses": await _uses(db, OF_MODEL, args),
         "series": {"step": p.step, "points": await _series(db, p)},
-        "models": [[r[0], r[1], r[2], _money(r[3]), _money(r[4]), r[5], r[6], r[7], r[8], r[9],
+        "models": [[r[0], r[1], r[2], _rounded(r[3]), _rounded(r[4]), r[5], r[6], r[7], r[8], r[9],
                     r[10], bool(r[11])] for r in models],
         "free": [[r[0], r[1], r[2], r[3], r[4], r[6]] for r in free],
         "cards": cards, "cards_rest": cards_rest,
@@ -286,7 +284,7 @@ async def _models_of(db, where: str, args: dict) -> list[list]:
         FROM calls c LEFT JOIN models m ON m.id = c.model_id
         WHERE {IN_PERIOD} AND {where}
         GROUP BY c.model_id ORDER BY cost DESC, last DESC""", args)
-    return [[r[0], r[1], _money(r[2]), r[3], r[4], bool(r[5])] for r in rows]
+    return [[r[0], r[1], _rounded(r[2]), r[3], r[4], bool(r[5])] for r in rows]
 
 
 async def _detail_of_model(db, key: str, args: dict) -> dict | None:
@@ -320,13 +318,13 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
     cards, cards_rest = await _cards(db, args, where, LISTED_IN_DETAIL)
     return {
         "name": names[0], "service_name": names[1], "deleted": bool(names[2]),
-        "priceable": model is not None and recorder.pricing_of(dict(model)).source is None,
+        "priceable": model is not None and pricing_of(dict(model)).source is None,
         "per100": (await per100_all(db, args["key"])).get(args["key"]),
-        "cost": _money(head[1]), "cost_upstream": _money(head[2]),
+        "cost": _rounded(head[1]), "cost_upstream": _rounded(head[2]),
         "upstream": names[3], "calls": head[0], "unpriced_calls": head[3],
         "tokens": {"in": head[4], "out": head[5], "cached": head[6], "reasoning": head[7]},
-        "sources": {"reported": _money(head[8]), "computed_read": _money(head[9]),
-                    "computed_typed": _money(head[10]), "estimated": _money(head[11])},
+        "sources": {"reported": _rounded(head[8]), "computed_read": _rounded(head[9]),
+                    "computed_typed": _rounded(head[10]), "estimated": _rounded(head[11])},
         "at_most": bool(head[12]),
         "uses": await _uses(db, where, args, unpriced_tokens=False, free=False),
         "cards": [[line[0], line[1], line[2], line[3], line[4], line[9]] for line in cards],
@@ -356,9 +354,9 @@ async def _detail_of_card(db, key: str, args: dict) -> dict | None:
         "name": (card["name"] if card else head[3]) if key else None,
         "kind": card["kind"] if card else head[4],
         "deleted": bool(key) and card is None,
-        "cost": _money(head[1]), "calls": head[0], "unpriced_calls": head[2],
+        "cost": _rounded(head[1]), "calls": head[0], "unpriced_calls": head[2],
         "models": await _models_of(db, where, args),
-        "conversations": [[r[0], r[1], _money(r[2]), r[3], r[4], bool(r[5])]
+        "conversations": [[r[0], r[1], _rounded(r[2]), r[3], r[4], bool(r[5])]
                           for r in conversations],
     }
 
@@ -386,10 +384,10 @@ async def _detail_of_conversation(db, key: str, args: dict) -> dict | None:
         "title": convo["title"] if convo else head[3],
         "card_name": convo["name"] if convo else head[4],
         "deleted": convo is None,
-        "cost": _money(head[1]), "calls": head[0], "unpriced_calls": head[2],
+        "cost": _rounded(head[1]), "calls": head[0], "unpriced_calls": head[2],
         "models": await _models_of(db, where, args),
         "uses": await _uses(db, where, args, unpriced_tokens=False, free=False),
-        "growth": {"first": _money(growth[1]), "last": _money(growth[2])}
+        "growth": {"first": _rounded(growth[1]), "last": _rounded(growth[2])}
         if growth[0] >= 10 else None,
     }
 
@@ -433,7 +431,7 @@ async def total(db: aiosqlite.Connection, *, model: str | None, card: str | None
         FROM calls c
         WHERE {named}c.outcome <> 'running' AND (:lo IS NULL OR c.started_at >= :lo)
         """, {"key": key, "lo": lo})
-    return {"total": _money(row[0]), "currency": "USD", "calls": row[1],
+    return {"total": _rounded(row[0]), "currency": "USD", "calls": row[1],
             "unpriced_calls": row[2] or 0, "free": row[1] > 0 and not row[3]}
 
 
@@ -481,7 +479,7 @@ async def export_rows(lo: str | None, hi: str | None) -> AsyncIterator[str]:
 
 
 async def clear(db: aiosqlite.Connection, before: str | None, *, dry_run: bool) -> dict:
-    """Removes the calls that ended before ``before`` (an instant; None: all), and counts from
+    """Removes the calls that started before ``before`` (an instant; None: all), and counts from
     now. A call under way is left. ``dry_run``: what would go, and nothing written."""
     where = "outcome <> 'running' AND (:cut IS NULL OR started_at < :cut)"
     if dry_run:
@@ -491,7 +489,7 @@ async def clear(db: aiosqlite.Connection, before: str | None, *, dry_run: bool) 
     async with write_transaction(db):
         cursor = await db.execute(f"DELETE FROM calls WHERE {where}", {"cut": before})
         deleted = cursor.rowcount
-        await settings_repo.store(db, "spending_since", recorder.instant())
+        await settings_repo.store(db, "spending_since", instant())
     return {"deleted": deleted, "since": await since(db)}
 
 
@@ -537,5 +535,5 @@ async def per100_all(db: aiosqlite.Connection, only: str | None = None) -> dict[
     Each AI takes its own last 100 through the index on (model_id, started_at): the list of the
     AIs asks it on every page, and a year of play must not be read and sorted for it."""
     rows = await _all(db, PER100, {"only": only})
-    return {r["model_id"]: {"cost": _money(r["money"] * 100 / r["n"]), "n": r["n"],
+    return {r["model_id"]: {"cost": _rounded(r["money"] * 100 / r["n"]), "n": r["n"],
                             "typed": bool(r["typed"])} for r in rows}

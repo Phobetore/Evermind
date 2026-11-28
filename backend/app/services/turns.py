@@ -95,8 +95,9 @@ async def _note_end(db, conversation_id: str) -> None:
                                        lo=None)
     except AppError:
         return  # the conversation went meanwhile: the page reads what it needs as before
-    except Exception:
-        logger.warning("What a turn's end carries could not be read", exc_info=True)
+    except Exception as exc:  # noqa: BLE001
+        # Its name alone: a traceback's values could hold a key.
+        logger.warning("What a turn's end carries could not be read: %s", type(exc).__name__)
         return
     _ends[conversation_id] = {"revision": row["revision"], "writes": writes, "glance": glance,
                               "spent": spent}
