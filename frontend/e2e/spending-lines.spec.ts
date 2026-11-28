@@ -439,9 +439,7 @@ test("each line fits a small phone at a 32 px root", async ({ page, request }) =
       const lead = page.locator('main a[href^="#/spending"]');
       await expect(lead).toBeVisible();
       await lineFits(page, lead, where);
-      // The character's page has controls of its own that do not fit at this size: only its
-      // line is measured there.
-      if (where !== "the character") await fits(page, where);
+      await fits(page, where);
     }
     await page.goto("about:blank");
     await page.goto(`/#/chat/${convo.id}`);
