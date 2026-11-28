@@ -28,6 +28,8 @@ export interface AssistInput {
   existing: Record<string, unknown>;
   /** Null: the default AI. */
   model_id: string | null;
+  /** The saved card being written, which what the job costs is counted under. */
+  card_id?: string;
 }
 
 /** A draft: any of the card's fields, and lorebook entries to add to it. */
@@ -205,8 +207,19 @@ export interface ModelUpdate {
   notices_kept?: boolean;
 }
 
-/** An AI as saved, with what the person typed that the server says is too much. */
-export type AiSaved = Ai & { warnings: ("above_read_window" | "above_read_output" | "cap_above_window")[] };
+/** An AI as saved, with what the person typed that the server says is too much. `repriced`: the
+ *  earlier calls of this AI with no price that a price typed now has filled in. */
+export type AiSaved = Ai & {
+  warnings: ("above_read_window" | "above_read_output" | "cap_above_window")[];
+  repriced?: number;
+};
+
+/** A period of Spending, in the device's days (YYYY-MM-DD): no `from`, since the start; no `to`,
+ *  today. `model`: the filter of one AI. */
+export interface SpendingQuery { from?: string; to?: string; model?: string }
+
+/** What a line of Spending is a line of. */
+export type Cut = "model" | "card" | "conversation" | "use";
 
 export interface BenchmarkResult {
   ok: boolean;

@@ -15,7 +15,7 @@ from app.providers import catalog, openai_compat
 from app.providers.anthropic import AnthropicProvider
 from app.providers.base import ProviderEvent
 from app.providers.openai_compat import OpenAICompatProvider
-from app.services import card_assistant, limits, memory_service, turns
+from app.services import calls, card_assistant, limits, memory_service, turns
 
 from .helpers import add_model
 
@@ -77,6 +77,13 @@ async def _no_read_left_running():
     await limits.drain()
 
 
+@pytest.fixture(autouse=True)
+async def _no_call_record_left_running():
+    # A call's row is written beside it, on the test's database: written before the folder goes.
+    yield
+    await calls.drain()
+
+
 def _unreachable(request: httpx.Request) -> httpx.Response:
     raise httpx.ConnectError("no test reaches a real address", request=request)
 
@@ -88,6 +95,15 @@ def _no_list_read_from_a_real_server(monkeypatch):
     monkeypatch.setattr(catalog, "client_factory",
                         lambda: httpx.AsyncClient(transport=httpx.MockTransport(_unreachable)))
     catalog._cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_record_read_from_openrouter(monkeypatch):
+    # A call that ends on OpenRouter with no cost said looks at its record there, through this one
+    # door: here it opens on nothing, at once, so that no test waits for the look it never meant.
+    monkeypatch.setattr(calls, "client_factory",
+                        lambda: httpx.AsyncClient(transport=httpx.MockTransport(_unreachable)))
+    monkeypatch.setattr(calls, "RECONCILE_AFTER_S", (0, 0))
 
 
 @pytest.fixture()

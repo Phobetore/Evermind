@@ -8,7 +8,7 @@ import sqlite3
 
 import pytest
 
-from app import __version__, db
+from app import db
 from app.config import db_path
 
 MIGRATION = "022_ways_of_playing.sql"
@@ -305,13 +305,14 @@ async def test_a_failure_half_way_leaves_the_database_as_it_was(start):
     assert set(played().values()) == {("mine", None)}
 
 
-async def test_the_copy_before_the_update_is_named_for_3_8_0(start):
+async def test_the_copy_before_the_update_is_named_for_3_8_0(start, monkeypatch):
+    # The copy takes the running release's number: this is the release that made the update.
+    monkeypatch.setattr(db, "__version__", "3.8.0")
     await start()
     conversations(1)
 
     await start(MIGRATION)
 
-    assert __version__ == "3.8.0"
     copy = db_path().with_name("evermind.before-3.8.0.db")
     assert copy.exists()
     conn = sqlite3.connect(copy)

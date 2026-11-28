@@ -691,7 +691,8 @@
     "internal": "Something went wrong inside Evermind: {message}",
     "keyNeeded": "New address: type the key again, or choose \"No key\". Evermind only sends it to the address you gave it for.",
     "serviceInUse": "This service now holds AIs: it was not removed.",
-    "modelNoCredit": "The service refuses for lack of credit. With no reply ceiling, it counts on the longest reply possible: top up your account, or give this AI a ceiling (My AIs, Advanced, \"My value\"). It said: {message}"
+    "modelNoCredit": "The service refuses for lack of credit. With no reply ceiling, it counts on the longest reply possible: top up your account, or give this AI a ceiling (My AIs, Advanced, \"My value\"). It said: {message}",
+    "badPeriod": "Choose a day between 2000 and 2100."
   },
   "login": {
     "cookieRefused": "Your browser did not keep the sign-in. Allow cookies for this address and try again.",
@@ -974,7 +975,152 @@
   "money": {
     "estimate": "≈ {amount} per 100 messages",
     "atLeast": "at least {amount} per 100 messages (≈ {fuller} with its thinking)",
-    "underACent": "less than {amount} per 100 messages"
+    "underACent": "less than {amount} per 100 messages",
+    "measured": "{amount} per 100 messages, from your last {count} replies",
+    "measured_one": "{amount} per 100 messages, from your last reply",
+    "measuredTyped": ", with your price"
+  },
+  "spending": {
+    "title": "Spending",
+    "period": {
+      "label": "Period",
+      "7": "7 days",
+      "30": "30 days",
+      "month": "This month",
+      "last": "Last month",
+      "all": "Since the start"
+    },
+    "during": {
+      "7": "in the last 7 days",
+      "30": "in the last 30 days",
+      "month": "in {month}",
+      "all": "since {date}"
+    },
+    "outside": "of which {money} outside replies: automatic memory, card assistant…",
+    "previous": "The {count} days before: {money}",
+    "previous_one": "The day before: {money}",
+    "since": "Evermind has been counting since {date}: nothing was noted before.",
+    "nothing": "Nothing noted for this period.",
+    "cut": {
+      "label": "Split",
+      "model": "By AI",
+      "card": "By character",
+      "conversation": "By conversation",
+      "use": "By use"
+    },
+    "filter": {
+      "all": "All AIs",
+      "with": "With {name}: {money}"
+    },
+    "use": {
+      "reply": "Replies",
+      "regenerate": "Regenerated replies",
+      "continue": "Continuations",
+      "pen": "Write mine for me",
+      "memory": "Automatic memory",
+      "card": "Card assistant",
+      "speed": "Speed tests"
+    },
+    "retried": "of which {count:grouped} retried attempts",
+    "retried_one": "of which 1 retried attempt",
+    "calls": "{count:grouped} calls",
+    "calls_one": "1 call",
+    "freeCalls": "and {count:grouped} calls to free AIs",
+    "freeCalls_one": "and 1 call to a free AI",
+    "money": {
+      "withUnpriced": "{money} + {count:grouped} calls without a price",
+      "withUnpriced_one": "{money} + 1 call without a price",
+      "under": "less than {money}",
+      "nothing": "nothing",
+      "atMost": "at most {money}"
+    },
+    "tokens": "{read:grouped} tokens read · {written:grouped} written",
+    "setPrice": "Set the price",
+    "repriced": "Also applied to your {count} earlier calls, which had no price.",
+    "repriced_one": "Also applied to your earlier call, which had no price.",
+    "upstream": "of which {money} billed by {name}",
+    "free": {
+      "title": "Free",
+      "pc": "on this PC",
+      "network": "on your network",
+      "service": "free on {service}",
+      "replies": "{count:grouped} replies",
+      "replies_one": "1 reply",
+      "pages": "≈ {count:grouped} pages read",
+      "pages_one": "≈ 1 page read",
+      "only": "Only with free AIs"
+    },
+    "gone": {
+      "model": "deleted",
+      "card": "deleted",
+      "conversation": "deleted"
+    },
+    "forget": "Forget this name",
+    "deletedConversation": "Deleted conversation",
+    "deletedCard": "Deleted character",
+    "newCard": "New card",
+    "rest": "{count:grouped} others",
+    "rest_one": "1 other",
+    "bars": {
+      "label": "Spending by day",
+      "labelWeeks": "Spending by week",
+      "day": "{date}: {money}",
+      "week": "week of {date}: {money}",
+      "before": "Previous bar",
+      "after": "Next bar"
+    },
+    "detail": {
+      "read": "What it read and wrote",
+      "in": "Read: {count:grouped} tokens",
+      "in_one": "Read: {count:grouped} token",
+      "out": "Written: {count:grouped} tokens",
+      "out_one": "Written: {count:grouped} token",
+      "cached": "of which {count:grouped} read from the cache",
+      "cached_one": "of which {count:grouped} read from the cache",
+      "reasoning": "of which {count:grouped} thinking",
+      "reasoning_one": "of which {count:grouped} thinking",
+      "sources": "Where the amount comes from",
+      "atMostWhy": "Part of what it read came from the service's cache, which costs less; that price is not known, so this is the most it can have cost.",
+      "share": "{name}: {money}",
+      "cards": "With which characters",
+      "models": "With which AIs",
+      "conversations": "In which conversations",
+      "growth": "A message cost {first} at the start; it costs {last} now.",
+      "growthWhy": "Each message sends the reread story again: the longer it grows, the more it weighs."
+    },
+    "source": {
+      "reported": "billed by the service",
+      "computed_read": "computed with the service's price",
+      "computed_typed": "computed with your price",
+      "estimated": "estimated"
+    },
+    "how": {
+      "title": "How it is counted",
+      "text": "A call: one request from Evermind to an AI (a reply, a summary for the memory, a draft card). These amounts are what each service says it charged for your calls, or what Evermind computes with its price when it says nothing. What you paid can differ: the fee a service takes when you buy credits, rounding, stopped replies it gave no price for, AIs without a price, and whatever the same key did outside Evermind. On OpenRouter, compare with its activity page, not with your credit purchases."
+    },
+    "export": "Export (CSV)",
+    "exported": "File saved: {name}",
+    "clear": {
+      "open": "Clear the history…",
+      "title": "Clear the history",
+      "all": "Everything",
+      "before": "Before",
+      "choose": "Choose what goes",
+      "count": "{count:grouped} calls, from {first} to {last}. This cannot be undone. Your conversations and your AIs stay as they are.",
+      "count_one": "1 call, on {first}. This cannot be undone. Your conversations and your AIs stay as they are.",
+      "none": "Nothing to clear before this date.",
+      "confirm": "Clear"
+    },
+    "cleared": "History cleared: {count:grouped} calls.",
+    "cleared_one": "History cleared: 1 call.",
+    "link": {
+      "settings": "{money} in the last 30 days",
+      "ai": "Spent with it: {money} in the last 30 days",
+      "conversation": "This conversation: {money} since the start",
+      "card": "Spent with {name} since the start: {money}"
+    },
+    "kept": "Its spending stays in Spending, under its name.",
+    "forgetTick": "Do not keep its name there"
   },
   "ways": {
     "names": {

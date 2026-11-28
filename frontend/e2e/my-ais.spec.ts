@@ -250,9 +250,9 @@ test.describe("my ais", () => {
     const ai = await lmstudioAi(request, "Last");
     await openPage(page, ai.id);
     await page.getByRole("button", { name: "Remove this AI" }).click();
-    const box = page.getByRole("alertdialog", { name: `Remove ${ai.name}?` });
+    const box = page.getByRole("alertdialog", { name: `Remove \u2068${ai.name}\u2069?` });
     await expect(box).toBeVisible();
-    await expect(box.getByText(`It is the last AI of ${ai.service.name}: its key will be forgotten too.`)).toBeVisible();
+    await expect(box.getByText(`It is the last AI of \u2068${ai.service.name}\u2069: its key will be forgotten too.`)).toBeVisible();
     await boxHears(page);
     await box.getByRole("button", { name: "Remove", exact: true }).click();
     await expect(page).toHaveURL(/#\/settings$/);
@@ -281,8 +281,8 @@ test.describe("my ais", () => {
     try {
       await openPage(page, ai.id);
       await page.getByRole("button", { name: "Remove this AI" }).click();
-      const box = page.getByRole("alertdialog", { name: `Remove ${ai.name}?` });
-      await expect(box.getByText(`1 conversation will move to ${oldest.name}.`)).toBeVisible();
+      const box = page.getByRole("alertdialog", { name: `Remove \u2068${ai.name}\u2069?` });
+      await expect(box.getByText(`1 conversation will move to \u2068${oldest.name}\u2069.`)).toBeVisible();
       await expect(box.getByText("It is the last AI of", { exact: false })).toHaveCount(0);
       await answer(page, false);
       expect(await aiOf(request, ai.id)).toBeTruthy();

@@ -1,13 +1,14 @@
 import { CardSummary } from "@/components/chat/CardSummary";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
+import { keptOnDelete } from "@/components/spending/keptOnDelete";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
-import { smallPortrait, timeAgo } from "@/lib/utils";
+import { isolated, smallPortrait, timeAgo } from "@/lib/utils";
 import type { Conversation, Persona } from "@/types";
 import { BookOpenText, GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -73,18 +74,22 @@ export function ChatListPage() {
   async function remove(e: React.MouseEvent, convo: Conversation) {
     e.preventDefault();
     e.stopPropagation();
-    const question = t("chatList.confirmDelete", { title: convo.title || t("chatList.untitled") });
-    if (!(await confirm(question, { action: t("common.delete"), danger: true }))) return;
-    if (await write(convo.id, () => data.conversations.remove(convo.id))) {
+    const question = t("chatList.confirmDelete", { title: isolated(convo.title || t("chatList.untitled")) });
+    const kept = keptOnDelete(t);
+    if (!(await confirm(question, { action: t("common.delete"), danger: true, details: kept?.details }))) return;
+    const forgetName = kept?.forgetName() ?? false;
+    if (await write(convo.id, () => data.conversations.remove(convo.id, { forgetName }))) {
       clearDraft(convo.id);
       load();
     }
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    // Gutters of 24px at most: layout, not text, so that a very large text keeps its room.
+    <div className="mx-auto max-w-3xl px-[min(1.5rem,24px)] py-10">
       <header className="mb-8 animate-rise">
-        <h1 className="font-display text-3xl font-semibold">{t("nav.conversations")}</h1>
+        {/* One long word at the largest text ("Unterhaltungen", "Conversaciones"): broken, not past the screen. */}
+        <h1 className="font-display text-3xl font-semibold break-words hyphens-auto">{t("nav.conversations")}</h1>
         <p className="mt-1 text-mist">{t("chatList.subtitle")}</p>
       </header>
 

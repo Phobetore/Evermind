@@ -104,6 +104,9 @@ class CharacterIn(Input):
     character_note_role: Role = "system"
     creator_notes_multilingual: dict[str, str] = {}
     card: OriginalCardIn | None = None
+    # The card assistant's jobs that wrote a card not saved yet: its first save claims their rows.
+    assist_jobs: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
+        default=[], max_length=50)
 
     _lore_entries = field_validator("lore_entries")(_one_entry_per_origin)
 
@@ -148,6 +151,8 @@ class CardAssistRequest(Input):
     existing: dict = {}
     # Sent again by a page that never heard the answer: it names the card that is already being written.
     client_id: str | None = Field(default=None, min_length=1, max_length=64)
+    # The saved card being written, which the call's row names; none for a card not saved yet.
+    card_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class PersonaIn(Input):
@@ -287,6 +292,13 @@ class ConversationIn(Input):
 
 class BranchIn(Input):
     client_id: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class ForgetIn(Input):
+    """The money of a conversation or a character kept, without its name."""
+
+    cut: Literal["conversation", "card"]
+    key: str = Field(min_length=1, max_length=64)
 
 
 class ConversationPatch(Input):

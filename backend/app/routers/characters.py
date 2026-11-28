@@ -1,3 +1,4 @@
+import logging
 from typing import Literal
 
 import aiosqlite
@@ -6,10 +7,13 @@ from fastapi import APIRouter, Depends, Form, Query, UploadFile
 from ..db import get_db
 from ..errors import AppError, NotFoundError
 from ..models.schemas import CardAssistRequest, CharacterIn, CharacterUpdate
+from ..repositories import calls as calls_repo
 from ..repositories import characters as repo
 from ..repositories import conversations as convo_repo
 from ..repositories import lore as lore_repo
 from ..services import card_assistant, media, turns
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
 
@@ -30,7 +34,14 @@ async def search_characters(q: str = Query(""), db: aiosqlite.Connection = Depen
 
 @router.post("", status_code=201)
 async def create_character(payload: CharacterIn, db: aiosqlite.Connection = Depends(get_db)):
-    return await repo.create(db, payload.model_dump())
+    saved = await repo.create(db, payload.model_dump(exclude={"assist_jobs"}))
+    try:
+        await calls_repo.claim(db, payload.assist_jobs, saved["id"], saved["name"], saved["kind"])
+    except Exception as exc:  # noqa: BLE001
+        # The card is made already: an error here would have the page make it a second time.
+        # Its name alone, as calls does: it should never happen.
+        logger.warning("the drafts of a new card could not be claimed: %s", type(exc).__name__)
+    return saved
 
 
 @router.post("/assist", status_code=202)
@@ -76,11 +87,19 @@ async def update_character(char_id: str, payload: CharacterUpdate,
 
 
 @router.delete("/{char_id}", status_code=204)
-async def delete_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    for convo in await convo_repo.list_all(db, character_id=char_id):  # they go with it
+async def delete_character(char_id: str, forget_name: bool = False,
+                           db: aiosqlite.Connection = Depends(get_db)):
+    """Her calls stay, under her name and her conversations' titles; ``forget_name``: without
+    them."""
+    convos = await convo_repo.list_all(db, character_id=char_id)  # they go with it
+    for convo in convos:
         await turns.stop(convo["id"])
+    if forget_name and await repo.get(db, char_id):
+        await calls_repo.forget(db, "card", char_id)  # committed with the delete
     if not await repo.delete(db, char_id):
         raise NotFoundError("Character not found.", "character")
+    for convo in convos:
+        turns.forget(convo["id"])
 
 
 @router.post("/{char_id}/avatar")

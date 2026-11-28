@@ -18,6 +18,9 @@ dependencies = [
     "httpx>=0.28",
     "python-multipart>=0.0.18",
     "numpy>=1.26",
+    # Python on Windows has no time zone database: without it, the days of Spending around a
+    # change of hour would be off by an hour.
+    "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]

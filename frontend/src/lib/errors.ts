@@ -72,6 +72,8 @@ const KIND_KEYS: Record<string, string> = {
   // A service's new address with no key typed: the saved key is only sent where it was given.
   key_needed: "errors.keyNeeded",
   service_in_use: "errors.serviceInUse",
+  // A day of Spending out of the days the server reads, or a zone it cannot read.
+  bad_period: "errors.badPeriod",
   // No answer from Evermind itself.
   network: "errors.unreachable",
   offline: "errors.offline",

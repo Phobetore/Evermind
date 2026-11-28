@@ -160,7 +160,7 @@ export function LorebookSection({
           onChange={(e) => setNewContent(e.target.value)}
           placeholder={t("lorebook.contentPlaceholder")}
         />
-        <button type="button" className="btn btn-ghost self-end !py-1.5 text-xs" onClick={addEntry}>
+        <button type="button" className="btn btn-ghost max-w-full self-end whitespace-normal !py-1.5 text-xs" onClick={addEntry}>
           <Plus className="h-3.5 w-3.5" /> {t("lorebook.addEntryButton")}
         </button>
         {error && <p className="text-xs text-blood">{error}</p>}

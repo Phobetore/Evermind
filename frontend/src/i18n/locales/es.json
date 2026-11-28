@@ -691,7 +691,8 @@
     "internal": "Algo ha fallado dentro de Evermind: {message}",
     "keyNeeded": "Nueva dirección: vuelva a escribir la clave, o elija «Sin clave». Evermind solo la envía a la dirección para la que usted la dio.",
     "serviceInUse": "Este servicio tiene ahora IA: no se ha quitado.",
-    "modelNoCredit": "El servicio se niega por falta de crédito. Sin tope de respuesta, cuenta con la respuesta más larga posible: recargue su cuenta, o ponga un tope a esta IA (Mis IA, Avanzado, «Mi valor»). Indicó: {message}"
+    "modelNoCredit": "El servicio se niega por falta de crédito. Sin tope de respuesta, cuenta con la respuesta más larga posible: recargue su cuenta, o ponga un tope a esta IA (Mis IA, Avanzado, «Mi valor»). Indicó: {message}",
+    "badPeriod": "Elija un día entre 2000 y 2100."
   },
   "login": {
     "cookieRefused": "Su navegador no ha guardado el inicio de sesión. Permita las cookies para esta dirección e inténtelo de nuevo.",
@@ -974,7 +975,152 @@
   "money": {
     "estimate": "≈ {amount} cada 100 mensajes",
     "atLeast": "al menos {amount} cada 100 mensajes (≈ {fuller} con su razonamiento)",
-    "underACent": "menos de {amount} cada 100 mensajes"
+    "underACent": "menos de {amount} cada 100 mensajes",
+    "measured": "{amount} cada 100 mensajes, según sus últimas {count} respuestas",
+    "measured_one": "{amount} cada 100 mensajes, según su última respuesta",
+    "measuredTyped": ", con su precio"
+  },
+  "spending": {
+    "title": "Gastos",
+    "period": {
+      "label": "Periodo",
+      "7": "7 días",
+      "30": "30 días",
+      "month": "Este mes",
+      "last": "El mes pasado",
+      "all": "Desde el inicio"
+    },
+    "during": {
+      "7": "en los últimos 7 días",
+      "30": "en los últimos 30 días",
+      "month": "en {month}",
+      "all": "desde el {date}"
+    },
+    "outside": "de los cuales {money} fuera de las respuestas: memoria automática, asistente de fichas…",
+    "previous": "Los {count} días anteriores: {money}",
+    "previous_one": "El día anterior: {money}",
+    "since": "Evermind cuenta desde el {date}: antes no se anotaba nada.",
+    "nothing": "No hay nada anotado en este periodo.",
+    "cut": {
+      "label": "Dividir",
+      "model": "Por IA",
+      "card": "Por personaje",
+      "conversation": "Por conversación",
+      "use": "Por uso"
+    },
+    "filter": {
+      "all": "Todas las IA",
+      "with": "Con {name}: {money}"
+    },
+    "use": {
+      "reply": "Respuestas",
+      "regenerate": "Respuestas rehechas",
+      "continue": "Continuaciones",
+      "pen": "Escribir por mí",
+      "memory": "Memoria automática",
+      "card": "Asistente de fichas",
+      "speed": "Pruebas de velocidad"
+    },
+    "retried": "de las cuales {count:grouped} intentos repetidos",
+    "retried_one": "de las cuales 1 intento repetido",
+    "calls": "{count:grouped} llamadas",
+    "calls_one": "1 llamada",
+    "freeCalls": "y {count:grouped} llamadas a IA gratuitas",
+    "freeCalls_one": "y 1 llamada a una IA gratuita",
+    "money": {
+      "withUnpriced": "{money} + {count:grouped} llamadas sin precio",
+      "withUnpriced_one": "{money} + 1 llamada sin precio",
+      "under": "menos de {money}",
+      "nothing": "nada",
+      "atMost": "como máximo {money}"
+    },
+    "tokens": "{read:grouped} tokens leídos · {written:grouped} escritos",
+    "setPrice": "Indicar el precio",
+    "repriced": "Aplicado también a sus {count} llamadas anteriores, que no tenían precio.",
+    "repriced_one": "Aplicado también a su llamada anterior, que no tenía precio.",
+    "upstream": "de los cuales {money} facturados por {name}",
+    "free": {
+      "title": "Gratis",
+      "pc": "en este PC",
+      "network": "en su red",
+      "service": "gratis en {service}",
+      "replies": "{count:grouped} respuestas",
+      "replies_one": "1 respuesta",
+      "pages": "≈ {count:grouped} páginas leídas",
+      "pages_one": "≈ 1 página leída",
+      "only": "Solo con IA gratuitas"
+    },
+    "gone": {
+      "model": "eliminada",
+      "card": "eliminado",
+      "conversation": "eliminada"
+    },
+    "forget": "Olvidar este nombre",
+    "deletedConversation": "Conversación eliminada",
+    "deletedCard": "Personaje eliminado",
+    "newCard": "Ficha nueva",
+    "rest": "{count:grouped} más",
+    "rest_one": "1 más",
+    "bars": {
+      "label": "Gastos por día",
+      "labelWeeks": "Gastos por semana",
+      "day": "{date}: {money}",
+      "week": "semana del {date}: {money}",
+      "before": "Barra anterior",
+      "after": "Barra siguiente"
+    },
+    "detail": {
+      "read": "Lo que leyó y escribió",
+      "in": "Leídos: {count:grouped} tokens",
+      "in_one": "Leído: {count:grouped} token",
+      "out": "Escritos: {count:grouped} tokens",
+      "out_one": "Escrito: {count:grouped} token",
+      "cached": "de los cuales {count:grouped} leídos de la caché",
+      "cached_one": "de los cuales {count:grouped} leído de la caché",
+      "reasoning": "de los cuales {count:grouped} de razonamiento",
+      "reasoning_one": "de los cuales {count:grouped} de razonamiento",
+      "sources": "De dónde viene el importe",
+      "atMostWhy": "Parte de lo que leyó venía de la caché del servicio, que cuesta menos; ese precio no se conoce, así que es lo máximo que ha podido costar.",
+      "share": "{name}: {money}",
+      "cards": "Con qué personajes",
+      "models": "Con qué IA",
+      "conversations": "En qué conversaciones",
+      "growth": "Un mensaje costaba {first} al principio; ahora cuesta {last}.",
+      "growthWhy": "Cada mensaje vuelve a enviar la historia releída: cuanto más se alarga, más pesa."
+    },
+    "source": {
+      "reported": "facturado por el servicio",
+      "computed_read": "calculado con el precio del servicio",
+      "computed_typed": "calculado con su precio",
+      "estimated": "estimado"
+    },
+    "how": {
+      "title": "Cómo se cuenta",
+      "text": "Una llamada: una petición de Evermind a una IA (una respuesta, un resumen para la memoria, un borrador de ficha). Estos importes son lo que cada servicio dice haber cobrado por sus llamadas, o lo que Evermind calcula con su precio cuando no dice nada. Lo que ha pagado puede diferir: la comisión que cobra el servicio al comprar créditos, los redondeos, las respuestas detenidas sin precio, las IA sin precio y lo que la misma clave hizo fuera de Evermind. En OpenRouter, compare con su página de actividad, no con sus compras de créditos."
+    },
+    "export": "Exportar (CSV)",
+    "exported": "Archivo guardado: {name}",
+    "clear": {
+      "open": "Borrar el historial…",
+      "title": "Borrar el historial",
+      "all": "Todo",
+      "before": "Antes del",
+      "choose": "Elija lo que se borra",
+      "count": "{count:grouped} llamadas, del {first} al {last}. No se puede deshacer. Sus conversaciones y sus IA no cambian.",
+      "count_one": "1 llamada, el {first}. No se puede deshacer. Sus conversaciones y sus IA no cambian.",
+      "none": "No hay nada que borrar antes de esta fecha.",
+      "confirm": "Borrar"
+    },
+    "cleared": "Historial borrado: {count:grouped} llamadas.",
+    "cleared_one": "Historial borrado: 1 llamada.",
+    "link": {
+      "settings": "{money} en los últimos 30 días",
+      "ai": "Gastado con ella: {money} en los últimos 30 días",
+      "conversation": "Esta conversación: {money} desde el inicio",
+      "card": "Gastado con {name} desde el inicio: {money}"
+    },
+    "kept": "Sus gastos se quedan en Gastos, con su nombre.",
+    "forgetTick": "No conservar su nombre allí"
   },
   "ways": {
     "names": {

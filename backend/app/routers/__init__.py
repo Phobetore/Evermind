@@ -41,6 +41,7 @@ def register_routers(app: FastAPI) -> None:
         models,
         personas,
         settings_router,
+        spending,
         ways,
     )
 
@@ -56,4 +57,5 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(conversations.router)
     app.include_router(settings_router.router)
     app.include_router(ways.router)
+    app.include_router(spending.router)
     app.include_router(media.router)

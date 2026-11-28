@@ -2,6 +2,7 @@ import { CardTags } from "@/components/cards/CardTags";
 import { CharacterGreetings } from "@/components/cards/CharacterGreetings";
 import { CharacterNotes } from "@/components/cards/CharacterNotes";
 import { StartChatModal } from "@/components/cards/StartChatModal";
+import { SpentLine } from "@/components/spending/SpentLine";
 import { WhatTheModelReads } from "@/components/cards/WhatTheModelReads";
 import { Avatar } from "@/components/ui/Avatar";
 import { LoadFailure } from "@/components/ui/LoadFailure";
@@ -101,7 +102,7 @@ function CharacterDetail({ id }: { id: string }) {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex flex-col gap-8 lg:flex-row animate-rise">
         <div className="shrink-0">
-          <div className="relative mx-auto w-56 overflow-hidden rounded-2xl border border-ink-700 shadow-card lg:mx-0">
+          <div className="relative mx-auto w-[min(14rem,100%)] overflow-hidden lg:w-56 rounded-2xl border border-ink-700 shadow-card lg:mx-0">
             <Avatar
               name={character.name}
               src={mediumPortrait(character)}
@@ -138,15 +139,15 @@ function CharacterDetail({ id }: { id: string }) {
           <CardTags tags={character.tags} />
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <button className="btn btn-primary" onClick={() => setShowStart(true)}>
+            <button className="btn btn-primary max-w-full whitespace-normal" onClick={() => setShowStart(true)}>
               <MessageCircle className="h-4 w-4" /> {t("characters.detail.startConversationButton")}
             </button>
-            <Link to={`/characters/${character.id}/edit`} className="btn btn-ghost">
+            <Link to={`/characters/${character.id}/edit`} className="btn btn-ghost max-w-full whitespace-normal">
               <Pencil className="h-4 w-4" /> {t("characters.detail.editButton")}
             </Link>
             <button
               className={clsx(
-                "btn",
+                "btn max-w-full whitespace-normal",
                 character.is_favorite
                   ? "border border-ember-500/60 bg-ember-glow text-ember-300"
                   : "btn-ghost",
@@ -184,12 +185,13 @@ function CharacterDetail({ id }: { id: string }) {
                     <button
                       key={c.id}
                       onClick={() => navigate(`/chat/${c.id}`)}
-                      className="panel flex items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:border-ember-600/40"
+                      // At a very large text, the age goes under the title rather than squeezing it to nothing.
+                      className="panel flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-left transition-colors hover:border-ember-600/40"
                     >
-                      <span className="truncate font-display text-sm font-medium">
+                      <span className="min-w-[min(6rem,100%)] flex-1 basis-0 truncate font-display text-sm font-medium">
                         {c.title || t("chatList.untitled")}
                       </span>
-                      <span className="shrink-0 text-xs text-mist-dim">
+                      <span className="max-w-full shrink-0 text-xs text-mist-dim">
                         {t("chatList.messageCount", { count: c.message_count ?? 0 })} · {timeAgo(c.last_message_at ?? c.updated_at, t)}
                       </span>
                     </button>
@@ -198,6 +200,16 @@ function CharacterDetail({ id }: { id: string }) {
               )}
             </section>
           )}
+          {/* What playing with it has cost, its conversations deleted since included. */}
+          <div className="mt-3">
+            <SpentLine
+              query={{ card: character.id, days: "all" }}
+              sentence="card"
+              name={character.name}
+              to={`#/spending?cut=card&key=${encodeURIComponent(character.id)}&per=all`}
+              hideWhenNothing
+            />
+          </div>
         </div>
       </div>
 

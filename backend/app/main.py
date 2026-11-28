@@ -5,11 +5,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from starlette.middleware.gzip import GZipMiddleware
 
-from . import __version__, config, gate, headers, log_file
+from . import __version__, config, gate, headers, log_file, writes
 from .db import init_db
 from .errors import register_error_handlers
 from .ui import UIFiles
 
+# How long the stop waits for the replies and the cards being written to end.
+STOP_WAITS_S = 5
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -20,8 +22,10 @@ async def lifespan(_: FastAPI):
 
     from .db import connect
     from .repositories import connections
-    from .services import limits, memory_service
+    from .services import calls, card_assistant, limits, memory_service, turns
 
+    # Before any request: a call this process starts must not be taken for one left running.
+    await calls.after_start()
     db = await connect()
     try:
         # The release before may have made a service, or moved one, since this one last ran.
@@ -30,6 +34,12 @@ async def lifespan(_: FastAPI):
         await db.close()
     filling = asyncio.create_task(memory_service.fill_vectors())
     yield
+    # A reply or a card being written ends as a server going down ends it, its call's row
+    # stopped with what arrived: Ctrl+Break ends the process as soon as this returns, and leaves
+    # whatever has not ended running. A few seconds at most, so that a stop never hangs.
+    writing = [*turns.cancel_all(), *card_assistant.cancel_all()]
+    if writing:
+        await asyncio.wait(writing, timeout=STOP_WAITS_S)
     # Ended first, so that it hands no thread new work once the threads are waited for, below.
     filling.cancel()
     await asyncio.wait([filling])
@@ -37,6 +47,8 @@ async def lifespan(_: FastAPI):
     await limits.drain(cancel=True)
     # A Remember or a consolidation outlives its request, not the server: ended whole, not half-written.
     await memory_service.stop()
+    # After the operations above: the ends of their calls are written, not left running.
+    await calls.stop()
     # A task cancelled leaves its thread running: the semantic model loading, a vector being worked
     # out. Ctrl+Break ends the process as soon as this returns, without waiting for them as Ctrl+C
     # does, and a thread ended in the middle of loading a library leaves the process unable to end.
@@ -48,6 +60,8 @@ def create_app() -> FastAPI:
     # No /docs, /redoc or /openapi.json: they sit outside /api/, where the gate lets everything through.
     app = FastAPI(title="Evermind", version=__version__, lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
+    # Inside the gate: a write it refuses changed nothing.
+    app.add_middleware(writes.WritesSeen)
     # No CORS: the interface is never on another origin, and other origins' writes are refused here.
     app.add_middleware(gate.GateMiddleware)
     # Starlette leaves out the event stream, and pictures that are compressed already.

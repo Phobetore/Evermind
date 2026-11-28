@@ -8,6 +8,83 @@ program, and your data lives somewhere of its own (the `data` folder, or the
 If you are installing for the first time, you want [INSTALL.md](../INSTALL.md)
 instead. Coming from further back, read every section from your version up.
 
+## From 3.8.x to 3.9.0
+
+This update asks for a restart and a reload of your pages. The database changes
+when Evermind starts, and a copy of it is kept first, as
+`evermind.before-3.9.0.db` in the data folder. Read this to know what changes.
+
+- **Reload Evermind on every device that had it open**, a phone above all.
+- **To go back to 3.8.x, start it on the same database**: it ignores the
+  spending table.
+- **A "Spending" page**, from Settings (under "My AIs"), an AI's page, the panel
+  of a conversation and a character's page: what your AIs really cost, by
+  period, by AI, by character, by conversation and by use. Never under the
+  typing area.
+- **It counts from the update.** Nothing was noted before, and the page says so
+  ("Evermind has been counting since ...").
+- **Every call counts**: replies, replies made again, continuations, "Write mine
+  for me", automatic memory, the card assistant and speed tests, stopped or cut
+  short ones included. A call refused at once, or that never reached the server,
+  costs nothing.
+- **An AI at home is free**: a server of a family that loads its own models (Ollama,
+  LM Studio, llama.cpp, KoboldCpp) at a private address, unless you typed a price
+  for it; a price it lists itself does not make it money. A server at home of no
+  known family (an OpenAI-compatible gateway at a private address) may forward to
+  a paid service: it counts as "price not given", not under "Free", until you type
+  a price.
+- **Stopping the server** (Ctrl+C or Ctrl+Break) ends a reply or
+  a card being written as a stop does: what arrived is kept, cut short, and counted.
+- **In My AIs and on an AI's page**, the estimate "per 100 messages" gives way
+  to what your last 100 messages really cost, once 20 replies have a known
+  price. The two lists of a conversation keep the estimate.
+- **A price typed later** fills in the earlier calls of that AI that had none,
+  and says how many ("Also applied to your 12 earlier calls, which had no
+  price."). An amount a service reported is never changed.
+- **Deleting a conversation or a character does not delete what it cost.** The
+  window says so, and offers a tick, "Do not keep its name there". Clearing the history is
+  a gesture of its own, on the Spending page ("Clear the history…"), all of it
+  or what is before a date. "Export (CSV)" saves the calls of the period shown
+  as a file, one per line: the only place where calls are listed one by one. The
+  file holds the titles of your conversations (a title is the first words you
+  typed) and the names of your characters: mind where you send it.
+- **On OpenRouter**, after a call whose cost OpenRouter did not report (stopped,
+  cut off, or not counted), Evermind asks OpenRouter what that call cost, with the key
+  you gave it for that service: at 20 seconds, again at 2 minutes if the record
+  is not there yet, and once more at start-up if it is still missing within the
+  hour (a read, not a reply). Nothing is sent anywhere else.
+- **A reply asks for one request less** on a phone: the end of a turn now carries
+  what the page used to read again.
+- **No request sent to an AI changes.** What each AI is sent is the same as in
+  3.8.0.
+- **Going back.** The previous release starts on the migrated database: it
+  ignores the spending table and plays as before. Only the Spending page and the
+  counting stop, and the calls made meanwhile are not counted when you come back
+  to 3.9.0. `evermind.before-3.9.0.db` is only useful to undo the migration
+  itself, and what you did since the update is lost with it: see
+  [Going back after an update](../INSTALL.md#going-back-after-an-update).
+- **For a script that calls the API**: `/api/spending` (sums by period), its
+  `/detail`, `/total`, `/export.csv`, `DELETE /api/spending` (`before`, `dry_run`)
+  and `POST /api/spending/forget` are new, and a malformed day, zone or offset, an
+  offset out of range, a day outside 2000–2100, a period that ends before it
+  starts, or more than one of `model`, `card` and `conversation` on `/total`,
+  answers `422` (`bad_period`); a
+  zone Python does not know falls back to the offset, else UTC. `DELETE` of a conversation or a character takes
+  `?forget_name=1`. `POST /api/characters` takes `assist_jobs`. `GET /api/models`
+  gives each AI a `per100`, `PUT /api/models/{id}` answers `repriced`, and
+  `GET /api/conversations/{id}/turn` carries `glance` and `spent` once a turn
+  has ended, `null` again once anything has been written through the API since the
+  turn ended (the turn's own requests apart), or a memory pass or a condensation has
+  ended. In `/api/spending`, `previous` is `{cost, unpriced_calls}`, `null` from the
+  start and for days that end before counting began; `outside_replies` also gives
+  `unpriced_calls` and `free_calls`; each line of `cards` and `conversations` gives
+  the tokens in and out of its calls with no price, before `free_only`. A
+  character's `/detail` lists its 12 dearest conversations, each with `free_only`,
+  then `conversations_rest`; an AI's says `priceable` only when calls of the period
+  had no price. The body of a request
+  to an AI does not change; after a call whose cost OpenRouter did not report
+  (stopped, cut off, or not counted), OpenRouter receives `GET /generation?id=…` with your key.
+
 ## From 3.7.x to 3.8.0
 
 This update asks for a restart and a reload of your pages. The database changes

@@ -22,6 +22,7 @@ function ai(over: Partial<Ai> = {}): Ai {
     reasons: false,
     price: { read_in: null, read_out: null, own_in: null, own_out: null, varies: false },
     free: true,
+    per100: null,
     limits_read_at: null,
     reply_cap: { mode: "auto", tokens: null },
     temperature: null, top_p: null, frequency_penalty: null, presence_penalty: null,

@@ -38,7 +38,7 @@ from ..prompting.engine import (
     speaking_name,
     trim_reply,
 )
-from ..prompting.payloads import build_impersonate_payload
+from ..prompting.payloads import build_impersonate_payload, prompt_tokens
 from ..prompting.tokens import estimate_tokens
 from ..providers import Answer, ProviderError, complete_answer, get_provider, max_tokens_sent
 from ..providers.base import STOPPED_FOR_LENGTH, CallFigures, unwritten
@@ -50,7 +50,7 @@ from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
 from ..repositories.base import new_id
-from . import learning, limits, memory_service
+from . import calls, learning, limits, memory_service
 from .ai_call import call_for, for_engine, reply_room
 from .llm_json import describe_answer
 
@@ -195,6 +195,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     user_name = (persona or {}).get("name") or "User"
 
     answering = None  # the person's message, when the reply is a new one
+    titled = None  # the title the person's first message just gave the conversation
     target = None  # the reply that gets a new version, or more of the one it has
     continue_mode = request.mode == "continue"
     if request.mode == "send":
@@ -213,7 +214,8 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
                 meta["client_id"] = request.client_id
             answering = await convo_repo.add_message(db, convo["id"], "user", [content], meta=meta)
             if not (convo.get("title") or "").strip() and request.message_mode == "say":
-                await convo_repo.update(db, convo["id"], {"title": _auto_title(content)})
+                titled = _auto_title(content)
+                await convo_repo.update(db, convo["id"], {"title": titled})
             messages = messages + [answering]
         history = messages
     elif request.mode == "regenerate":
@@ -312,6 +314,10 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
     index = (target["active_index"] if continue_mode else len(target["variants"])) if target else 0
     others = set(_cut_short(target)) - {index} if target else set()
     written = False
+    # What each request to the model served, on its row.
+    who = calls.for_conversation("reply" if request.mode == "send" else request.mode, convo,
+                                 character, title=titled, message_id=turn.message_id,
+                                 variant=index)
 
     async def read_model(provider) -> None:
         """Touches no database, so that a stop, which cancels it, cannot land in a write."""
@@ -399,12 +405,32 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         # Built out here so that what its server said, in provider.figures, outlives the read,
         # which a stop cancels.
         provider = get_provider(call)
-        turn.reading = asyncio.create_task(read_model(provider))
-        while not turn.reading.done():
-            await asyncio.wait({turn.reading}, timeout=_FLUSH_SECONDS)
-            if not turn.reading.done():
-                await save()
-        error = None if turn.reading.cancelled() else turn.reading.exception()
+        # Each pass is its own request, and its own row: a refusal asked again leaves both.
+        async with calls.recording(provider, ai, who, attempt=_attempt,
+                                   prompt_estimate=payload.stats["used_tokens"]) as recording:
+            if turn.stopped:
+                # Stopped while its row was written: the request never goes, and leaves no row.
+                recording.unsent()
+                break
+            turn.reading = asyncio.create_task(read_model(provider))
+            try:
+                while not turn.reading.done():
+                    await asyncio.wait({turn.reading}, timeout=_FLUSH_SECONDS)
+                    if not turn.reading.done():
+                        await save()
+            except BaseException:
+                # A cancel that lands in a save leaves its write open on this connection, and the
+                # row's end, on another, would wait for it. What it wrote, the next save writes
+                # again whole; the server's stop ends the turn with what was committed.
+                await asyncio.shield(db.rollback())
+                raise
+            error = None if turn.reading.cancelled() else turn.reading.exception()
+            # Whether it wrote is the reply's word, as it is saved, not the stream's.
+            recording.mark(calls.outcome_of(
+                error, getattr(provider, "figures", None) or CallFigures(),
+                stopped=turn.reading.cancelled(),
+                wrote=bool(trim_reply("".join(chunks), char_name=char_name, user_name=user_name))),
+                error=error)
         if not chunks and not turn.stopped and learning.is_too_long(error):
             if asked_shorter:
                 # Refused again: the margin this turn added cured nothing, and is not kept.
@@ -525,7 +551,7 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
 
 async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     """Ghost-write the player's next message. Returns {"text": ...}."""
-    convo, character, persona, call, settings, _ = await _resolve(db, convo_id)
+    convo, character, persona, call, settings, ai = await _resolve(db, convo_id)
     char_name = speaking_name(character)
     user_name = (persona or {}).get("name") or "User"
     messages = await convo_repo.list_messages(db, convo_id)
@@ -535,10 +561,14 @@ async def impersonate(db: aiosqlite.Connection, convo_id: str) -> dict:
     payload = build_impersonate_payload(
         character, persona, convo, messages, for_engine(call),
         history_limit=ways.way_for(convo, settings)["history_limit"])
-    answer = await complete_answer(get_provider(call), payload)
+    provider = get_provider(call)
+    async with calls.recording(provider, ai, calls.for_conversation("pen", convo, character),
+                               prompt_estimate=prompt_tokens(payload)) as recording:
+        answer = await complete_answer(provider, payload)
+        text = trim_reply(answer.text, char_name=user_name, user_name=char_name)
+        recording.mark("whole" if text else "empty")
     if answer.thought > 0:
         await learned_it_reasons(db, call)
-    text = trim_reply(answer.text, char_name=user_name, user_name=char_name)
     if not text:
         logger.warning("impersonation: empty answer, %s, %d characters of reasoning, stopped with %r",
                        describe_answer(answer.text), answer.thought, answer.stop)

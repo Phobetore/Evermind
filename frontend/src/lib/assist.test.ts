@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DataError } from "@/data/errors";
 import type { AssistState } from "@/data";
 import {
-  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, formatClock, kept, moveJob, outcome, progress,
-  rememberJob, rememberedJob, scopeOf, type Followed,
+  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, forgetJobIds, formatClock, jobIdsOf, keepJobId, kept,
+  moveJob, outcome, progress, rememberJob, rememberedJob, scopeOf, type Followed,
 } from "./assist";
 import { blockStorage, MemoryStorage, useStorage } from "./storage.fake";
 
@@ -90,6 +90,65 @@ describe("a job that follows its card", () => {
 
   test("blocked storage breaks nothing", () => {
     blockStorage();
+    expect(() => moveJob("new", "c1")).not.toThrow();
+  });
+});
+
+describe("the jobs that wrote a card not saved yet", () => {
+  beforeEach(() => useStorage(new MemoryStorage()));
+
+  test("are kept in a list of their own, each once, until forgotten", () => {
+    const storage = new MemoryStorage();
+    useStorage(storage);
+    keepJobId("new", "j1");
+    keepJobId("new", "j2");
+    keepJobId("new", "j1");
+    expect(jobIdsOf("new")).toEqual(["j1", "j2"]);
+    expect(JSON.parse(storage.getItem("evermind:assist-jobs:new")!)).toEqual(["j1", "j2"]);
+    expect(jobIdsOf("c1")).toEqual([]);
+    forgetJobIds("new");
+    expect(jobIdsOf("new")).toEqual([]);
+  });
+
+  test("keep the last fifty, as many as a save may claim", () => {
+    for (let n = 0; n < 52; n++) keepJobId("new", `j${n}`);
+    const ids = jobIdsOf("new");
+    expect(ids).toHaveLength(50);
+    expect(ids[0]).toBe("j2");
+    expect(ids.at(-1)).toBe("j51");
+  });
+
+  test("move with the running job to the card it became", () => {
+    rememberJob("new", { id: "j2", brief: "A keeper", kind: "character" });
+    keepJobId("new", "j1");
+    keepJobId("new", "j2");
+    moveJob("new", "c1");
+    expect(rememberedJob("c1")?.id).toBe("j2");
+    expect(jobIdsOf("c1")).toEqual(["j1", "j2"]);
+    expect(jobIdsOf("new")).toEqual([]);
+  });
+
+  test("move even when no job runs any more", () => {
+    keepJobId("new", "j1");
+    moveJob("new", "c1");
+    expect(jobIdsOf("c1")).toEqual(["j1"]);
+    expect(jobIdsOf("new")).toEqual([]);
+  });
+
+  test.each([
+    ["words that are no JSON", "{oops"],
+    ["JSON that is no list", JSON.stringify({ id: "j1" })],
+    ["a list of other things", JSON.stringify([7, null, ""])],
+  ])("%s, in storage, is no job", (_name, stored) => {
+    localStorage.setItem("evermind:assist-jobs:new", stored);
+    expect(jobIdsOf("new")).toEqual([]);
+  });
+
+  test("blocked storage keeps nothing and breaks nothing", () => {
+    blockStorage();
+    expect(() => keepJobId("new", "j1")).not.toThrow();
+    expect(jobIdsOf("new")).toEqual([]);
+    expect(() => forgetJobIds("new")).not.toThrow();
     expect(() => moveJob("new", "c1")).not.toThrow();
   });
 });

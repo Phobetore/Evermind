@@ -10,6 +10,7 @@ from ..errors import AppError, NotFoundError
 from ..models.schemas import BranchIn, ConversationIn, ConversationPatch, MessagePatch
 from ..prompting.engine import on_card_rules, speaking_name
 from ..prompting.macros import expand_macros, substitute
+from ..repositories import calls as calls_repo
 from ..repositories import characters as characters_repo
 from ..repositories import conversations as repo
 from ..repositories import models as models_repo
@@ -161,10 +162,15 @@ async def clear_wallpaper(convo_id: str, db: aiosqlite.Connection = Depends(get_
 
 
 @router.delete("/conversations/{convo_id}", status_code=204)
-async def delete_conversation(convo_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def delete_conversation(convo_id: str, forget_name: bool = False,
+                              db: aiosqlite.Connection = Depends(get_db)):
+    """Its calls stay, under the title copied on them; ``forget_name``: without it."""
     await turns.stop(convo_id)
+    if forget_name and await repo.get(db, convo_id, with_messages=False):
+        await calls_repo.forget(db, "conversation", convo_id)  # committed with the delete
     if not await repo.delete(db, convo_id):
         raise NotFoundError("Conversation not found.", "conversation")
+    turns.forget(convo_id)
 
 
 @router.patch("/messages/{message_id}")
