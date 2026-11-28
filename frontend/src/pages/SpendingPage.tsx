@@ -10,7 +10,7 @@ import { describeError } from "@/lib/errors";
 import {
   daysOf, keepPeriod, keptPeriod, localDate, moneyText, rangeOf, spendingShown, type Period,
 } from "@/lib/spending";
-import { dayMonth, downloadBlob } from "@/lib/utils";
+import { dayMonth, downloadBlob, isolated } from "@/lib/utils";
 import type { Spending } from "@/types";
 import { clsx } from "clsx";
 import { ArrowLeft, ChevronRight } from "lucide-react";
@@ -361,7 +361,7 @@ function SpendingView() {
                     {model && !listWaits && shown.model_total !== null && (
                       <p className="text-sm text-parchment-dim [overflow-wrap:anywhere]">
                         {t("spending.filter.with", {
-                          name: model.name,
+                          name: isolated(model.name),
                           // A free AI never has an amount, not even nothing.
                           money: free
                             ? t("ai.free")

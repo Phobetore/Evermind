@@ -13,7 +13,7 @@ import type { Translate } from "@/i18n/I18nProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { pages, successorOf, warningsOf } from "@/lib/ai";
 import { describeError, describeFailure } from "@/lib/errors";
-import { timeAgo } from "@/lib/utils";
+import { isolated, timeAgo } from "@/lib/utils";
 import { offeredWay } from "@/lib/ways";
 import type { Ai, Service, Ways } from "@/types";
 import { clsx } from "clsx";
@@ -198,7 +198,7 @@ function AiView({ id }: { id: string }) {
     const last = !others.some((other) => other.service.id === current.service.id);
     // Its name is no secret of a story: what it cost stays under it, with no choice to forget it.
     const kept = keptSaid(t);
-    const sure = await confirm(t("ai.page.removeConfirm", { name: current.name }), {
+    const sure = await confirm(t("ai.page.removeConfirm", { name: isolated(current.name) }), {
       action: t("ai.page.removeAction"),
       danger: true,
       details: (count > 0 || (last && current.service.api_key_set) || kept) && (
@@ -206,11 +206,11 @@ function AiView({ id }: { id: string }) {
           {count > 0 && (
             <p>
               {after
-                ? t("ai.page.removeMoves", { count, name: after.name })
+                ? t("ai.page.removeMoves", { count, name: isolated(after.name) })
                 : t("ai.page.removeOrphans", { count })}
             </p>
           )}
-          {last && current.service.api_key_set && <p>{t("ai.page.removeKey", { service: current.service.name })}</p>}
+          {last && current.service.api_key_set && <p>{t("ai.page.removeKey", { service: isolated(current.service.name) })}</p>}
           {kept && <p>{kept}</p>}
         </>
       ),

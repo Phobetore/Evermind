@@ -347,6 +347,8 @@ test("deleting a conversation says its spending stays, and the tick forgets its 
       const row = page.locator("main a").filter({ hasText: title });
       await row.getByRole("button", { name: "Delete" }).click();
       const box = page.getByRole("alertdialog");
+      // The title, isolated in the question: one written right to left keeps it in its order.
+      await expect(box).toContainText(`"\u2068${title}\u2069"`);
       await expect(box).toContainText("Its spending stays in Spending, under its name.");
       const forget = box.getByRole("checkbox", { name: "without keeping its name" });
       await expect(forget).not.toBeChecked();
@@ -393,7 +395,7 @@ test("the character page line", async ({ page, request }) => {
     await chat(request, { conversation_id: convo.id, mode: "send", content: "Tell me." });
     await page.goto(`/#/characters/${card.id}`);
     const lead = page.locator('main a[href^="#/spending"]');
-    await expect(lead).toHaveText(/^Spent with Nyra since the start: \$\d+\.\d\d$/);
+    await expect(lead).toHaveText(/^Spent with \u2068Nyra\u2069 since the start: \$\d+\.\d\d$/);
     await expect(lead).toHaveAttribute("href", `#/spending?cut=card&key=${card.id}&per=all`);
   } finally {
     await drop(request, ai);

@@ -113,6 +113,13 @@ export function cardText(text: string, cardRules: number, charName: string, user
   return cardRules === 2 ? describeMarkers(text, charName, userName) : substitute(text, charName, userName);
 }
 
+/** A name or a title a person typed, put into a sentence: between U+2068 and U+2069, so that one
+ *  written right to left does not carry the words after it to its side. Where the name is an
+ *  element of its own, a <bdi> does the same. */
+export function isolated(name: string): string {
+  return name ? `\u2068${name}\u2069` : name;
+}
+
 /** The first `count` code points of a text, never half of a pair. For a text drawn under
  *  line-clamp, which hides the lines past the clamp but still has the browser break every one of
  *  them. Only twice `count` units are spread, however long the text. */

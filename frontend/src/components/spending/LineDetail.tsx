@@ -4,6 +4,7 @@ import { data, DataError, type AiSaved, type Cut, type ModelUpdate, type Spendin
 import { useI18n } from "@/i18n/I18nProvider";
 import { describeError } from "@/lib/errors";
 import { amountText, duringText, measuredText, moneyText, type Period } from "@/lib/spending";
+import { isolated } from "@/lib/utils";
 import { PriceFields } from "@/pages/AiPage";
 import type {
   Ai, SpendingDetail, SpendingDetailOfCard, SpendingDetailOfConversation, SpendingDetailOfModel, SpendingDetailOfUse,
@@ -59,8 +60,9 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
   const name = detail ? nameOf(line.cut, line.key, detail, t) : line.name || t("common.loading");
   const during = duringText(per, since, locale, t);
   const money = (cost: number, unpriced = 0) => moneyText({ cost, unpriced, currency }, "line", locale, t);
-  const share = (label: string, said: string, key: string) => (
-    <li key={key} className="[overflow-wrap:anywhere]">{t("spending.detail.share", { name: label, money: said })}</li>
+  // A name someone typed is isolated in its sentence; the name of a use or a source is the page's.
+  const share = (label: string, said: string, key: string, typed = true) => (
+    <li key={key} className="[overflow-wrap:anywhere]">{t("spending.detail.share", { name: typed ? isolated(label) : label, money: said })}</li>
   );
   const models = (lines: SpendingModelLine[]) => (
     <Part title={t("spending.detail.models")}>
@@ -70,7 +72,7 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
   );
   const uses = (lines: [string, number, number, number, number][]) => (
     <Part title={t("spending.cut.use")}>
-      {lines.map(([use, cost, , , unpriced]) => share(t(`spending.use.${use}`), money(cost, unpriced), use))}
+      {lines.map(([use, cost, , , unpriced]) => share(t(`spending.use.${use}`), money(cost, unpriced), use, false))}
     </Part>
   );
 
@@ -158,7 +160,7 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
 
   if (!beside) {
     return (
-      <Sheet title={name} hint={during} onClose={onClose}>
+      <Sheet title={name} named hint={during} onClose={onClose}>
         <div data-line-detail>{body}</div>
       </Sheet>
     );
@@ -167,7 +169,7 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
     <aside data-line-detail aria-label={name} className="panel sticky top-4 flex flex-col gap-3 self-start px-5 py-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-lg font-semibold break-words hyphens-auto">{name}</h2>
+          <h2 className="font-display text-lg font-semibold break-words hyphens-auto"><bdi>{name}</bdi></h2>
           <p className="mt-0.5 text-xs text-mist">{during}</p>
         </div>
         <button type="button" onClick={onClose} aria-label={t("common.close")} className="-mr-2 shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment">
@@ -205,7 +207,7 @@ function Part({ title, children }: { title: string; children: React.ReactNode })
 function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repriced, onRepriced }: {
   detail: SpendingDetailOfModel;
   money(cost: number, unpriced?: number): string;
-  share(label: string, said: string, key: string): React.ReactNode;
+  share(label: string, said: string, key: string, typed?: boolean): React.ReactNode;
   uses(lines: [string, number, number, number, number][]): React.ReactNode;
   pricing: boolean;
   onPrice(): void;
@@ -230,7 +232,7 @@ function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repric
           const said = money(sources[source]);
           // A computed amount that read from the cache with no price for it.
           const atMost = detail.at_most && (source === "computed_read" || source === "computed_typed");
-          return share(t(`spending.source.${source}`), atMost ? t("spending.money.atMost", { money: said }) : said, source);
+          return share(t(`spending.source.${source}`), atMost ? t("spending.money.atMost", { money: said }) : said, source, false);
         })}
         {detail.cost_upstream > 0 && detail.upstream && (
           <li>{t("spending.upstream", { money: money(detail.cost_upstream), name: detail.upstream })}</li>
@@ -239,7 +241,7 @@ function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repric
       {uses(detail.uses)}
       <Part title={t("spending.detail.cards")}>
         {detail.cards.map(([id, name, , cost, , deleted]) => share(cardName(id, name, deleted, t), money(cost), id ?? ""))}
-        {detail.cards_rest && share(t("spending.rest", { count: detail.cards_rest[0] }), money(detail.cards_rest[1], detail.cards_rest[3]), "rest")}
+        {detail.cards_rest && share(t("spending.rest", { count: detail.cards_rest[0] }), money(detail.cards_rest[1], detail.cards_rest[3]), "rest", false)}
       </Part>
       {(detail.priceable || pricing) && (pricing
         ? <PriceEditor modelId={modelId} onRepriced={onRepriced} />

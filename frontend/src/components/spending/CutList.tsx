@@ -2,6 +2,8 @@ import type { Cut } from "@/data";
 import type { Translate } from "@/i18n/I18nProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { moneyText, pagesOf, servicesOf } from "@/lib/spending";
+import { isolated } from "@/lib/utils";
+import { Fragment, type ReactNode } from "react";
 import type { Kind, Spending, SpendingRest } from "@/types";
 
 /** What the list hands up when a line is opened: its cut, its key ("" for the drafts of cards not
@@ -45,12 +47,12 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
         {groups.map((group) => (
           <section key={group.name ?? ""} data-service className="flex flex-col gap-1">
             <h3 className="flex flex-wrap items-baseline justify-between gap-x-3 px-3 text-sm">
-              <span className="ui-label min-w-0 [overflow-wrap:anywhere]">{group.name}</span>
+              <bdi className="ui-label min-w-0 [overflow-wrap:anywhere]">{group.name}</bdi>
               <span className="text-parchment-dim">{money(group.cost, group.unpriced)}</span>
             </h3>
             {group.upstream.map((by) => (
               <p key={by.name} className="px-3 text-xs text-mist">
-                {t("spending.upstream", { money: money(by.cost, 0), name: by.name })}
+                {t("spending.upstream", { money: money(by.cost, 0), name: isolated(by.name) })}
               </p>
             ))}
             <ul className="flex flex-col gap-1">
@@ -87,10 +89,10 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
             <ul className="flex flex-col gap-1">
               {summary.free.map(([id, name, where, replies, tokensIn, service]) => (
                 <li key={id ?? name ?? ""} className="px-3 py-2 text-sm">
-                  <span className="block text-parchment [overflow-wrap:anywhere]">{name}</span>
+                  <bdi className="block text-parchment [overflow-wrap:anywhere]">{name}</bdi>
                   <span className="block text-xs text-mist">
                     {[
-                      where === "service" ? t("spending.free.service", { service: service ?? "" }) : t(`spending.free.${where}`),
+                      where === "service" ? t("spending.free.service", { service: isolated(service ?? "") }) : t(`spending.free.${where}`),
                       t("spending.free.replies", { count: replies }),
                       t("spending.free.pages", { count: pagesOf(tokensIn) }),
                     ].join(" · ")}
@@ -131,11 +133,11 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
   const rows = cut === "card"
     ? summary.cards.map(([id, name, kind, cost, count, unpriced, , , freeOnly, deleted]) => ({
       key: id ?? "", name: cardName(id, name, deleted, t), tags: tagsOf(deleted, id !== null && name !== null, kind, t),
-      cost, count, unpriced, freeOnly, small: undefined as string | undefined,
+      cost, count, unpriced, freeOnly, small: undefined as ReactNode,
     }))
     : summary.conversations.map(([id, title, card, cost, count, unpriced, , , freeOnly, deleted]) => ({
       key: id, name: conversationName(title, card, deleted, t), tags: tagsOf(deleted, !!title, null, t),
-      cost, count, unpriced, freeOnly, small: title ? card ?? undefined : undefined,
+      cost, count, unpriced, freeOnly, small: title && card ? <bdi>{card}</bdi> : undefined,
     }));
   const rest: SpendingRest | null = cut === "card" ? summary.cards_rest : summary.conversations_rest;
   const dearest = Math.max(0, ...rows.map((r) => r.cost));
@@ -175,16 +177,19 @@ function Line({ lineKey, name, tags = [], amount, share, small, onOpen, after }:
   tags?: string[];
   amount: string;
   share: number;
-  small: (string | false | undefined)[];
+  /** Each piece a sentence, or a name in its <bdi>; joined by " · ". */
+  small: ReactNode[];
   onOpen?: () => void;
-  after?: React.ReactNode;
+  after?: ReactNode;
 }) {
-  const said = small.filter(Boolean).join(" · ");
+  const pieces = small.filter(Boolean);
+  const said = pieces.length > 0 && pieces.map((piece, i) => <Fragment key={i}>{i > 0 && " · "}{piece}</Fragment>);
   const body = (
     <>
       <span className="flex flex-wrap items-baseline justify-between gap-x-3">
         <span className="min-w-0 text-parchment [overflow-wrap:anywhere]">
-          {name}
+          {/* A name someone typed: one written right to left does not carry its tags or amount to its side. */}
+          <bdi>{name}</bdi>
           {tags.map((tag) => <span key={tag} className="ml-2 text-xs text-mist">{tag}</span>)}
         </span>
         <span className="text-sm text-parchment-dim">{amount}</span>

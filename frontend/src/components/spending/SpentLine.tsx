@@ -1,6 +1,7 @@
 import { data, type DataSource } from "@/data";
 import { useI18n, type Translate } from "@/i18n/I18nProvider";
 import { moneyText, spendingShown } from "@/lib/spending";
+import { isolated } from "@/lib/utils";
 import type { SpentTotal } from "@/types";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -53,7 +54,7 @@ export function SpentLine({ query, sentence, name, to, known, hideWhenNothing, o
   const said = sentence === "settings"
     ? `${t("spending.title")} · ${t("spending.link.settings", { money })}`
     : sentence === "card"
-      ? t("spending.link.card", { name: name ?? "", money })
+      ? t("spending.link.card", { name: isolated(name ?? ""), money })
       : t(`spending.link.${sentence}`, { money });
   return (
     // The router's own address, without the "#" a hash router writes before it.

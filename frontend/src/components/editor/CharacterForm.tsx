@@ -19,7 +19,7 @@ import { newLoreEntry } from "@/lib/loreEntry";
 import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { savePortrait } from "@/lib/portraitSizes";
 import { describeError, isUnanswered } from "@/lib/errors";
-import { downloadBlob, newId } from "@/lib/utils";
+import { downloadBlob, isolated, newId } from "@/lib/utils";
 import type { Ai, CharacterWithLore, LoreEntry, NoteRole } from "@/types";
 import { clsx } from "clsx";
 import {
@@ -323,7 +323,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
     if (!initial) return;
     const kept = keptOnDelete(t);
     const asked = { action: t("common.delete"), danger: true, details: kept?.details };
-    if (!(await confirm(t("characters.form.confirmDelete", { name: initial.name }), asked))) return;
+    if (!(await confirm(t("characters.form.confirmDelete", { name: isolated(initial.name) }), asked))) return;
     const forgetName = kept?.forgetName() ?? false;
     try {
       await data.characters.remove(initial.id, { forgetName });

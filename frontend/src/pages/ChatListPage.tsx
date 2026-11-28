@@ -8,7 +8,7 @@ import { data } from "@/data";
 import { useT } from "@/i18n/useT";
 import { clearDraft, pruneDrafts } from "@/lib/drafts";
 import { describeError } from "@/lib/errors";
-import { smallPortrait, timeAgo } from "@/lib/utils";
+import { isolated, smallPortrait, timeAgo } from "@/lib/utils";
 import type { Conversation, Persona } from "@/types";
 import { BookOpenText, GitBranch, MessagesSquare, Pencil, PenLine, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -74,7 +74,7 @@ export function ChatListPage() {
   async function remove(e: React.MouseEvent, convo: Conversation) {
     e.preventDefault();
     e.stopPropagation();
-    const question = t("chatList.confirmDelete", { title: convo.title || t("chatList.untitled") });
+    const question = t("chatList.confirmDelete", { title: isolated(convo.title || t("chatList.untitled")) });
     const kept = keptOnDelete(t);
     if (!(await confirm(question, { action: t("common.delete"), danger: true, details: kept?.details }))) return;
     const forgetName = kept?.forgetName() ?? false;

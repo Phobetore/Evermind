@@ -227,6 +227,56 @@ test("what was spent outside replies and in the days before follows the rule of 
   await expect(page.getByText(/days before/)).toHaveCount(0);
 });
 
+test("a name written right to left stays apart from the words around it", async ({ page }) => {
+  const LAYLA = "ليلى";
+  const NIGHT = "ليلة في النزل";
+  const SYLVE = "سيلف ميني";
+  await answerSpending(page, () => {
+    const s = month();
+    return {
+      ...s,
+      models: s.models.map((m) => (m[0] === "ai-sylve" ? [m[0], SYLVE, ...m.slice(2)] as typeof m : m)),
+      cards: s.cards.map((c) => (c[0] === "card-serana" ? [c[0], LAYLA, ...c.slice(2)] as typeof c : c)),
+      conversations: s.conversations.map((c) => (c[0] === "conv-inn" ? [c[0], NIGHT, LAYLA, ...c.slice(3)] as typeof c : c)),
+    };
+  });
+  await page.route("**/api/spending/detail?**", async (route) => {
+    if (new URL(route.request().url()).searchParams.get("key") !== "card-serana") return route.fallback();
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+      name: LAYLA, kind: "character", deleted: false, cost: 1.6, calls: 300, unpriced_calls: 184,
+      models: [["ai-sylve", SYLVE, 1.6, 116, 0, false]],
+      conversations: [["conv-inn", NIGHT, 1.6, 300, 184, false, false]], conversations_rest: null,
+    }) });
+  });
+  await page.goto("/#/spending");
+  /** The first row of a line: its name, then its amount, last. */
+  const head = (key: string) => list(page).locator(`[data-key="${key}"] button > span:first-child`);
+  await expect(head("ai-sylve").locator("bdi")).toHaveText(SYLVE);
+  expect(await head("ai-sylve").evaluate((el) => el.textContent)).toMatch(/\$1\.43$/);
+
+  await page.getByRole("button", { name: "By character" }).click();
+  await expect(head("card-serana").locator("bdi")).toHaveText(LAYLA);
+  expect(await head("card-serana").evaluate((el) => el.textContent)).toMatch(/\$1\.60 \+ 184 calls without a price$/);
+
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await expect(head("conv-inn").locator("bdi")).toHaveText(NIGHT);
+  // Its character, in the small line under it.
+  await expect(list(page).locator('[data-key="conv-inn"] button bdi')).toHaveText([NIGHT, LAYLA]);
+
+  // In a sentence: isolated by its marks.
+  await page.getByRole("combobox").selectOption({ label: SYLVE });
+  await expect(page.getByText(`With \u2068${SYLVE}\u2069: $1.43`)).toBeVisible();
+
+  // A line opened: its title and each name of what it holds.
+  await page.getByRole("combobox").selectOption({ label: "All AIs" });
+  await page.getByRole("button", { name: "By character" }).click();
+  await list(page).locator('[data-key="card-serana"] button').click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.locator("h2 bdi")).toHaveText(LAYLA);
+  await expect(detail(page).locator("li").filter({ hasText: SYLVE })).toHaveText(`\u2068${SYLVE}\u2069: $1.60`);
+  await expect(detail(page).locator("li").filter({ hasText: NIGHT })).toHaveText(`\u2068${NIGHT}\u2069: $1.60 + 184 calls without a price`);
+});
+
 test("free ais are apart and never an amount", async ({ page }) => {
   await answerSpending(page);
   await page.goto("/#/spending");
