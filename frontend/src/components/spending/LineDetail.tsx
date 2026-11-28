@@ -43,6 +43,11 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
   const [forgetting, setForgetting] = useState(false);
   const [forgetError, setForgetError] = useState<string | null>(null);
   const { from, to } = range;
+  // Beside the list, the line opened is where the focus goes, as a sheet takes it: said by its title.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (beside) heading.current?.focus({ preventScroll: true });
+  }, [beside]);
 
   // What is shown stays until the next answer: a price being typed is not taken away by a read.
   const asked = useRef(0);
@@ -176,7 +181,7 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
     <aside data-line-detail aria-label={name} className="panel sticky top-4 flex flex-col gap-3 self-start px-5 py-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-lg font-semibold break-words hyphens-auto"><bdi>{name}</bdi></h2>
+          <h2 ref={heading} tabIndex={-1} className="font-display text-lg font-semibold break-words hyphens-auto outline-none"><bdi>{name}</bdi></h2>
           <p className="mt-0.5 text-xs text-mist">{during}</p>
         </div>
         <button type="button" onClick={onClose} aria-label={t("common.close")} className="-mr-2 shrink-0 rounded-lg p-1.5 text-mist hover:bg-ink-700 hover:text-parchment">

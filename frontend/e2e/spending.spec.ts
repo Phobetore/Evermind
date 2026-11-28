@@ -901,3 +901,15 @@ test("the list offers a price only to an ai whose calls had none", async ({ page
   await expect(offer("ai-claude")).toHaveCount(0);
   await expect(offer("ai-aurore")).toHaveCount(0);
 });
+
+test("a line beside the list takes the focus and gives it back to its line @desktop", async ({ page }) => {
+  await answerSpending(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/#/spending");
+  await line(page, "Sylve Mini").click();
+  await expect(detail(page).locator("h2")).toBeFocused();
+  await expect(detail(page).locator("h2")).toHaveText("Sylve Mini");
+  await detail(page).getByRole("button", { name: "Close" }).click();
+  await expect(detail(page)).toHaveCount(0);
+  await expect(list(page).locator('[data-key="ai-sylve"] > button').first()).toBeFocused();
+});

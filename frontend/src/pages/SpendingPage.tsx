@@ -150,16 +150,19 @@ function SpendingView() {
   }, [toast]);
   const say = (text: string) => setToast({ text, at: performance.now() });
 
-  // The line just closed, in sight in the list, once its sheet has gone, whichever way it went.
+  // The line just closed, in sight in the list, once its sheet has gone, whichever way it went;
+  // beside the list, the focus back on it, as a sheet gives it back to what opened it.
   const isOpen = opened !== null;
   useEffect(() => {
     if (isOpen || scrollTo.current === null) return;
     const key = scrollTo.current;
     scrollTo.current = null;
     requestAnimationFrame(() => {
-      document.querySelector(`[data-cut-list] [data-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: "center" });
+      const row = document.querySelector(`[data-cut-list] [data-key="${CSS.escape(key)}"]`);
+      row?.scrollIntoView({ block: "center" });
+      if (wide) row?.querySelector<HTMLElement>(":scope > button")?.focus({ preventScroll: true });
     });
-  }, [isOpen]);
+  }, [isOpen, wide]);
 
   /** The room the total and the lists take now, held while the next answer is awaited. What is
    *  already held keeps its room. */
