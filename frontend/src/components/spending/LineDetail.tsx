@@ -78,9 +78,11 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
         share(label ?? "", free ? t("ai.free") : money(cost, unpriced), id ?? label ?? ""))}
     </Part>
   );
-  const uses = (lines: [string, number, number, number, number][]) => (
+  // A share whose calls were all free says so, as the list does.
+  const uses = (lines: [string, number, number, number, number, number][]) => (
     <Part title={t("spending.cut.use")}>
-      {lines.map(([use, cost, , , unpriced]) => share(t(`spending.use.${use}`), money(cost, unpriced), use, false))}
+      {lines.map(([use, cost, count, , unpriced, free]) =>
+        share(t(`spending.use.${use}`), free === count ? t("ai.free") : money(cost, unpriced), use, false))}
     </Part>
   );
 
@@ -253,7 +255,7 @@ function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repric
   detail: SpendingDetailOfModel;
   money(cost: number, unpriced?: number): string;
   share(label: string, said: string, key: string, typed?: boolean): React.ReactNode;
-  uses(lines: [string, number, number, number, number][]): React.ReactNode;
+  uses(lines: [string, number, number, number, number, number][]): React.ReactNode;
   pricing: boolean;
   onPrice(): void;
   modelId: string;
@@ -279,7 +281,8 @@ function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repric
       </Sources>
       {uses(detail.uses)}
       <Part title={t("spending.detail.cards")}>
-        {detail.cards.map(([id, name, , cost, , unpriced, deleted]) => share(cardName(id, name, deleted, t), money(cost, unpriced), id ?? ""))}
+        {detail.cards.map(([id, name, , cost, , unpriced, freeOnly, deleted]) =>
+          share(cardName(id, name, deleted, t), freeOnly ? t("ai.free") : money(cost, unpriced), id ?? ""))}
         {detail.cards_rest && share(t("spending.rest", { count: detail.cards_rest[0] }), money(detail.cards_rest[1], detail.cards_rest[3]), "rest", false)}
       </Part>
       {(detail.priceable || pricing) && (pricing

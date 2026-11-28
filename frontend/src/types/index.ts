@@ -455,9 +455,9 @@ export interface SpendingDetailOfModel {
   sources: SpendingSources;
   /** A computed amount read from the cache with no price for it: at most this much. */
   at_most: boolean;
-  uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number][];
+  uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number, free_calls: number][];
   cards: [card_id: string | null, name: string | null, kind: Kind | null, cost: number, calls: number,
-    unpriced_calls: number, deleted: boolean][];
+    unpriced_calls: number, free_only: boolean, deleted: boolean][];
   cards_rest: SpendingRest | null;
 }
 
@@ -483,7 +483,7 @@ export interface SpendingDetailOfConversation {
   calls: number;
   unpriced_calls: number;
   models: SpendingModelLine[];
-  uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number][];
+  uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number, free_calls: number][];
   /** What a reply cost in the first tenth and in the last; null under 10 such replies. */
   growth: { first: number; last: number } | null;
 }

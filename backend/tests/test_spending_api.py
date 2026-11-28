@@ -625,7 +625,7 @@ async def test_the_detail_of_a_conversation_says_how_a_message_grew(client):
     assert (got["title"], got["card_name"], got["deleted"], got["calls"]) == (
         "At the inn", "Serana", True, 20)
     assert got["models"] == [["ai-1", "Aurore", pytest.approx(0.21), 20, 0, False]]
-    assert got["uses"] == [["reply", pytest.approx(0.21), 20, 0, 0]]
+    assert got["uses"] == [["reply", pytest.approx(0.21), 20, 0, 0, 0]]
     put_call(conversation_id="short")
     assert (await detail(client, "conversation", "short"))["growth"] is None
 
@@ -651,8 +651,8 @@ async def test_the_detail_of_an_ai(client):
     assert (got["cost"], got["calls"], got["unpriced_calls"], got["at_most"]) == (
         0.01, 2, 1, True)
     assert got["tokens"] == {"in": 2000, "out": 200, "cached": 400, "reasoning": 0}
-    assert got["uses"] == [["reply", 0.01, 1, 0, 0], ["pen", 0, 1, 0, 1]]
-    assert got["cards"] == [["card-1", "Serana", "character", 0.01, 2, 1, True]]
+    assert got["uses"] == [["reply", 0.01, 1, 0, 0, 0], ["pen", 0, 1, 0, 1, 0]]
+    assert got["cards"] == [["card-1", "Serana", "character", 0.01, 2, 1, False, True]]
     assert got["cards_rest"] is None
 
 
@@ -694,7 +694,7 @@ async def test_the_detail_of_an_ai_lists_its_dearest_characters_then_the_rest(cl
     assert "card-other" not in [c[0] for c in got["cards"]]
     assert len(got["cards"]) == 12
     assert [c[0] for c in got["cards"][:2]] == ["card-14", "card-13"]
-    assert got["cards"][0] == ["card-14", "Card 14", "character", 0.015, 1, 0, True]
+    assert got["cards"][0] == ["card-14", "Card 14", "character", 0.015, 1, 0, False, True]
     lines, cost, calls_, unpriced = got["cards_rest"]
     assert (lines, calls_, unpriced) == (3, 3, 0)
     assert cost == pytest.approx(0.006)
@@ -707,8 +707,26 @@ async def test_the_characters_of_an_ai_say_their_calls_with_no_price(client):
     put_call(card_id="card-2", card_name="Lyra", cost=0.02)
     put_call(card_id="card-2", card_name="Lyra", cost=None, cost_source="none")
     cards = {c[0]: c for c in (await detail(client, "model", "ai-1"))["cards"]}
-    assert cards["card-1"] == ["card-1", "Serana", "character", 0, 2, 2, True]
-    assert cards["card-2"] == ["card-2", "Lyra", "character", 0.02, 2, 1, True]
+    assert cards["card-1"] == ["card-1", "Serana", "character", 0, 2, 2, False, True]
+    assert cards["card-2"] == ["card-2", "Lyra", "character", 0.02, 2, 1, False, True]
+
+
+async def test_the_shares_of_free_calls_say_they_were_free(client):
+    # An AI at home served Serana only for free, and Lyra once for free and once with no price.
+    home = {"model_id": "ai-home", "model_name": "Home", "local": 1, "loopback": 1,
+            "cost": None, "cost_source": "none", "conversation_id": "c-home"}
+    put_call(**home)
+    put_call(**home, purpose="memory")
+    put_call(**{**home, "local": 0, "loopback": 0}, card_id="card-2", card_name="Lyra")
+    put_call(**home, card_id="card-2", card_name="Lyra")
+    got = await detail(client, "model", "ai-home")
+    cards = {c[0]: c for c in got["cards"]}
+    assert cards["card-1"] == ["card-1", "Serana", "character", 0, 2, 0, True, True]
+    assert cards["card-2"] == ["card-2", "Lyra", "character", 0, 2, 1, False, True]
+    # [use, cost, calls, retried, unpriced_calls, free_calls]
+    assert got["uses"] == [["reply", 0, 3, 0, 1, 2], ["memory", 0, 1, 0, 0, 1]]
+    convo = await detail(client, "conversation", "c-home")
+    assert convo["uses"] == [["reply", 0, 3, 0, 1, 2], ["memory", 0, 1, 0, 0, 1]]
 
 
 async def test_the_detail_of_a_character_and_of_a_use(client):

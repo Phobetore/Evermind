@@ -333,9 +333,10 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
         "sources": {"reported": _rounded(head[8]), "computed_read": _rounded(head[9]),
                     "computed_typed": _rounded(head[10]), "estimated": _rounded(head[11])},
         "at_most": bool(head[12]),
-        "uses": await _uses(db, where, args, unpriced_tokens=False, free=False),
-        # [card_id, name, kind, cost, calls, unpriced_calls, deleted]
-        "cards": [[*line[:6], line[9]] for line in cards],
+        # [use, cost, calls, retried, unpriced_calls, free_calls]
+        "uses": await _uses(db, where, args, unpriced_tokens=False),
+        # [card_id, name, kind, cost, calls, unpriced_calls, free_only, deleted]
+        "cards": [[*line[:6], line[8], line[9]] for line in cards],
         "cards_rest": cards_rest,
     }
 
@@ -405,7 +406,8 @@ async def _detail_of_conversation(db, key: str, args: dict) -> dict | None:
         "deleted": convo is None,
         "cost": _rounded(head[1]), "calls": head[0], "unpriced_calls": head[2],
         "models": await _models_of(db, where, args),
-        "uses": await _uses(db, where, args, unpriced_tokens=False, free=False),
+        # [use, cost, calls, retried, unpriced_calls, free_calls]
+        "uses": await _uses(db, where, args, unpriced_tokens=False),
         "growth": {"first": _rounded(growth[1]), "last": _rounded(growth[2])}
         if growth[0] >= 10 else None,
     }

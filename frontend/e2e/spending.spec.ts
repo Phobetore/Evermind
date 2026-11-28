@@ -897,14 +897,28 @@ test("an ai's line opened says its characters by the rule of a line", async ({ p
       name: "Sylve Mini", service_name: "OpenRouter", deleted: false, priceable: true, per100: null, cost: 1.42,
       cost_upstream: 0, upstream: null, calls: 125, unpriced_calls: 8, tokens: { in: 500000, out: 40000, cached: 0, reasoning: 0 },
       sources: { reported: 1.42, computed_read: 0, computed_typed: 0, estimated: 0 }, at_most: false,
-      uses: [["reply", 1.42, 125, 0, 8]],
-      cards: [["card-serana", "Serana", "character", 1.4, 110, 6, false], ["card-lyra", "Lyra", "character", 0, 3, 0, false]],
+      uses: [["reply", 1.42, 125, 0, 8, 0]],
+      cards: [["card-serana", "Serana", "character", 1.4, 110, 6, false, false], ["card-lyra", "Lyra", "character", 0, 3, 0, false, false]],
       cards_rest: [13, 0.02, 12, 2],
     }),
   }));
   await page.goto("/#/spending?cut=model&key=ai-sylve");
   await expect(cards).toHaveText([
     "⁨Serana⁩: $1.40 + 6 calls without a price", "⁨Lyra⁩: nothing", "13 others: $0.02 + 2 calls without a price",
+  ]);
+});
+
+test("a share of free calls only says free, in an ai's line and a conversation's", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending?cut=model&key=ai-brume");
+  const part = (title: string) => page.getByRole("dialog").locator("section").filter({ hasText: title }).locator("li");
+  await expect(part("With which characters")).toHaveText(["⁨Home only⁩: free"]);
+  await expect(part("By use")).toHaveText(["Replies: free", "Automatic memory: free"]);
+  await page.keyboard.press("Escape");
+  // Beside uses with an amount, and one with only calls without a price.
+  await page.goto("/#/spending?cut=conversation&key=conv-inn");
+  await expect(part("By use")).toHaveText([
+    "Automatic memory: $1.54 + 21 calls without a price", "Replies: $0.10 + 184 calls without a price", "Write mine for me: free",
   ]);
 });
 
@@ -981,7 +995,7 @@ test.describe("on a touch tablet", () => {
         name: "Gateway", service_name: "Home gateway", deleted: false, priceable: true, per100: null, cost: 0,
         cost_upstream: 0, upstream: null, calls: 205, unpriced_calls: 205, tokens: { in: 123456, out: 7890, cached: 0, reasoning: 0 },
         sources: { reported: 0, computed_read: 0, computed_typed: 0, estimated: 0 }, at_most: false,
-        uses: [["reply", 0, 190, 0, 190]], cards: [], cards_rest: null,
+        uses: [["reply", 0, 190, 0, 190, 0]], cards: [], cards_rest: null,
       }),
     }));
     await line(page, "Gateway").click();

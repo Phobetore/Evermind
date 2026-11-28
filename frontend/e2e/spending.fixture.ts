@@ -113,8 +113,8 @@ const sylve: SpendingDetailOfModel = {
   per100: { cost: 1.2, n: 100, typed: false }, cost: 1.43, cost_upstream: 0, upstream: null, calls: 120,
   unpriced_calls: 0, tokens: { in: 500000, out: 40000, cached: 20000, reasoning: 0 },
   sources: { reported: 1.43, computed_read: 0, computed_typed: 0, estimated: 0 }, at_most: false,
-  uses: [["reply", 1.3, 100, 4, 0], ["memory", 0.13, 20, 0, 0]],
-  cards: [["card-serana", "Serana", "character", 1.4, 110, 0, false], ["card-old", "Old friend", "character", 0.03, 10, 0, true]],
+  uses: [["reply", 1.3, 100, 4, 0, 0], ["memory", 0.13, 20, 0, 0, 0]],
+  cards: [["card-serana", "Serana", "character", 1.4, 110, 0, false, false], ["card-old", "Old friend", "character", 0.03, 10, 0, false, true]],
   cards_rest: null,
 };
 
@@ -123,7 +123,7 @@ const aurore: SpendingDetailOfModel = {
   name: "Aurore", service_name: "Lumen", deleted: false, priceable: false, per100: null, cost: 0.12,
   cost_upstream: 0, upstream: null, calls: 2, unpriced_calls: 0, tokens: { in: 3000, out: 200, cached: 1000, reasoning: 0 },
   sources: { reported: 0, computed_read: 0.12, computed_typed: 0, estimated: 0 }, at_most: true,
-  uses: [["reply", 0.12, 2, 0, 0]], cards: [["card-serana", "Serana", "character", 0.12, 2, 0, false]], cards_rest: null,
+  uses: [["reply", 0.12, 2, 0, 0, 0]], cards: [["card-serana", "Serana", "character", 0.12, 2, 0, false, false]], cards_rest: null,
 };
 
 /** An AI with no price: none of its calls has an amount, so no share of one is above zero. */
@@ -131,21 +131,30 @@ const gateway: SpendingDetailOfModel = {
   name: "Gateway", service_name: "Home gateway", deleted: false, priceable: true, per100: null, cost: 0,
   cost_upstream: 0, upstream: null, calls: 205, unpriced_calls: 205, tokens: { in: 123456, out: 7890, cached: 0, reasoning: 0 },
   sources: NO_SOURCES, at_most: false,
-  uses: [["reply", 0, 190, 0, 190], ["memory", 0, 15, 0, 15]],
-  cards: [["card-serana", "Serana", "character", 0, 184, 184, false]], cards_rest: null,
+  uses: [["reply", 0, 190, 0, 190, 0], ["memory", 0, 15, 0, 15, 0]],
+  cards: [["card-serana", "Serana", "character", 0, 184, 184, false, false]], cards_rest: null,
+};
+
+/** An AI at home: every call of it was free. */
+const brume: SpendingDetailOfModel = {
+  name: "Brume 12B", service_name: "LM Studio", deleted: false, priceable: false, per100: null, cost: 0,
+  cost_upstream: 0, upstream: null, calls: 20, unpriced_calls: 0, tokens: { in: 250000, out: 9000, cached: 0, reasoning: 0 },
+  sources: NO_SOURCES, at_most: false,
+  uses: [["reply", 0, 14, 0, 0, 14], ["memory", 0, 6, 0, 0, 6]],
+  cards: [["card-home", "Home only", "character", 0, 20, 0, true, false]], cards_rest: null,
 };
 
 const inn: SpendingDetailOfConversation = {
   title: "At the inn", card_name: "Serana", deleted: false, cost: 1.64, calls: 230, unpriced_calls: 205,
   models: [["ai-sylve", "Sylve Mini", 1.6, 20, 0, false], ["ai-gateway", "Gateway", 0, 205, 205, false],
     ["ai-brume", "Brume 12B", 0, 5, 0, true], ["ai-aurore", "Aurore", 0.0042, 2, 0, false]],
-  uses: [["memory", 1.54, 40, 0, 21], ["reply", 0.1, 190, 4, 184]],
+  uses: [["memory", 1.54, 40, 0, 21, 0], ["reply", 0.1, 185, 4, 184, 0], ["pen", 0, 5, 0, 0, 5]],
   growth: { first: 0.002, last: 0.011 },
 };
 
 const gone: SpendingDetailOfConversation = {
   title: "Lost road", card_name: "Old friend", deleted: true, cost: 0.05, calls: 3, unpriced_calls: 0,
-  models: [["ai-sylve", "Sylve Mini", 0.05, 3, 0, false]], uses: [["reply", 0.05, 3, 0, 0]], growth: null,
+  models: [["ai-sylve", "Sylve Mini", 0.05, 3, 0, false]], uses: [["reply", 0.05, 3, 0, 0, 0]], growth: null,
 };
 
 const serana: SpendingDetailOfCard = {
@@ -172,6 +181,7 @@ const DETAILS: Record<string, unknown> = {
   "model:ai-sylve": sylve,
   "model:ai-aurore": aurore,
   "model:ai-gateway": gateway,
+  "model:ai-brume": brume,
   "conversation:conv-inn": inn,
   "conversation:conv-gone": gone,
   "card:card-serana": serana,
