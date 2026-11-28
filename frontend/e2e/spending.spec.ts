@@ -38,7 +38,7 @@ async function rootIs32(page: Page) {
 function weekOrMonth(url: URL) {
   const said = month();
   if (url.searchParams.get("from") !== dayBefore(6)) return said;
-  return { ...said, total: 1, previous: 0.5, models: said.models.filter(([id]) => id !== "ai-sylve") };
+  return { ...said, total: 1, previous: { cost: 0.5, unpriced_calls: 0 }, models: said.models.filter(([id]) => id !== "ai-sylve") };
 }
 
 /** Each read of the summary, before the fixture answers it: `answer` holds it, fails it or lets

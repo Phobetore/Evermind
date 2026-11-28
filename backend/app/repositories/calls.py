@@ -222,13 +222,14 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
                         THEN {SPENT} END),
                SUM(CASE WHEN NOT ({REPLIES}) THEN {SPENT} END), SUM(NOT ({REPLIES})),
                SUM({UNPRICED}), SUM(CASE WHEN {UNPRICED} THEN c.tokens_in ELSE 0 END),
-               SUM(CASE WHEN {UNPRICED} THEN c.tokens_out ELSE 0 END)
+               SUM(CASE WHEN {UNPRICED} THEN c.tokens_out ELSE 0 END),
+               SUM(NOT ({REPLIES}) AND {UNPRICED}), SUM(NOT ({REPLIES}) AND {FREE})
         FROM calls c WHERE {IN_PERIOD}""", args)
     previous = None
     if p.previous is not None:
-        before = await _one(db, f"SELECT SUM({SPENT}) FROM calls c WHERE {IN_PERIOD}",
-                            {"lo": p.previous[0], "hi": p.previous[1]})
-        previous = _money(before[0])
+        before = await _one(db, f"SELECT SUM({SPENT}), SUM({UNPRICED}) FROM calls c"
+                                f" WHERE {IN_PERIOD}", {"lo": p.previous[0], "hi": p.previous[1]})
+        previous = {"cost": _money(before[0]), "unpriced_calls": before[1] or 0}
     models = await _all(db, f"""
         SELECT c.model_id, COALESCE(m.name, c.model_name), COALESCE(s.name, c.service_name),
                SUM(COALESCE(c.cost, 0)) AS cost, SUM(COALESCE(c.cost_upstream, 0)) AS upstream_cost,
@@ -257,7 +258,8 @@ async def summary(db: aiosqlite.Connection, p: "Period", model_id: str | None) -
         "previous": previous, "calls": head[1],
         "sources": {"reported": _money(head[3]), "computed_read": _money(head[4]),
                     "computed_typed": _money(head[5]), "estimated": _money(head[6])},
-        "outside_replies": {"cost": _money(head[7]), "calls": head[8] or 0},
+        "outside_replies": {"cost": _money(head[7]), "calls": head[8] or 0,
+                            "unpriced_calls": head[12] or 0, "free_calls": head[13] or 0},
         "uses": await _uses(db, OF_MODEL, args),
         "series": {"step": p.step, "points": await _series(db, p)},
         "models": [[r[0], r[1], r[2], _money(r[3]), _money(r[4]), r[5], r[6], r[7], r[8], r[9],

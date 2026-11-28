@@ -113,7 +113,8 @@ async def test_the_bars_split_the_replies_from_the_rest_and_add_up_to_the_total(
     got = await spending(client, **{"from": "2026-11-24", "to": "2026-11-25"}, **PARIS)
     assert got["series"]["points"] == [["2026-11-24", 0.01, 0.002], ["2026-11-25", 0.003, 0]]
     assert got["total"] == 0.015
-    assert got["outside_replies"] == {"cost": 0.002, "calls": 1}
+    assert got["outside_replies"] == {"cost": 0.002, "calls": 1, "unpriced_calls": 0,
+                                      "free_calls": 0}
 
 
 async def test_a_call_still_running_is_not_counted(client):
@@ -130,8 +131,22 @@ async def test_the_previous_period_is_as_long_and_none_from_the_start(client):
     put_call(started_at="2026-10-20T10:00:00.000+00:00", cost=0.5)  # in the 25 days before
     put_call(started_at="2026-11-02T10:00:00.000+00:00")
     got = await spending(client, **{"from": "2026-11-01", "to": "2026-11-25"}, **PARIS)
-    assert (got["total"], got["previous"]) == (0.01, 0.5)
+    assert (got["total"], got["previous"]) == (0.01, {"cost": 0.5, "unpriced_calls": 0})
     assert (await spending(client, to="2026-11-25", **PARIS))["previous"] is None
+
+
+async def test_what_was_spent_outside_replies_and_before_says_what_had_no_price(client):
+    # A memory pass on an AI with no price, another at home, and the days before with no price.
+    put_call(started_at="2026-11-02T10:00:00.000+00:00", purpose="memory", cost=None,
+             cost_source="none")
+    put_call(started_at="2026-11-02T11:00:00.000+00:00", purpose="memory", local=1, cost=None,
+             cost_source="none")
+    put_call(started_at="2026-11-03T10:00:00.000+00:00")
+    put_call(started_at="2026-10-20T10:00:00.000+00:00", cost=None, cost_source="none")
+    got = await spending(client, **{"from": "2026-11-01", "to": "2026-11-25"}, **PARIS)
+    assert got["outside_replies"] == {"cost": 0, "calls": 2, "unpriced_calls": 1,
+                                      "free_calls": 1}
+    assert got["previous"] == {"cost": 0, "unpriced_calls": 1}
 
 
 async def test_a_bad_period_is_refused(client):

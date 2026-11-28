@@ -403,11 +403,12 @@ export interface Spending {
   currency: string;
   total: number;
   model_total: number | null;
-  /** The same number of days just before; null since the start. */
-  previous: number | null;
+  /** The same number of days just before, with its calls that had no price; null since the
+   *  start, and when those days end before counting began. */
+  previous: { cost: number; unpriced_calls: number } | null;
   calls: number;
   sources: SpendingSources;
-  outside_replies: { cost: number; calls: number };
+  outside_replies: { cost: number; calls: number; unpriced_calls: number; free_calls: number };
   uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number,
     unpriced_tokens_in: number, unpriced_tokens_out: number, free_calls: number][];
   /** A bar a day up to 31 days, a week beyond; `start` is the bar's first local day. */

@@ -31,8 +31,8 @@ const NO_SOURCES = { reported: 0, computed_read: 0, computed_typed: 0, estimated
 /** A period with no call at all, counting since today. */
 export function nothing(): Spending {
   return {
-    since: instant(dayBefore(0)), currency: "USD", total: 0, model_total: null, previous: 0, calls: 0,
-    sources: NO_SOURCES, outside_replies: { cost: 0, calls: 0 }, uses: [],
+    since: instant(dayBefore(0)), currency: "USD", total: 0, model_total: null, previous: { cost: 0, unpriced_calls: 0 }, calls: 0,
+    sources: NO_SOURCES, outside_replies: { cost: 0, calls: 0, unpriced_calls: 0, free_calls: 0 }, uses: [],
     series: { step: "day", points: Array.from({ length: 30 }, (_, i) => [dayBefore(29 - i), 0, 0]) },
     models: [], free: [], cards: [], cards_rest: null, conversations: [], conversations_rest: null,
     unpriced: { calls: 0, tokens_in: 0, tokens_out: 0 },
@@ -45,9 +45,9 @@ export function nothing(): Spending {
  *  only with free AIs come first, so that putting them last is the page's own doing. */
 export function month(): Spending {
   return {
-    since: instant(dayBefore(60)), currency: "USD", total: 3.0242, model_total: null, previous: 2.5, calls: 395,
+    since: instant(dayBefore(60)), currency: "USD", total: 3.0242, model_total: null, previous: { cost: 2.5, unpriced_calls: 0 }, calls: 395,
     sources: { reported: 1.44, computed_read: 0.0042, computed_typed: 0, estimated: 0.02 },
-    outside_replies: { cost: 1.58, calls: 62 },
+    outside_replies: { cost: 1.58, calls: 62, unpriced_calls: 0, free_calls: 0 },
     uses: [
       ["memory", 1.54, 40, 3, 21, 98000, 6000, 0],
       ["reply", 0.1, 300, 4, 184, 25456, 1890, 14],

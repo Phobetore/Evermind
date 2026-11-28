@@ -316,7 +316,7 @@ function SpendingView() {
             )}
             {!empty && shown.previous !== null && from !== undefined && (
               <p className="text-sm text-mist">
-                {t("spending.previous", { count: daysOf({ from, to }), money: amountText(shown.previous, shown.currency, locale, t) })}
+                {t("spending.previous", { count: daysOf({ from, to }), money: amountText(shown.previous.cost, shown.currency, locale, t) })}
               </p>
             )}
             {(from === undefined || from < since) && (
