@@ -33,10 +33,10 @@ jobs:
       # "latest" only moves on a version tag: .env.example promises it tracks
       # the newest release, so neither a manual run nor a tag with a dash may claim it.
       #
-      # One name. A docker-compose.yml from 2.x pulls evermind-backend and
-      # evermind-frontend, neither of which is published any more, so it keeps
-      # running the last 2.x images until its owner switches to the new file
-      # (docs/UPGRADING.md). This image must not take the old backend name:
+      # One name. A docker-compose.yml from 2.x names evermind-backend and
+      # evermind-frontend, which were removed from the registry: it runs the
+      # 2.x images its machine already holds until its owner switches to the
+      # new file (docs/UPGRADING.md). This image must not take the old backend name:
       # that file's interface container would call it as backend:8000, a host
       # name it refuses without a password, and pass on the browser's Origin,
       # which does not match that Host.
@@ -62,8 +62,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Built from nothing, every time. A layer kept from an earlier build is reused for
+          # as long as the base image stays the same, and the layer that takes Debian's
+          # security updates is one of them: a release would ship the packages of the day
+          # that layer was first built. This only runs on a tag, so the minutes are few.
+          no-cache: true
 
   # INSTALL.md sends people to releases/latest/download/docker-compose.yml, so a
   # release without these two files silently breaks the documented install. Not

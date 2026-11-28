@@ -670,11 +670,13 @@ If you replaced the file before stopping the old one and ran into that "port is
 already allocated" error, `docker compose up -d --remove-orphans` stops the
 old interface container and starts the new one in one go.
 
-Until you replace the file, nothing changes: an old `docker-compose.yml` keeps
-running 2.1.6 (or the 2.x version your `.env` pins). `docker compose pull` does
-not move it to 3.0, because the two images it names, `evermind-backend` and
-`evermind-frontend`, are no longer updated. The steps above are what switches
-it.
+Until you replace the file, an old `docker-compose.yml` keeps running the 2.x
+images your machine already holds. It can no longer fetch them: the two images
+it names, `evermind-backend` and `evermind-frontend`, received no fix after
+2.1.6 and were removed from the registry on 26 November 2026. `docker compose
+pull`, and a start with `--pull always`, now fail on them; a plain
+`docker compose up -d` still starts what is there. The steps above are what
+switches it.
 
 Once you have switched, nothing uses those two images any more. This gives the
 disk space back:

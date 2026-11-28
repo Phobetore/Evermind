@@ -1,0 +1,9 @@
+# What is analysed is what ships. The tests are left out on purpose: they assert on calls that
+# change something (`assert (await client.delete(...)).status_code == 204`), which a quality
+# query reads, each time, as an assert with a side effect; and the browser suite's helpers send
+# requests to an address they are handed, which a security query reads as a forged request.
+paths-ignore:
+  - backend/tests
+  - frontend/e2e
+  - "frontend/src/**/*.test.ts"
+  - "frontend/src/**/*.test.tsx"
