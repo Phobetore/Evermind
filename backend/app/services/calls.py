@@ -266,9 +266,14 @@ def _forget(task: asyncio.Task) -> None:
         task.exception()
 
 
-async def _write(sql: str, params: tuple | dict) -> int:
+# How long a call's end waits for the database: past it the end is given up, said in the log,
+# and the next start ends the row, as for a process killed. A stop must never hang on it.
+END_WAITS_S = 5
+
+
+async def _write(sql: str, params: tuple | dict, *, busy_timeout: float | None = None) -> int:
     """Returns how many rows it changed."""
-    conn = await _connect()
+    conn = await (_connect() if busy_timeout is None else _connect(busy_timeout))
     try:
         cursor = await conn.execute(sql, params)
         await conn.commit()
@@ -412,7 +417,8 @@ class Recording:
 
     async def _end(self, row: dict) -> None:
         try:
-            await _write(_END, {key: row[key] for key in (*_ENDED, "id")})
+            await _write(_END, {key: row[key] for key in (*_ENDED, "id")},
+                         busy_timeout=END_WAITS_S)
         except Exception as exc:  # noqa: BLE001
             _warn("the end of a call to a model could not be recorded", exc)
             return

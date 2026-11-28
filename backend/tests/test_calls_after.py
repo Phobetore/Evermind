@@ -222,11 +222,11 @@ async def test_a_look_an_end_schedules_while_the_server_stops_is_cancelled(
     row = write_row("a", model_id=ai["id"], service_id=ai["service"]["id"])
     real, began, release = calls._write, asyncio.Event(), asyncio.Event()
 
-    async def write(sql: str, params) -> int:
+    async def write(sql: str, params, **kwargs) -> int:
         if sql.startswith("UPDATE calls SET ended_at"):
             began.set()
             await release.wait()
-        return await real(sql, params)
+        return await real(sql, params, **kwargs)
 
     monkeypatch.setattr(calls, "_write", write)
     ending = calls.Recording(None, ({}, {}), calls.Who("reply"), attempt=0, prompt_estimate=0)

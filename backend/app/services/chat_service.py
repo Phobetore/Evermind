@@ -409,10 +409,17 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         async with calls.recording(provider, ai, who, attempt=_attempt,
                                    prompt_estimate=payload.stats["used_tokens"]) as recording:
             turn.reading = asyncio.create_task(read_model(provider))
-            while not turn.reading.done():
-                await asyncio.wait({turn.reading}, timeout=_FLUSH_SECONDS)
-                if not turn.reading.done():
-                    await save()
+            try:
+                while not turn.reading.done():
+                    await asyncio.wait({turn.reading}, timeout=_FLUSH_SECONDS)
+                    if not turn.reading.done():
+                        await save()
+            except BaseException:
+                # A cancel that lands in a save leaves its write open on this connection, and the
+                # row's end, on another, would wait for it. What it wrote, the next save writes
+                # again whole; the server's stop ends the turn with what was committed.
+                await asyncio.shield(db.rollback())
+                raise
             error = None if turn.reading.cancelled() else turn.reading.exception()
             # Whether it wrote is the reply's word, as it is saved, not the stream's.
             recording.mark(calls.outcome_of(

@@ -135,11 +135,11 @@ async def test_a_draft_stopped_before_its_request_went_costs_nothing(client, mon
     inserting, release = asyncio.Event(), asyncio.Event()
     write = calls._write
 
-    async def held_insert(sql, params):
+    async def held_insert(sql, params, **kwargs):
         if sql.startswith("INSERT"):
             inserting.set()
             await release.wait()
-        await write(sql, params)
+        await write(sql, params, **kwargs)
 
     monkeypatch.setattr(calls, "_write", held_insert)
     resp = await client.post("/api/characters/assist",

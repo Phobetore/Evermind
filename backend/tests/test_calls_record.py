@@ -405,13 +405,13 @@ def slowed(monkeypatch, *, id_write: asyncio.Event | None = None) -> asyncio.Eve
     event set once an end write has begun."""
     real, began = calls._write, asyncio.Event()
 
-    async def write(sql: str, params) -> None:
+    async def write(sql: str, params, **kwargs) -> None:
         if "ended_at" in sql:
             began.set()
             await asyncio.sleep(0.3)
         elif id_write is not None and sql.startswith("UPDATE calls SET generation_id"):
             await id_write.wait()
-        await real(sql, params)
+        await real(sql, params, **kwargs)
 
     monkeypatch.setattr(calls, "_write", write)
     return began
@@ -446,6 +446,28 @@ async def test_the_server_s_stop_waits_for_an_end_and_cancels_an_id_write(databa
     assert (row["outcome"], row["generation_id"]) == ("stopped", "gen-1")
     with pytest.raises(asyncio.CancelledError):
         await reading
+
+
+async def test_an_end_never_waits_more_than_five_seconds_for_the_database(database, monkeypatch,
+                                                                          caplog):
+    assert calls.END_WAITS_S == 5
+    monkeypatch.setattr(calls, "END_WAITS_S", 0.3)
+    provider = serve(lambda request: httpx.Response(200, stream=Held()))
+    reading = await read_until_two_pieces(provider, [])
+    # Another holds the database's write: the end gives up, says so, and the row stays running
+    # for the next start to end.
+    holder = sqlite3.connect(db_path())
+    try:
+        holder.execute("BEGIN IMMEDIATE")
+        reading.cancel()
+        with caplog.at_level(logging.WARNING, logger="app.services.calls"):
+            with pytest.raises(asyncio.CancelledError):
+                await within(2, reading)
+        assert "the end of a call to a model could not be recorded: OperationalError" in caplog.text
+    finally:
+        holder.rollback()
+        holder.close()
+    assert [r["outcome"] for r in rows()] == ["running"]
 
 
 async def test_an_unreachable_server_is_refused_with_no_status(database, monkeypatch):
@@ -515,7 +537,7 @@ async def test_a_discarded_answer_is_marked_on_its_row(database):
 
 
 async def test_recording_never_breaks_a_call(database, monkeypatch, caplog):
-    async def broken():
+    async def broken(*args):
         raise sqlite3.OperationalError("disk I/O error")
 
     monkeypatch.setattr(calls, "_connect", broken)
