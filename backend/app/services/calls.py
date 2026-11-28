@@ -29,7 +29,7 @@ import httpx
 
 from ..db import _connect
 from ..providers.base import LIST_DELAYS, CallFigures, Provider, ProviderError
-from ..providers.catalog import LOCAL_FAMILIES, family_of, is_local, is_loopback
+from ..providers.catalog import at_home_free, family_of, is_loopback
 from ..repositories.base import new_id
 from .learning import counts_of
 
@@ -214,15 +214,11 @@ def _family(service: dict) -> str:
 
 
 def at_home(model: dict, service: dict) -> tuple[bool, bool]:
-    """(local, loopback): a server of a family that loads its own models, at a private address,
-    with no price read or typed, is never money; a gateway of no known family may forward to a
-    paid service. loopback: on this PC rather than elsewhere on the network."""
+    """(local, loopback): local is never money, by the rule the list of the AIs reads
+    (providers/catalog.py, at_home_free). loopback: on this PC rather than elsewhere on the
+    network."""
     base_url = service.get("base_url") or ""
-    family = _family(service)
-    priced = any(model.get(key) is not None
-                 for key in ("price_in", "price_out", "price_own_in", "price_own_out"))
-    local = family in LOCAL_FAMILIES and is_local(family, base_url) and not priced
-    return local, is_loopback(base_url)
+    return at_home_free(_family(service), base_url, model), is_loopback(base_url)
 
 
 def outcome_of(error: BaseException | None, figures: CallFigures, *, stopped: bool,

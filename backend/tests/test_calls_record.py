@@ -312,12 +312,18 @@ def test_a_typed_price_wins_and_one_half_prices_nothing():
         None, None, "none")
 
 
-def test_at_home_is_a_local_family_at_a_private_address_with_no_price():
+def test_at_home_is_a_local_family_at_a_private_address_with_no_price_typed():
     assert calls.at_home(MODEL, service("http://127.0.0.1:11434/v1", "ollama")) == (True, True)
     assert calls.at_home(MODEL, service("http://192.168.1.5:11434/v1", "ollama")) == (
         True, False)
+    # A price the person typed makes it money; one read from the server at home does not, as
+    # the list of the AIs says it is free (repositories/models.py, is_free).
     typed = model(price_own_in=0.5, price_own_out=0.5)
     assert calls.at_home(typed, service("http://127.0.0.1:11434/v1", "ollama"))[0] is False
+    half = model(price_own_in=0.5)
+    assert calls.at_home(half, service("http://127.0.0.1:11434/v1", "ollama"))[0] is False
+    read = model(price_in=0.5, price_out=0.5)
+    assert calls.at_home(read, service("http://127.0.0.1:11434/v1", "ollama"))[0] is True
     assert calls.at_home(MODEL, service("http://localhost:8099/v1", "generic")) == (False, True)
     assert calls.at_home(MODEL, service("https://my-rented-box.example.com", "ollama")) == (
         False, False)

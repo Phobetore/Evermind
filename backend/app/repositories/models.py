@@ -7,8 +7,8 @@ from ..db import write_transaction
 from ..errors import NotFoundError
 from ..prompting import ways
 from ..providers.catalog import (
-    LOCAL_FAMILIES,
     Listed,
+    at_home_free,
     amount,
     family_of,
     is_local,
@@ -49,10 +49,7 @@ def is_free(model: dict, service: dict) -> bool:
     """The only definition, which the page reads and never works out again: a server at home of a
     family that loads its own models, with no price typed, or a price of 0 and 0, read or typed.
     A gateway of no known family is not free, even at home: it may forward to a paid service."""
-    family = _family(service)
-    typed = model["price_own_in"] is not None or model["price_own_out"] is not None
-    if family in LOCAL_FAMILIES and not typed and is_local(family,
-                                                                          service["base_url"]):
+    if at_home_free(_family(service), service["base_url"], model):
         return True
     return (_price(model, "price_in", "price_own_in") == 0
             and _price(model, "price_out", "price_own_out") == 0)
