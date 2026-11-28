@@ -26,6 +26,11 @@ const TOAST_MS = 4200;
 const PERIODS: readonly string[] = ["7", "30", "month", "last", "all"] satisfies Period[];
 const CUTS: Cut[] = ["model", "card", "conversation", "use"];
 
+/** Whether the entry before this one is the app's own. The router numbers the entries it makes from
+ *  the tab's first one of the app (`idx` 0), and an entry replaced keeps its number: a replaced
+ *  entry has a key of its own, so its key says nothing of what came before it. */
+const entryBefore = () => ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0;
+
 /** The AI the lists are narrowed to, as it was when chosen: a period where it made no call keeps
  *  it chosen, under that name. */
 type Chosen = { id: string; name: string; free: boolean };
@@ -230,13 +235,13 @@ function SpendingView() {
   }
 
   function back() {
-    if (location.key !== "default") navigate(-1);
+    if (entryBefore()) navigate(-1);
     else navigate("/settings");
   }
 
   function closeLine() {
     scrollTo.current = opened?.key ?? null;
-    if ((location.state as { line?: boolean } | null)?.line === true) navigate(-1);
+    if ((location.state as { line?: boolean } | null)?.line === true && entryBefore()) navigate(-1);
     else dropFromAddress("cut", "key");
   }
 

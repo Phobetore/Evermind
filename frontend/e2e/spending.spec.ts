@@ -506,6 +506,28 @@ test("a line closed leaves no step behind for the back button", async ({ page })
   await expect(page).not.toHaveURL(/#\/spending/);
 });
 
+test("back from an address opened cold, a period chosen, stays in evermind", async ({ page }) => {
+  await answerSpending(page);
+  // A bookmark: the tab's first entry of the app.
+  await page.goto("/#/spending?per=7");
+  await expect(total(page)).toBeVisible();
+  await page.getByRole("button", { name: "30 days", exact: true }).click();
+  await expect(page).not.toHaveURL(/per=/);
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(/#\/settings$/);
+});
+
+test("back from a line opened cold and closed by its cross stays in evermind", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending?cut=conversation&key=conv-inn");
+  const sheet = page.getByRole("dialog");
+  await expect(sheet).toContainText("At the inn");
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(/#\/settings$/);
+});
+
 test("a line low in a long list is in sight once closed", async ({ page }) => {
   await answerSpending(page, year);
   await page.goto("/#/spending?per=all&cut=conversation&key=conv-40");
