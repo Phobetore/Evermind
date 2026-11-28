@@ -517,3 +517,38 @@ async def test_the_server_s_stop_waits_a_few_seconds_at_most_for_what_is_written
     finally:
         done.set()
         await within(2, turn.task)
+
+
+async def test_a_stop_while_a_reply_s_row_is_written_sends_nothing(client, monkeypatch):
+    _, convo = await hosted_story(client)
+    model = Model(writing("*She nods.*")).serve(monkeypatch)
+    inserting, release = asyncio.Event(), asyncio.Event()
+    write = calls._write
+
+    async def held_insert(sql, params, **kwargs):
+        if sql.startswith("INSERT"):
+            inserting.set()
+            await release.wait()
+        return await write(sql, params, **kwargs)
+
+    monkeypatch.setattr(calls, "_write", held_insert)
+    resp = await client.post("/api/chat", json={"conversation_id": convo["id"], "mode": "send",
+                                                "content": "Hello"})
+    assert resp.status_code == 200, resp.text
+    await within(5, inserting.wait())
+    turn = await turns.running_for(convo["id"])
+    stopping = asyncio.create_task(client.delete(f"/api/conversations/{convo['id']}/turn"))
+    while not turn.stopped:
+        await asyncio.sleep(0.01)
+    release.set()
+    assert (await within(5, stopping)).status_code == 204
+    assert turn.finished.is_set()
+
+    # No request went to the model's server, no row says one did, and the turn ended as a turn
+    # stopped before its first word does: the person's message, no longer waiting for its reply.
+    assert model.bodies == []
+    assert await recorded() == []
+    last = (await messages_of(client, convo["id"]))[-1]
+    assert (last["role"], last["content"]) == ("user", "Hello")
+    assert "unanswered" not in last["meta"]
+    assert (await client.get(f"/api/conversations/{convo['id']}/turn")).json()["outcome"] is None

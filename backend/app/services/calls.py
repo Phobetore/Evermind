@@ -359,6 +359,13 @@ class Recording:
         self._pricing = pricing
         try:
             await _write(_INSERT, row)
+        except asyncio.CancelledError:
+            # The server stopping, before the request went: a row stands for a request sent, and
+            # one left running would be priced at its prompt by the next start. Removed whether
+            # or not the insert was written, shielded as on leaving.
+            self.row_id = row["id"]
+            await asyncio.shield(_spawn(self._remove()))
+            raise
         except Exception as exc:  # noqa: BLE001
             _warn("a call to a model could not be recorded", exc)
             return self

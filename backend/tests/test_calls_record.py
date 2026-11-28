@@ -639,3 +639,34 @@ async def test_a_row_left_running_is_priced_as_it_was_sent(database):
 
 async def _nothing() -> None:
     pass
+
+
+async def test_a_cancel_once_the_row_is_written_and_before_the_request_removes_it(database,
+                                                                                monkeypatch):
+    real, written = calls._write, asyncio.Event()
+
+    async def write(sql: str, params, **kwargs):
+        changed = await real(sql, params, **kwargs)
+        if sql.startswith("INSERT"):
+            written.set()
+            await asyncio.Event().wait()  # the server's stop lands here
+        return changed
+
+    monkeypatch.setattr(calls, "_write", write)
+    provider = serve(lambda request: httpx.Response(200, stream=Held()))
+
+    async def call():
+        async with calls.recording(provider, (MODEL, SERVICE), WHO, prompt_estimate=400):
+            await complete_answer(provider, PAYLOAD)
+
+    calling = asyncio.create_task(call())
+    await within(2, written.wait())
+    assert [r["outcome"] for r in rows()] == ["running"]
+    calling.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await within(2, calling)
+    await within(2, calls.drain())
+    # A row stands for a request sent, and this one never was: none is left for the next start
+    # to price at its prompt.
+    assert rows() == []
+    assert not provider.figures.sent

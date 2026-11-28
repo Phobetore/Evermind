@@ -408,6 +408,10 @@ async def run_turn(db: aiosqlite.Connection, request: ChatRequest, turn) -> dict
         # Each pass is its own request, and its own row: a refusal asked again leaves both.
         async with calls.recording(provider, ai, who, attempt=_attempt,
                                    prompt_estimate=payload.stats["used_tokens"]) as recording:
+            if turn.stopped:
+                # Stopped while its row was written: the request never goes, and leaves no row.
+                recording.unsent()
+                break
             turn.reading = asyncio.create_task(read_model(provider))
             try:
                 while not turn.reading.done():
