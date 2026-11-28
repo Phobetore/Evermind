@@ -123,6 +123,10 @@ what they inherit; the rest of your environment, `PATH` for one, still reaches
 them. It needs the browser once: `npx playwright install chromium`.
 `npm run test:e2e:ui` opens Playwright's runner.
 
+The whole suite takes about an hour. CI runs it in four parts at once, each on
+clean data (`npm run test:e2e -- --shard=2/4` runs the second here), so a spec
+file never leans on what another file made: a test creates what it needs.
+
 The servers listen on this computer's network address, as for a phone (an
 insecure context), so the first run may make Windows ask whether Python may
 accept connections. Answer **Allow access**. Cancel, or closing the prompt, makes
