@@ -23,14 +23,14 @@ from collections.abc import Callable, Coroutine
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 import httpx
 
 from ..db import _connect
+from ..prompting.tokens import counts_of, tokens_of_chars
 from ..providers.base import LIST_DELAYS, CallFigures, Provider, ProviderError
 from ..providers.catalog import at_home_free, family_of, is_loopback
-from ..prompting.tokens import counts_of, tokens_of_chars
 from ..repositories.base import new_id
 
 logger = logging.getLogger(__name__)
@@ -333,7 +333,7 @@ class Recording:
         row is removed on leaving, as a row stands for a request sent."""
         self._unsent = True
 
-    async def __aenter__(self) -> "Recording":
+    async def __aenter__(self) -> Self:
         model, service, who = self._model, self._service, self._who
         pricing = pricing_of(model)
         self._local, loopback = at_home(model, service)

@@ -466,9 +466,9 @@ async def test_an_end_never_waits_more_than_five_seconds_for_the_database(databa
     try:
         holder.execute("BEGIN IMMEDIATE")
         reading.cancel()
-        with caplog.at_level(logging.WARNING, logger="app.services.calls"):
-            with pytest.raises(asyncio.CancelledError):
-                await within(2, reading)
+        with (caplog.at_level(logging.WARNING, logger="app.services.calls"),
+              pytest.raises(asyncio.CancelledError)):
+            await within(2, reading)
         assert "the end of a call to a model could not be recorded: OperationalError" in caplog.text
     finally:
         holder.rollback()

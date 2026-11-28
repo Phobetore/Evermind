@@ -11,11 +11,11 @@ from app.repositories import calls as calls_repo
 from app.services import calls, card_assistant
 
 from .conftest import within
+from .helpers import add_model
 from .test_calls_capture import held, recorded
 from .test_card_assistant import CARD_JSON
 from .test_memory_room import writing
 from .test_my_ais_api import HOSTED, Model
-from .helpers import add_model
 
 
 async def hosted(client, monkeypatch, *answers) -> dict:
