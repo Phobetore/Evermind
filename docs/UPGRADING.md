@@ -42,7 +42,7 @@ when Evermind starts, and a copy of it is kept first, as
   and says how many ("Also applied to your 12 earlier calls, which had no
   price."). An amount a service reported is never changed.
 - **Deleting a conversation or a character does not delete what it cost.** The
-  window says so, and offers "without keeping its name". Clearing the history is
+  window says so, and offers a tick, "Do not keep its name there". Clearing the history is
   a gesture of its own, on the Spending page ("Clear the history…"), all of it
   or what is before a date. "Export (CSV)" saves the calls of the period shown
   as a file, one per line: the only place where calls are listed one by one. The

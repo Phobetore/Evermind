@@ -426,8 +426,10 @@ those copied names; only "Clear the history" removes rows.
 - **The page asks for little**: one request to open Spending, one to change
   period, one for a line's detail, and `/api/spending/total` for the lines under
   My AIs, an AI's page and a character's page. The panel of a conversation reads
-  its sum once, then follows the `spent` that the end of each turn carries
-  (`services/turns.py`), which also carries `glance`, so that a reply costs the
+  its sum each time it opens, and again when a memory operation it shows ends;
+  in between it follows the `spent` that the end of each turn carries, and a read
+  sent before the last end it was given loses to it (`SpentLine`). The end
+  of a turn (`services/turns.py`) also carries `glance`, so that a reply costs the
   page one request less than in 3.8.0. Both are `null` once the revision moved, a
   write went through the API (`app/writes.py`), or a memory operation ended
   (`memory_service.one_at_a_time`).
