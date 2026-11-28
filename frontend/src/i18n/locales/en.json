@@ -1080,6 +1080,7 @@
       "reasoning": "of which {count:grouped} thinking",
       "reasoning_one": "of which {count:grouped} thinking",
       "sources": "Where the amount comes from",
+      "atMostWhy": "Part of what it read came from the service's cache, which costs less; that price is not known, so this is the most it can have cost.",
       "share": "{name}: {money}",
       "cards": "With which characters",
       "models": "With which AIs",

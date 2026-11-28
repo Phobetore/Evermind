@@ -1080,6 +1080,7 @@
       "reasoning": "davon {count:grouped} zum Nachdenken",
       "reasoning_one": "davon {count:grouped} zum Nachdenken",
       "sources": "Woher der Betrag kommt",
+      "atMostWhy": "Ein Teil des Gelesenen kam aus dem Cache des Dienstes, der weniger kostet; dieser Preis ist nicht bekannt, mehr kann es also nicht gekostet haben.",
       "share": "{name}: {money}",
       "cards": "Mit welchen Charakteren",
       "models": "Mit welchen KIs",

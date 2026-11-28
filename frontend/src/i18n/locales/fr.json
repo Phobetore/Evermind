@@ -1080,6 +1080,7 @@
       "reasoning": "dont {count:grouped} de réflexion",
       "reasoning_one": "dont {count:grouped} de réflexion",
       "sources": "D'où vient le montant",
+      "atMostWhy": "Une partie de ce qu'elle a lu venait du cache du service, qui coûte moins\u00a0; ce prix n'est pas connu, c'est donc le plus qu'elle ait pu coûter.",
       "share": "{name}\u00a0: {money}",
       "cards": "Avec quels personnages",
       "models": "Avec quelles IA",

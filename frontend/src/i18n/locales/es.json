@@ -1080,6 +1080,7 @@
       "reasoning": "de los cuales {count:grouped} de razonamiento",
       "reasoning_one": "de los cuales {count:grouped} de razonamiento",
       "sources": "De dónde viene el importe",
+      "atMostWhy": "Parte de lo que leyó venía de la caché del servicio, que cuesta menos; ese precio no se conoce, así que es lo máximo que ha podido costar.",
       "share": "{name}: {money}",
       "cards": "Con qué personajes",
       "models": "Con qué IA",

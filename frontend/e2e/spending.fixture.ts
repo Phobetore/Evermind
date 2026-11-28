@@ -142,7 +142,8 @@ const gone: SpendingDetailOfConversation = {
 const serana: SpendingDetailOfCard = {
   name: "Serana", kind: "character", deleted: false, cost: 1.6, calls: 300, unpriced_calls: 184,
   models: [["ai-sylve", "Sylve Mini", 1.6, 116, 0, false], ["ai-gateway", "Gateway", 0, 184, 184, false]],
-  conversations: [["conv-inn", "At the inn", 1.6, 300, 184, false, false]], conversations_rest: null,
+  conversations: [["conv-inn", "At the inn", 1.6, 300, 184, false, false], ["conv-hearth", "By the hearth", 0, 9, 0, true, false]],
+  conversations_rest: [88, 0.5, 120, 0],
 };
 
 const memory: SpendingDetailOfUse = {
@@ -166,7 +167,7 @@ export interface Asked { summary: URL[]; detail: URL[]; forget: unknown[]; clear
 /** Answers every question of the page about spending with `summary`, told what was asked (narrowed
  *  to one AI when it asks for one: Sylve Mini's $1.43; another listed AI is left whole, with nothing
  *  of its own as the server says of a free one; an AI the period does not list has no line), the
- *  details above, and a clear of 1,214 calls. */
+ *  details above (the Vigil's failing, any other missing), and a clear of 1,214 calls. */
 export async function answerSpending(page: Page, summary: (url: URL) => Spending = month): Promise<Asked> {
   const asked: Asked = { summary: [], detail: [], forget: [], clear: [], exported: [] };
   const json = (route: Route, body: unknown, status = 200) =>
@@ -197,6 +198,8 @@ export async function answerSpending(page: Page, summary: (url: URL) => Spending
     if (url.pathname.endsWith("/api/spending/detail")) {
       asked.detail.push(url);
       const found = DETAILS[`${url.searchParams.get("cut")}:${url.searchParams.get("key")}`];
+      // The Vigil's line cannot be read: the server fails it. Any line not above no longer exists.
+      if (url.searchParams.get("key") === "card-vigil") return json(route, { detail: "Down." }, 500);
       return found ? json(route, found) : json(route, { detail: "Nothing of that line was found.", kind: "not_found" }, 404);
     }
     if (url.pathname.endsWith("/api/spending/forget")) {

@@ -701,7 +701,7 @@ for (const [locale, words] of [
     await page.goto("/#/spending");
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");
     await page.getByRole("button", { name: words.card }).click();
-    // No detail of this line is answered: the fixture says it was not found.
+    // The server fails this line: a failure that can be read again.
     await list(page).locator('[data-key="card-vigil"] button').click();
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByRole("alert")).toBeVisible();
@@ -814,4 +814,90 @@ test("lines only with free ais come last, under their title", async ({ page }) =
     expect(title, cut).toBe(rows.length - 2);
     expect(rows.at(-1), cut).toContain(free);
   }
+});
+
+test("how it is counted says where the amount comes from", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  await expect(total(page)).toBeVisible();
+  const how = page.locator("details");
+  await how.locator("summary").click();
+  await expect(how.getByRole("heading", { name: "Where the amount comes from" })).toBeVisible();
+  // Each share that is not zero, as the detail of an AI says them.
+  await expect(how.locator("li")).toHaveText([
+    "billed by the service: $1.44", "computed with the service's price: less than $0.01", "estimated: $0.02",
+  ]);
+});
+
+test("a line with no price at all says its tokens, in every cut", async ({ page }) => {
+  await answerSpending(page, () => {
+    const s = month();
+    return {
+      ...s,
+      uses: s.uses.map((u) => (u[0] === "memory" ? ["memory", 0, 40, 3, 21, 98000, 6000, 0] as typeof u : u)),
+      cards: s.cards.map((c) => (c[0] === "card-vigil" ? [c[0], c[1], c[2], 0, 10, 10, 5000, 300, false, false] as typeof c : c)),
+      conversations: s.conversations.map((c) => (c[0] === "conv-gone" ? [c[0], c[1], c[2], 0, 3, 3, 2500, 120, false, true] as typeof c : c)),
+    };
+  });
+  await page.goto("/#/spending");
+  await page.getByRole("button", { name: "By use" }).click();
+  await expect(line(page, "Automatic memory")).toContainText("price not given");
+  await expect(line(page, "Automatic memory")).toContainText("98,000 tokens read · 6,000 written");
+  // A line with an amount says none.
+  await expect(line(page, "Replies")).not.toContainText("tokens read");
+  await page.getByRole("button", { name: "By character" }).click();
+  await expect(line(page, "The Elmswood Vigil")).toContainText("price not given");
+  await expect(line(page, "The Elmswood Vigil")).toContainText("5,000 tokens read · 300 written");
+  await expect(line(page, "Serana")).not.toContainText("tokens read");
+  await page.getByRole("button", { name: "By conversation" }).click();
+  await expect(line(page, "Lost road")).toContainText("price not given");
+  await expect(line(page, "Lost road")).toContainText("2,500 tokens read · 120 written");
+});
+
+test("a character's line opened says which conversations were free, and the rest in one line", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending?cut=card&key=card-serana");
+  const sheet = page.getByRole("dialog");
+  const conversations = sheet.locator("section").filter({ hasText: "In which conversations" }).locator("li");
+  await expect(conversations).toHaveText([
+    "\u2068At the inn\u2069: $1.60 + 184 calls without a price", "\u2068By the hearth\u2069: free", "88 others: $0.50",
+  ]);
+});
+
+test("a line that no longer exists says so under its cut's name, with nothing to read again", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending?cut=model&key=nothing-here");
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.locator("h2")).toHaveText("By AI");
+  await expect(sheet.getByRole("alert")).toContainText("This item no longer exists.");
+  await expect(sheet.getByRole("button", { name: "Reload" })).toHaveCount(0);
+  await expect(sheet).not.toContainText("Loading…");
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+});
+
+test("at most is said why, and only where it is", async ({ page }) => {
+  await answerSpending(page);
+  const why = "Part of what it read came from the service's cache, which costs less; that price is not known, so this is the most it can have cost.";
+  await page.goto("/#/spending?cut=model&key=ai-aurore");
+  await expect(detail(page)).toContainText("at most $0.12");
+  await expect(detail(page)).toContainText(why);
+  await page.goto("/#/spending?cut=model&key=ai-sylve");
+  await expect(detail(page)).toContainText("billed by the service: $1.43");
+  await expect(detail(page)).not.toContainText(why);
+});
+
+test("the list offers a price only to an ai whose calls had none", async ({ page }) => {
+  await answerSpending(page, () => {
+    const s = month();
+    // Sylve had some calls with no price beside those the service billed.
+    return { ...s, models: s.models.map((m) => (m[0] === "ai-sylve" ? [...m.slice(0, 10), 7, false] as typeof m : m)) };
+  });
+  await page.goto("/#/spending");
+  const offer = (key: string) => list(page).locator(`[data-key="${key}"]`).getByRole("button", { name: "Set the price" });
+  await expect(offer("ai-gateway")).toBeVisible();
+  await expect(offer("ai-sylve")).toBeVisible();
+  // What the service billed, through a key of one's own or not, wants no price.
+  await expect(offer("ai-claude")).toHaveCount(0);
+  await expect(offer("ai-aurore")).toHaveCount(0);
 });

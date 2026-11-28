@@ -41,6 +41,8 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
   const { t, locale } = useI18n();
   const money = (cost: number, unpriced: number) => moneyText({ cost, unpriced, currency: summary.currency }, "line", locale, t);
   const calls = (count: number) => t("spending.calls", { count });
+  // What a line with no price at all read and wrote, in place of an amount it does not have.
+  const tokens = (read: number, written: number) => t("spending.tokens", { read, written });
 
   if (cut === "model") {
     const groups = servicesOf(summary.models);
@@ -61,6 +63,8 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
             <ul className="flex flex-col gap-1">
               {group.lines.map(([id, name, , cost, upstream, , count, , tokensIn, tokensOut, unpriced, deleted]) => {
                 const noPrice = cost + upstream === 0 && unpriced > 0;
+                // As the detail offers it: an AI that has calls of the period with no price.
+                const priceable = unpriced > 0 && id !== null && !deleted;
                 return (
                   <Line
                     key={id ?? name ?? ""}
@@ -69,9 +73,9 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
                     tags={tagsOf("model", deleted, true, null, t)}
                     amount={money(cost + upstream, unpriced)}
                     share={dearest ? (cost + upstream) / dearest : 0}
-                    small={[calls(count), noPrice && t("spending.tokens", { read: tokensIn, written: tokensOut })]}
+                    small={[calls(count), noPrice && tokens(tokensIn, tokensOut)]}
                     onOpen={id === null ? undefined : () => onOpen({ cut, key: id, name: name ?? "" })}
-                    after={noPrice && id !== null && !deleted && (
+                    after={priceable && (
                       <button
                         type="button"
                         className="btn btn-ghost ml-3 max-w-full whitespace-normal !py-1 text-sm"
@@ -113,7 +117,7 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
     const dearest = Math.max(0, ...summary.uses.map((u) => u[1]));
     return (
       <ul data-cut-list className="flex flex-col gap-1">
-        {summary.uses.map(([use, cost, count, retried, unpriced, , , free]) => (
+        {summary.uses.map(([use, cost, count, retried, unpriced, tokensIn, tokensOut, free]) => (
           <Line
             key={use}
             lineKey={use}
@@ -124,6 +128,7 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
               calls(count),
               use === "reply" && retried > 0 && t("spending.retried", { count: retried }),
               free > 0 && free < count && t("spending.freeCalls", { count: free }),
+              cost === 0 && unpriced > 0 && tokens(tokensIn, tokensOut),
             ]}
             onOpen={() => onOpen({ cut, key: use, name: t(`spending.use.${use}`) })}
           />
@@ -134,13 +139,13 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
 
   // Characters and conversations: those only with free AIs after the rest, the rest in one line.
   const rows = cut === "card"
-    ? summary.cards.map(([id, name, kind, cost, count, unpriced, , , freeOnly, deleted]) => ({
+    ? summary.cards.map(([id, name, kind, cost, count, unpriced, tokensIn, tokensOut, freeOnly, deleted]) => ({
       key: id ?? "", name: cardName(id, name, deleted, t), tags: tagsOf("card", deleted, id !== null && name !== null, kind, t),
-      cost, count, unpriced, freeOnly, small: undefined as ReactNode,
+      cost, count, unpriced, tokensIn, tokensOut, freeOnly, small: undefined as ReactNode,
     }))
-    : summary.conversations.map(([id, title, card, cost, count, unpriced, , , freeOnly, deleted]) => ({
+    : summary.conversations.map(([id, title, card, cost, count, unpriced, tokensIn, tokensOut, freeOnly, deleted]) => ({
       key: id, name: conversationName(title, card, deleted, t), tags: tagsOf("conversation", deleted, !!title, null, t),
-      cost, count, unpriced, freeOnly, small: title && card ? <bdi>{card}</bdi> : undefined,
+      cost, count, unpriced, tokensIn, tokensOut, freeOnly, small: title && card ? <bdi>{card}</bdi> : undefined,
     }));
   const rest: SpendingRest | null = cut === "card" ? summary.cards_rest : summary.conversations_rest;
   const dearest = Math.max(0, ...rows.map((r) => r.cost));
@@ -152,7 +157,7 @@ export function CutList({ summary, cut, onOpen }: { summary: Spending; cut: Cut;
       tags={r.tags}
       amount={r.freeOnly ? t("ai.free") : money(r.cost, r.unpriced)}
       share={dearest ? r.cost / dearest : 0}
-      small={[r.small, calls(r.count)]}
+      small={[r.small, calls(r.count), !r.freeOnly && r.cost === 0 && r.unpriced > 0 && tokens(r.tokensIn, r.tokensOut)]}
       onOpen={() => onOpen({ cut, key: r.key, name: r.name })}
     />
   );

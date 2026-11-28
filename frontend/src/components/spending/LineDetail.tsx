@@ -57,7 +57,10 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
     load();
   }, [load, reread]);
 
-  const name = detail ? nameOf(line.cut, line.key, detail, t) : line.name || t("common.loading");
+  // A line that no longer exists is named by its cut: nothing more of it will be read.
+  const gone = !detail && failure !== null && failure.error instanceof DataError && failure.error.kind === "not_found";
+  const name = detail ? nameOf(line.cut, line.key, detail, t)
+    : gone ? t(`spending.cut.${line.cut}`) : line.name || t("common.loading");
   const during = duringText(per, since, locale, t);
   const money = (cost: number, unpriced = 0) => moneyText({ cost, unpriced, currency }, "line", locale, t);
   // A name someone typed is isolated in its sentence; the name of a use or a source is the page's.
@@ -91,7 +94,7 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
   }
 
   let body: React.ReactNode;
-  if (failure && !detail) body = <LoadFailure error={failure.error} onRetry={load} />;
+  if (failure && !detail) body = <LoadFailure error={failure.error} onRetry={gone ? undefined : load} />;
   else if (!detail) body = <SheetWait />;
   else {
     const cost = "cost_upstream" in detail ? detail.cost + detail.cost_upstream : detail.cost;
@@ -122,8 +125,12 @@ export function LineDetail({ line, range, per, since, currency, beside, reread, 
           <>
             {models((detail as SpendingDetailOfCard).models)}
             <Part title={t("spending.detail.conversations")}>
-              {(detail as SpendingDetailOfCard).conversations.map(([id, title, c, , unpriced, , deleted]) =>
-                share(conversationName(title, null, deleted, t), money(c, unpriced), id))}
+              {(detail as SpendingDetailOfCard).conversations.map(([id, title, c, , unpriced, freeOnly, deleted]) =>
+                share(conversationName(title, null, deleted, t), freeOnly ? t("ai.free") : money(c, unpriced), id))}
+              {(() => {
+                const rest = (detail as SpendingDetailOfCard).conversations_rest;
+                return rest && share(t("spending.rest", { count: rest[0] }), money(rest[1], rest[3]), "rest", false);
+              })()}
             </Part>
           </>
         )}
@@ -204,6 +211,35 @@ function Part({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+/** Where an amount comes from: a line for each share that is not zero. `atMost`: a computed amount
+ *  read from the cache with no price for it, said so, and why. `children`: lines of its own after. */
+export function Sources({ sources, money, atMost = false, children }: {
+  sources: SpendingSources;
+  money(cost: number): string;
+  atMost?: boolean;
+  children?: React.ReactNode;
+}) {
+  const { t } = useI18n();
+  return (
+    <section className="flex flex-col gap-1">
+      <h3 className="ui-label">{t("spending.detail.sources")}</h3>
+      <ul className="flex flex-col gap-0.5">
+        {SOURCES.filter((source) => sources[source] > 0).map((source) => {
+          const said = money(sources[source]);
+          const most = atMost && (source === "computed_read" || source === "computed_typed");
+          return (
+            <li key={source} className="[overflow-wrap:anywhere]">
+              {t("spending.detail.share", { name: t(`spending.source.${source}`), money: most ? t("spending.money.atMost", { money: said }) : said })}
+            </li>
+          );
+        })}
+        {children}
+      </ul>
+      {atMost && <p className="text-xs text-mist">{t("spending.detail.atMostWhy")}</p>}
+    </section>
+  );
+}
+
 function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repriced, onRepriced }: {
   detail: SpendingDetailOfModel;
   money(cost: number, unpriced?: number): string;
@@ -227,17 +263,11 @@ function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repric
         <p>{t("spending.detail.out", { count: tokens.out })}</p>
         {tokens.reasoning > 0 && <p className="text-xs text-mist">{t("spending.detail.reasoning", { count: tokens.reasoning })}</p>}
       </section>
-      <Part title={t("spending.detail.sources")}>
-        {SOURCES.filter((source) => sources[source] > 0).map((source) => {
-          const said = money(sources[source]);
-          // A computed amount that read from the cache with no price for it.
-          const atMost = detail.at_most && (source === "computed_read" || source === "computed_typed");
-          return share(t(`spending.source.${source}`), atMost ? t("spending.money.atMost", { money: said }) : said, source, false);
-        })}
+      <Sources sources={sources} money={money} atMost={detail.at_most}>
         {detail.cost_upstream > 0 && detail.upstream && (
-          <li>{t("spending.upstream", { money: money(detail.cost_upstream), name: detail.upstream })}</li>
+          <li>{t("spending.upstream", { money: money(detail.cost_upstream), name: isolated(detail.upstream) })}</li>
         )}
-      </Part>
+      </Sources>
       {uses(detail.uses)}
       <Part title={t("spending.detail.cards")}>
         {detail.cards.map(([id, name, , cost, , deleted]) => share(cardName(id, name, deleted, t), money(cost), id ?? ""))}

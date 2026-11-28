@@ -1,7 +1,7 @@
 import { Bars } from "@/components/spending/Bars";
 import { ClearSheet } from "@/components/spending/ClearSheet";
 import { CutList, type Opened } from "@/components/spending/CutList";
-import { LineDetail } from "@/components/spending/LineDetail";
+import { LineDetail, Sources } from "@/components/spending/LineDetail";
 import { choiceClass, Periods } from "@/components/spending/Periods";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data, type Cut, type SpendingQuery } from "@/data";
@@ -279,6 +279,9 @@ function SpendingView() {
   const failed = failure?.query === query ? failure : null;
   // What is said in place of what failed: nothing while it is asked again.
   const said = failed && !failed.again ? failed : null;
+  // The answer of the period shown, whichever AI the lists are narrowed to: none while another
+  // period is asked, or this one failed when read again.
+  const current = answer && answer.period === period && !(failed !== null && answer.model === modelId) ? answer.summary : null;
   const money = (cost: number, unpriced = 0) =>
     moneyText({ cost, unpriced, currency: summary?.currency ?? "USD" }, "total", locale, t);
   // A part of the total, which says "nothing" for nothing, never "$0".
@@ -425,7 +428,10 @@ function SpendingView() {
           <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />
           {t("spending.how.title")}
         </summary>
-        <p className="border-t border-ink-700 px-4 py-4 text-sm leading-relaxed text-parchment-dim">{t("spending.how.text")}</p>
+        <div className="flex flex-col gap-4 border-t border-ink-700 px-4 py-4 text-sm leading-relaxed text-parchment-dim">
+          <p>{t("spending.how.text")}</p>
+          {current && current.calls > 0 && <Sources sources={current.sources} money={(cost) => line(cost, 0)} />}
+        </div>
       </details>
 
       <div className="flex flex-wrap gap-3">
