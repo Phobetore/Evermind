@@ -952,3 +952,45 @@ test.describe("on a touch tablet", () => {
     expect(await size(detail(page).getByRole("button", { name: "Close" }))).toEqual([true, true]);
   });
 });
+
+test("a finger chooses a bar by a tap or a slide sideways, never by scrolling the page", async ({ page, context }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending");
+  const legend = page.locator("[data-bars-legend]");
+  await expect(legend).toContainText(`${inWords(dayBefore(0))}: `);
+  // Real touch events, as a phone sends them: the browser scrolls for a finger going up or down.
+  const cdp = await context.newCDPSession(page);
+  const touch = (type: "touchStart" | "touchMove" | "touchEnd", x: number, y: number) => cdp.send("Input.dispatchTouchEvent", {
+    type, touchPoints: type === "touchEnd" ? [] : [{ x, y, radiusX: 5, radiusY: 5, force: 1, id: 1 }],
+  });
+  async function slide(from: [number, number], to: [number, number]) {
+    await touch("touchStart", ...from);
+    for (let i = 1; i <= 15; i++) {
+      await touch("touchMove", from[0] + ((to[0] - from[0]) * i) / 15, from[1] + ((to[1] - from[1]) * i) / 15);
+      await page.waitForTimeout(16);
+    }
+    await touch("touchEnd", ...to);
+    await page.waitForTimeout(300);
+  }
+  const scrolled = () => page.locator("main").evaluate((el) => el.scrollTop);
+  await page.locator("main").evaluate((el) => (el.scrollTop = 120));
+  const bars = page.locator("[data-bars] [data-bar]");
+
+  // A tap chooses the bar under it.
+  const fifth = (await bars.nth(4).boundingBox())!;
+  await touch("touchStart", fifth.x + fifth.width / 2, fifth.y + fifth.height - 4);
+  await touch("touchEnd", fifth.x + fifth.width / 2, fifth.y + fifth.height - 4);
+  await expect(legend).toContainText(`${inWords(dayBefore(25))}: `);
+
+  // A finger going up from the bars scrolls the page, and leaves the choice where it was.
+  const box = (await page.locator("[data-bars]").boundingBox())!;
+  const before = await scrolled();
+  await slide([box.x + box.width * 0.8, box.y + box.height / 2], [box.x + box.width * 0.8, box.y + box.height / 2 - 300]);
+  expect(await scrolled()).toBeGreaterThan(before + 100);
+  await expect(legend).toContainText(`${inWords(dayBefore(25))}: `);
+
+  // A slide sideways still moves it.
+  const along = (await page.locator("[data-bars]").boundingBox())!;
+  await slide([along.x + 10, along.y + along.height / 2], [along.x + along.width - 4, along.y + along.height / 2]);
+  await expect(legend).toContainText(`${inWords(dayBefore(0))}: `);
+});
