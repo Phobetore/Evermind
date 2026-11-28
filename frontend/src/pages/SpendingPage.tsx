@@ -8,7 +8,7 @@ import { data, type Cut, type SpendingQuery } from "@/data";
 import { useI18n } from "@/i18n/I18nProvider";
 import { describeError } from "@/lib/errors";
 import {
-  daysOf, keepPeriod, keptPeriod, localDate, moneyText, rangeOf, spendingShown, type Period,
+  daysOf, keepPeriod, keptPeriod, localDate, moneyText, PERIODS, rangeOf, spendingShown, type Period,
 } from "@/lib/spending";
 import { dayMonth, downloadBlob, isolated } from "@/lib/utils";
 import type { Spending } from "@/types";
@@ -23,7 +23,6 @@ const GUTTER = "px-[min(1.5rem,24px)]";
 const WIDE = "(min-width: 64rem)";
 /** Long enough to read a line, as the conversation's own toasts. */
 const TOAST_MS = 4200;
-const PERIODS: readonly string[] = ["7", "30", "month", "last", "all"] satisfies Period[];
 const CUTS: Cut[] = ["model", "card", "conversation", "use"];
 
 /** Whether the entry before this one is the app's own. The router numbers the entries it makes from

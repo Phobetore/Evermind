@@ -2,13 +2,10 @@ import { Sheet } from "@/components/ui/Sheet";
 import { data } from "@/data";
 import { useI18n } from "@/i18n/I18nProvider";
 import { describeError } from "@/lib/errors";
+import { FIRST_DAY, LAST_DAY } from "@/lib/spending";
 import { dayMonth } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-
-/** The days the server reads: a date field keeps within them. */
-const FIRST_DAY = "2000-01-01";
-const LAST_DAY = "2100-12-31";
 
 type Counted = { calls: number; first: string | null; last: string | null };
 

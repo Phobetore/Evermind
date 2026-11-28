@@ -12,7 +12,13 @@ export type { Cut };
 
 export type Period = "7" | "30" | "month" | "last" | "all";
 
-const PERIODS: readonly string[] = ["7", "30", "month", "last", "all"] satisfies Period[];
+/** The periods, in the order the page offers them. */
+export const PERIODS: readonly string[] = ["7", "30", "month", "last", "all"] satisfies Period[];
+
+/** The days the server reads (FIRST_DAY and LAST_DAY of backend/app/services/periods.py): a date
+ *  field keeps within them. */
+export const FIRST_DAY = "2000-01-01";
+export const LAST_DAY = "2100-12-31";
 const PERIOD_KEY = "evermind:spending:period";
 
 const two = (n: number) => String(n).padStart(2, "0");
