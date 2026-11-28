@@ -436,3 +436,84 @@ async def test_the_speed_test_is_counted(client, monkeypatch):
     model.answers = [writing("   ")]
     assert (await client.post(f"/api/models/{ai['id']}/benchmark")).status_code == 200
     assert [r["outcome"] for r in await recorded("speed")] == ["whole", "empty"]
+
+
+async def test_the_server_s_stop_ends_a_reply_and_a_draft_being_written(client, monkeypatch):
+    """Ctrl+Break ends the process as soon as the lifespan returns: whatever it has not ended
+    stays running. A reply and a card draft end there as a server going down ends them."""
+    from app.main import lifespan
+    from app.services import card_assistant
+
+    async def nothing() -> None:
+        pass
+
+    monkeypatch.setattr("app.services.memory_service.fill_vectors", nothing)
+    ai = await add_model(client, base_url=HOSTED, model="aurore", name="Aurore",
+                         price_own_in=1.0, price_own_out=2.0)
+    convo = await conversation_on(client, ai["id"])
+    Model(held).serve(monkeypatch)
+    async with lifespan(None):
+        turn = await two_pieces_in(client, convo["id"])
+
+        async def saved():
+            while "waits" not in (await messages_of(client, convo["id"]))[-1]["content"]:
+                await asyncio.sleep(0.01)
+
+        await within(5, saved())
+        resp = await client.post("/api/characters/assist",
+                                 json={"prompt": "A seller of maps", "model_id": ai["id"]})
+        job = card_assistant._jobs[resp.json()["id"]]
+
+        async def drafted():
+            while "waits" not in job.text():
+                await asyncio.sleep(0.01)
+
+        await within(5, drafted())
+    assert turn.finished.is_set() and job.finished.is_set()
+
+    found = {r["purpose"]: r for r in rows()}
+    assert sorted(found) == ["card", "reply"]
+    for row in found.values():
+        assert (row["outcome"], row["tokens_source"], row["cost_source"]) == (
+            "stopped", "estimated", "computed")
+        assert row["tokens_out"] == calls.estimated_out(len("*She waits")) > 0
+        assert row["ended_at"] is not None
+        assert row["cost"] == pytest.approx(
+            (row["tokens_in"] * 1.0 + row["tokens_out"] * 2.0) / 1e6)
+    reply = (await messages_of(client, convo["id"]))[-1]
+    assert (reply["content"], reply["meta"]) == ("*She waits", {"interrupted": [0]})
+    assert job.stopped is True
+
+
+async def test_the_server_s_stop_waits_a_few_seconds_at_most_for_what_is_written(client,
+                                                                               monkeypatch):
+    from app import main
+    from app.services import card_assistant
+
+    async def nothing() -> None:
+        pass
+
+    async def deaf(done: asyncio.Event) -> None:
+        # A turn that does not end when cancelled.
+        while not done.is_set():
+            try:
+                await done.wait()
+            except asyncio.CancelledError:
+                pass
+
+    monkeypatch.setattr("app.services.memory_service.fill_vectors", nothing)
+    monkeypatch.setattr(main, "STOP_WAITS_S", 0.2)
+    done = asyncio.Event()
+    turn = turns.Turn("convo-deaf", "send", None)
+    life = main.lifespan(None)
+    await life.__aenter__()
+    turn.task = asyncio.create_task(deaf(done))
+    await asyncio.sleep(0)  # under way
+    monkeypatch.setitem(turns._running, "convo-deaf", turn)
+    assert card_assistant.cancel_all() == []
+    try:
+        await within(2, life.__aexit__(None, None, None))
+        assert not turn.task.done()
+    finally:
+        done.set()
+        await within(2, turn.task)

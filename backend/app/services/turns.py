@@ -159,6 +159,16 @@ async def stop(conversation_id: str) -> None:
         await turn.finished.wait()
 
 
+def cancel_all() -> list[asyncio.Task]:
+    """At the server's stop: every turn under way is cancelled, as a server going down cancels
+    it. What was saved stays, cut short, and its call's row ends stopped. Returns the tasks, for
+    the stop to wait for."""
+    tasks = [turn.task for turn in _running.values() if turn.task and not turn.task.done()]
+    for task in tasks:
+        task.cancel()
+    return tasks
+
+
 async def follow(turn: Turn):
     """The message as far as it has got, then the rest as it arrives."""
     queue: asyncio.Queue = asyncio.Queue()

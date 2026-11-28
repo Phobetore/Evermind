@@ -438,6 +438,15 @@ def state(job_id: str) -> dict:
     return _state_of(_known(job_id))
 
 
+def cancel_all() -> list[asyncio.Task]:
+    """At the server's stop: every card being written is cancelled, and ends stopped with what
+    was complete, its call's row with it. Returns the tasks, for the stop to wait for."""
+    tasks = [job.task for job in _jobs.values() if job.task and not job.task.done()]
+    for task in tasks:
+        task.cancel()
+    return tasks
+
+
 async def stop(job_id: str) -> dict:
     """Cancels the request to the model and answers once the job has ended with what was complete.
     A job that had already ended stays as it was."""
