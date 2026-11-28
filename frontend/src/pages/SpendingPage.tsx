@@ -8,7 +8,7 @@ import { data, type Cut, type SpendingQuery } from "@/data";
 import { useI18n } from "@/i18n/I18nProvider";
 import { describeError } from "@/lib/errors";
 import {
-  amountText, daysOf, keepPeriod, keptPeriod, localDate, moneyText, rangeOf, spendingShown, type Period,
+  daysOf, keepPeriod, keptPeriod, localDate, moneyText, rangeOf, spendingShown, type Period,
 } from "@/lib/spending";
 import { dayMonth, downloadBlob } from "@/lib/utils";
 import type { Spending } from "@/types";
@@ -281,6 +281,9 @@ function SpendingView() {
   const said = failed && !failed.again ? failed : null;
   const money = (cost: number, unpriced = 0) =>
     moneyText({ cost, unpriced, currency: summary?.currency ?? "USD" }, "total", locale, t);
+  // A part of the total, which says "nothing" for nothing, never "$0".
+  const line = (cost: number, unpriced: number) =>
+    moneyText({ cost, unpriced, currency: summary?.currency ?? "USD" }, "line", locale, t);
   const since = summary ? localDate(new Date(summary.since)) : "";
   const choices = summary ? [
     ...summary.models.map(([id, name]) => [id, name] as const),
@@ -309,19 +312,20 @@ function SpendingView() {
             <p data-total className="font-display text-4xl font-semibold text-parchment [overflow-wrap:anywhere]">
               {money(shown.total, shown.unpriced.calls)}
             </p>
-            {!empty && shown.outside_replies.calls > 0 && (
+            {/* Not drawn when every call outside replies went to a free AI: it would only say nothing. */}
+            {!empty && shown.outside_replies.free_calls < shown.outside_replies.calls && (
               <button
                 type="button"
                 data-outside
                 className="inline-flex min-h-11 items-center self-start text-left text-sm text-mist underline-offset-2 hover:text-parchment hover:underline"
                 onClick={() => setCut("use")}
               >
-                {t("spending.outside", { money: amountText(shown.outside_replies.cost, shown.currency, locale, t) })}
+                {t("spending.outside", { money: line(shown.outside_replies.cost, shown.outside_replies.unpriced_calls) })}
               </button>
             )}
             {!empty && shown.previous !== null && from !== undefined && (
               <p className="text-sm text-mist">
-                {t("spending.previous", { count: daysOf({ from, to }), money: amountText(shown.previous.cost, shown.currency, locale, t) })}
+                {t("spending.previous", { count: daysOf({ from, to }), money: line(shown.previous.cost, shown.previous.unpriced_calls) })}
               </p>
             )}
             {(from === undefined || from < since) && (

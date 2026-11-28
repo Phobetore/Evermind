@@ -201,6 +201,32 @@ test("a row says what it holds", async ({ page }) => {
   await expect(detail(page)).toContainText("Automatic memory: $1.54 + 21 calls without a price");
 });
 
+test("what was spent outside replies and in the days before follows the rule of a line", async ({ page }) => {
+  let said = (s: ReturnType<typeof month>) => s;
+  await answerSpending(page, () => said(month()));
+  const outside = page.locator("[data-outside]");
+  const before = page.getByText(/^The 30 days before: /);
+
+  // Memory passes on an AI with no price, and days before that held only such calls.
+  said = (s) => ({ ...s, outside_replies: { cost: 0, calls: 40, unpriced_calls: 40, free_calls: 0 }, previous: { cost: 0, unpriced_calls: 12 } });
+  await page.goto("/#/spending");
+  await expect(outside).toHaveText("of which price not given outside replies: automatic memory, card assistant…");
+  await expect(before).toHaveText("The 30 days before: price not given");
+
+  // Both, and a true nothing.
+  said = (s) => ({ ...s, outside_replies: { cost: 1.58, calls: 62, unpriced_calls: 21, free_calls: 0 }, previous: { cost: 0, unpriced_calls: 0 } });
+  await page.reload();
+  await expect(outside).toHaveText("of which $1.58 + 21 calls without a price outside replies: automatic memory, card assistant…");
+  await expect(before).toHaveText("The 30 days before: nothing");
+
+  // Every call outside replies to a free AI: no such line. Days never counted: none either.
+  said = (s) => ({ ...s, outside_replies: { cost: 0, calls: 6, unpriced_calls: 0, free_calls: 6 }, previous: null });
+  await page.reload();
+  await expect(total(page)).toBeVisible();
+  await expect(outside).toHaveCount(0);
+  await expect(page.getByText(/days before/)).toHaveCount(0);
+});
+
 test("free ais are apart and never an amount", async ({ page }) => {
   await answerSpending(page);
   await page.goto("/#/spending");
