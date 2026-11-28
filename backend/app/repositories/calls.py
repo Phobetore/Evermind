@@ -514,6 +514,21 @@ MEASURED_FROM = 20
 MEASURED_OVER = 100
 
 
+# Each AI's last 100 whole replies through the index on (model_id, started_at), tested by its plan.
+PER100 = f"""
+    SELECT m.id AS model_id, COUNT(*) AS n, SUM({MONEY}) AS money,
+           MAX(c.cost_source = 'computed' AND c.price_source IN ('typed', 'typed_later'))
+               AS typed
+    FROM models m JOIN calls c ON c.rowid IN (
+        SELECT x.rowid FROM calls x
+        WHERE x.model_id = m.id AND x.model_asked = m.model
+          AND x.purpose IN ('reply', 'regenerate', 'continue') AND x.outcome = 'whole'
+          AND x.cost_source <> 'none'
+        ORDER BY x.started_at DESC LIMIT {MEASURED_OVER})
+    WHERE :only IS NULL OR m.id = :only
+    GROUP BY m.id HAVING n >= {MEASURED_FROM}"""
+
+
 async def per100_all(db: aiosqlite.Connection, only: str | None = None) -> dict[str, dict]:
     """model_id -> {cost, n, typed}: what its last 100 whole replies cost, made a hundred, for the
     AIs with 20 or more (``only``: that AI alone). Only the server id the AI names now counts: an
@@ -521,17 +536,6 @@ async def per100_all(db: aiosqlite.Connection, only: str | None = None) -> dict[
 
     Each AI takes its own last 100 through the index on (model_id, started_at): the list of the
     AIs asks it on every page, and a year of play must not be read and sorted for it."""
-    rows = await _all(db, f"""
-        SELECT m.id AS model_id, COUNT(*) AS n, SUM({MONEY}) AS money,
-               MAX(c.cost_source = 'computed' AND c.price_source IN ('typed', 'typed_later'))
-                   AS typed
-        FROM models m JOIN calls c ON c.rowid IN (
-            SELECT x.rowid FROM calls x
-            WHERE x.model_id = m.id AND x.model_asked = m.model
-              AND x.purpose IN ('reply', 'regenerate', 'continue') AND x.outcome = 'whole'
-              AND x.cost_source <> 'none'
-            ORDER BY x.started_at DESC LIMIT {MEASURED_OVER})
-        WHERE :only IS NULL OR m.id = :only
-        GROUP BY m.id HAVING n >= {MEASURED_FROM}""", {"only": only})
+    rows = await _all(db, PER100, {"only": only})
     return {r["model_id"]: {"cost": _money(r["money"] * 100 / r["n"]), "n": r["n"],
                             "typed": bool(r["typed"])} for r in rows}

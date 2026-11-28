@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.config import db_path
+from app.repositories import calls as calls_repo
 from app.repositories.base import new_id
 from app.services import calls
 
@@ -581,13 +582,25 @@ async def test_the_list_of_the_ais_reads_no_year_of_replies(client):
                       purpose=("reply", "reply", "memory", "regenerate", "pen")[n % 5],
                       started_at=calls.instant(start + timedelta(seconds=n * 571)))
                for n in range(55_000)])
+    # The rule is the plan: calls searched by the index on (model_id, started_at), in its order;
+    # never the table scanned, nor its rows sorted.
+    conn = sqlite3.connect(db_path())
+    try:
+        plan = [r[3] for r in conn.execute(f"EXPLAIN QUERY PLAN {calls_repo.PER100}",
+                                           {"only": None})]
+    finally:
+        conn.close()
+    assert "SEARCH x USING INDEX calls_model (model_id=?)" in plan, plan
+    assert all(step.startswith("SCAN m ") for step in plan if step.startswith("SCAN")), plan
+    assert not [step for step in plan if "TEMP B-TREE" in step], plan
     took = []
     for _ in range(9):
         began = time.perf_counter()
         resp = await client.get("/api/models")
         took.append(time.perf_counter() - began)
     assert all(m["per100"]["n"] == 100 for m in resp.json())
-    assert sorted(took)[4] < 0.02, took
+    # A loose bound only: a slow runner is not a broken plan.
+    assert sorted(took)[4] < 0.25, took
 
 
 # The detail of a line.
@@ -606,6 +619,17 @@ async def test_the_detail_of_a_conversation_says_how_a_message_grew(client):
     assert (await detail(client, "conversation", "short"))["growth"] is None
 
 
+async def test_how_a_message_grew_counts_only_whole_replies(client):
+    now = datetime.now(UTC)
+    put_calls([row_of(started_at=calls.instant(now - timedelta(minutes=40 - n)), cost=0.001)
+               for n in range(10)])
+    # Stopped and failed replies, dearer and later: none of them is a message that grew.
+    put_calls([row_of(started_at=calls.instant(now - timedelta(minutes=20 - n)), cost=0.5,
+                      outcome=("stopped", "failed")[n % 2]) for n in range(10)])
+    assert (await detail(client, "conversation", "convo-1"))["growth"] == {
+        "first": 0.001, "last": 0.001}
+
+
 async def test_the_detail_of_an_ai(client):
     ai = await measured_ai(client)
     put_call(model_id=ai["id"], cost_source="computed", tokens_cached=400, price_cache_read=None)
@@ -619,6 +643,23 @@ async def test_the_detail_of_an_ai(client):
     assert got["uses"] == [["reply", 0.01, 1, 0, 0], ["pen", 0, 1, 0, 1]]
     assert got["cards"] == [["card-1", "Serana", "character", 0.01, 2, True]]
     assert got["cards_rest"] is None
+
+
+async def test_a_cache_read_at_its_own_price_is_not_at_most(client):
+    put_call(cost_source="computed", tokens_cached=400, price_cache_read=0.5)
+    assert (await detail(client, "model", "ai-1"))["at_most"] is False
+    # Nor is an amount the service reported, whatever came from its cache.
+    put_call(model_id="ai-2", cost_source="reported", tokens_cached=400, price_cache_read=None)
+    assert (await detail(client, "model", "ai-2"))["at_most"] is False
+
+
+async def test_an_ai_with_a_whole_price_is_not_priceable(client):
+    ai = await measured_ai(client)
+    resp = await client.put(f"/api/models/{ai['id']}", json={"price_own_in": 1.0,
+                                                             "price_own_out": 2.0})
+    assert resp.status_code == 200, resp.text
+    put_call(model_id=ai["id"], cost=None, cost_source="none", price_source=None)
+    assert (await detail(client, "model", ai["id"]))["priceable"] is False
 
 
 async def test_the_detail_of_an_ai_lists_its_dearest_characters_then_the_rest(client):

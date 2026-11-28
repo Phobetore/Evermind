@@ -6,6 +6,8 @@ The generation records below are written by hand in the shape OpenRouter documen
 (GET /api/v1/generation, checked on 25 November 2026 against its reference). # shape unverified"""
 
 import asyncio
+import functools
+import inspect
 import logging
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -28,6 +30,18 @@ RECORD = {"data": {
     "native_tokens_prompt": 1830, "native_tokens_completion": 61,
     "native_tokens_reasoning": 12, "native_tokens_cached": 400, "is_byok": False,
 }}
+
+
+# Every wait of this file is bounded: a look that never ends fails its test instead of holding the
+# suite (each test is run under TEST_WITHIN_S, below, and what it leaves behind is drained under
+# a bound of its own).
+TEST_WITHIN_S = 30
+
+
+@pytest.fixture(autouse=True)
+async def _what_a_test_leaves_ends_in_time():
+    yield
+    await within(10, calls.drain())
 
 
 @pytest.fixture()
@@ -522,3 +536,15 @@ async def test_a_failed_save_reprices_nothing(client, monkeypatch):
     model = next(m for m in (await client.get("/api/models")).json() if m["id"] == ai["id"])
     assert (model["price"]["own_in"], model["price"]["own_out"]) == (None, None)
 
+
+def _bounded(test):
+    @functools.wraps(test)
+    async def run(*args, **kwargs):
+        return await asyncio.wait_for(test(*args, **kwargs), TEST_WITHIN_S)
+
+    return run
+
+
+for _name, _test in list(globals().items()):
+    if _name.startswith("test_") and inspect.iscoroutinefunction(_test):
+        globals()[_name] = _bounded(_test)

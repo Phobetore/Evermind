@@ -205,3 +205,22 @@ async def test_what_counts_as_a_write(method, path, counted):
     before = turns._writes
     await WritesSeen(app)({"type": "http", "method": method, "path": path}, None, None)
     assert turns._writes - before == counted
+
+
+async def test_a_story_moved_with_no_write_of_the_api_is_not_carried(client, lists, monkeypatch):
+    # A message added inside the process, as a memory pass or an import writes it: no write of
+    # the API is seen, the revision alone says the story moved.
+    from app.db import _connect
+    from app.repositories import conversations as convo_repo
+
+    convo = await priced_story(client, monkeypatch)
+    assert await send(client, convo["id"]) is None
+    assert (await state_of(client, convo["id"]))["glance"] is not None
+
+    db = await _connect()
+    try:
+        await convo_repo.add_message(db, convo["id"], "user", ["Meanwhile"])
+    finally:
+        await db.close()
+    state = await state_of(client, convo["id"])
+    assert (state["glance"], state["spent"]) == (None, None)
