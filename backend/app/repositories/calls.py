@@ -323,7 +323,9 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
     cards, cards_rest = await _cards(db, args, where, LISTED_IN_DETAIL)
     return {
         "name": names[0], "service_name": names[1], "deleted": bool(names[2]),
-        "priceable": model is not None and pricing_of(dict(model)).source is None,
+        # A price can be typed, and would price something: calls of the period with none.
+        "priceable": model is not None and pricing_of(dict(model)).source is None
+        and bool(head[3]),
         "per100": (await per100_all(db, args["key"])).get(args["key"]),
         "cost": _rounded(head[1]), "cost_upstream": _rounded(head[2]),
         "upstream": names[3], "calls": head[0], "unpriced_calls": head[3],

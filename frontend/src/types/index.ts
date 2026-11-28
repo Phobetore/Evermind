@@ -443,7 +443,7 @@ export interface SpendingDetailOfModel {
   name: string | null;
   service_name: string | null;
   deleted: boolean;
-  /** The AI exists and has no whole price: one can be typed. */
+  /** The AI exists, has no whole price, and calls of the period had none: one can be typed. */
   priceable: boolean;
   per100: Per100 | null;
   cost: number;

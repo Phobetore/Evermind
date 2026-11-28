@@ -673,6 +673,15 @@ async def test_an_ai_with_a_whole_price_is_not_priceable(client):
     assert (await detail(client, "model", ai["id"]))["priceable"] is False
 
 
+async def test_an_ai_whose_costs_the_service_reported_is_not_priceable(client):
+    ai = await measured_ai(client)
+    put_call(model_id=ai["id"], cost=0.004, cost_source="reported", price_source=None)
+    assert (await detail(client, "model", ai["id"]))["priceable"] is False
+    # One call with no price in the period, and a price can be typed for it.
+    put_call(model_id=ai["id"], cost=None, cost_source="none", price_source=None)
+    assert (await detail(client, "model", ai["id"]))["priceable"] is True
+
+
 async def test_the_detail_of_an_ai_lists_its_dearest_characters_then_the_rest(client):
     put_calls([row_of(card_id=f"card-{n:02}", card_name=f"Card {n}", cost=(n + 1) / 1000)
                for n in range(15)])
