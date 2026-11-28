@@ -79,7 +79,7 @@ when Evermind starts, and a copy of it is kept first, as
   start and for days that end before counting began; `outside_replies` also gives
   `unpriced_calls` and `free_calls`; each line of `cards` and `conversations` gives
   the tokens in and out of its calls with no price, before `free_only`. A
-  character's `/detail` lists her 12 dearest conversations, each with `free_only`,
+  character's `/detail` lists its 12 dearest conversations, each with `free_only`,
   then `conversations_rest`; an AI's says `priceable` only when calls of the period
   had no price. The body of a request
   to an AI does not change; after a call whose cost OpenRouter did not report
