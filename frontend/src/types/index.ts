@@ -457,7 +457,7 @@ export interface SpendingDetailOfModel {
   at_most: boolean;
   uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number][];
   cards: [card_id: string | null, name: string | null, kind: Kind | null, cost: number, calls: number,
-    deleted: boolean][];
+    unpriced_calls: number, deleted: boolean][];
   cards_rest: SpendingRest | null;
 }
 

@@ -114,7 +114,7 @@ const sylve: SpendingDetailOfModel = {
   unpriced_calls: 0, tokens: { in: 500000, out: 40000, cached: 20000, reasoning: 0 },
   sources: { reported: 1.43, computed_read: 0, computed_typed: 0, estimated: 0 }, at_most: false,
   uses: [["reply", 1.3, 100, 4, 0], ["memory", 0.13, 20, 0, 0]],
-  cards: [["card-serana", "Serana", "character", 1.4, 110, false], ["card-old", "Old friend", "character", 0.03, 10, true]],
+  cards: [["card-serana", "Serana", "character", 1.4, 110, 0, false], ["card-old", "Old friend", "character", 0.03, 10, 0, true]],
   cards_rest: null,
 };
 
@@ -123,7 +123,7 @@ const aurore: SpendingDetailOfModel = {
   name: "Aurore", service_name: "Lumen", deleted: false, priceable: false, per100: null, cost: 0.12,
   cost_upstream: 0, upstream: null, calls: 2, unpriced_calls: 0, tokens: { in: 3000, out: 200, cached: 1000, reasoning: 0 },
   sources: { reported: 0, computed_read: 0.12, computed_typed: 0, estimated: 0 }, at_most: true,
-  uses: [["reply", 0.12, 2, 0, 0]], cards: [["card-serana", "Serana", "character", 0.12, 2, false]], cards_rest: null,
+  uses: [["reply", 0.12, 2, 0, 0]], cards: [["card-serana", "Serana", "character", 0.12, 2, 0, false]], cards_rest: null,
 };
 
 /** An AI with no price: none of its calls has an amount, so no share of one is above zero. */
@@ -132,7 +132,7 @@ const gateway: SpendingDetailOfModel = {
   cost_upstream: 0, upstream: null, calls: 205, unpriced_calls: 205, tokens: { in: 123456, out: 7890, cached: 0, reasoning: 0 },
   sources: NO_SOURCES, at_most: false,
   uses: [["reply", 0, 190, 0, 190], ["memory", 0, 15, 0, 15]],
-  cards: [["card-serana", "Serana", "character", 0, 184, false]], cards_rest: null,
+  cards: [["card-serana", "Serana", "character", 0, 184, 184, false]], cards_rest: null,
 };
 
 const inn: SpendingDetailOfConversation = {

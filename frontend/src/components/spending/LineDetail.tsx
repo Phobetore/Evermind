@@ -279,7 +279,7 @@ function OfModel({ detail, money, share, uses, pricing, onPrice, modelId, repric
       </Sources>
       {uses(detail.uses)}
       <Part title={t("spending.detail.cards")}>
-        {detail.cards.map(([id, name, , cost, , deleted]) => share(cardName(id, name, deleted, t), money(cost), id ?? ""))}
+        {detail.cards.map(([id, name, , cost, , unpriced, deleted]) => share(cardName(id, name, deleted, t), money(cost, unpriced), id ?? ""))}
         {detail.cards_rest && share(t("spending.rest", { count: detail.cards_rest[0] }), money(detail.cards_rest[1], detail.cards_rest[3]), "rest", false)}
       </Part>
       {(detail.priceable || pricing) && (pricing

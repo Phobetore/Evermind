@@ -883,6 +883,31 @@ test("a character's line opened says which conversations were free, and the rest
   ]);
 });
 
+test("an ai's line opened says its characters by the rule of a line", async ({ page }) => {
+  await answerSpending(page);
+  await page.goto("/#/spending?cut=model&key=ai-gateway");
+  const cards = page.getByRole("dialog").locator("section").filter({ hasText: "With which characters" }).locator("li");
+  // Her calls with this AI had no price: not nothing.
+  await expect(cards).toHaveText(["⁨Serana⁩: price not given"]);
+  await page.keyboard.press("Escape");
+  // Some had a price and some had none, and the rest too.
+  await page.route("**/api/spending/detail?**", (route) => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({
+      name: "Sylve Mini", service_name: "OpenRouter", deleted: false, priceable: true, per100: null, cost: 1.42,
+      cost_upstream: 0, upstream: null, calls: 125, unpriced_calls: 8, tokens: { in: 500000, out: 40000, cached: 0, reasoning: 0 },
+      sources: { reported: 1.42, computed_read: 0, computed_typed: 0, estimated: 0 }, at_most: false,
+      uses: [["reply", 1.42, 125, 0, 8]],
+      cards: [["card-serana", "Serana", "character", 1.4, 110, 6, false], ["card-lyra", "Lyra", "character", 0, 3, 0, false]],
+      cards_rest: [13, 0.02, 12, 2],
+    }),
+  }));
+  await page.goto("/#/spending?cut=model&key=ai-sylve");
+  await expect(cards).toHaveText([
+    "⁨Serana⁩: $1.40 + 6 calls without a price", "⁨Lyra⁩: nothing", "13 others: $0.02 + 2 calls without a price",
+  ]);
+});
+
 test("a line that no longer exists says so under its cut's name, with nothing to read again", async ({ page }) => {
   await answerSpending(page);
   await page.goto("/#/spending?cut=model&key=nothing-here");

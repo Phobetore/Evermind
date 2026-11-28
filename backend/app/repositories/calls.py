@@ -334,7 +334,8 @@ async def _detail_of_model(db, key: str, args: dict) -> dict | None:
                     "computed_typed": _rounded(head[10]), "estimated": _rounded(head[11])},
         "at_most": bool(head[12]),
         "uses": await _uses(db, where, args, unpriced_tokens=False, free=False),
-        "cards": [[line[0], line[1], line[2], line[3], line[4], line[9]] for line in cards],
+        # [card_id, name, kind, cost, calls, unpriced_calls, deleted]
+        "cards": [[*line[:6], line[9]] for line in cards],
         "cards_rest": cards_rest,
     }
 
