@@ -394,11 +394,14 @@ those copied names; only "Clear the history" removes rows.
   (`chat_service.run_turn`, each pass), the pen, the memory pass (each request of
   `_ask`), the condensation, the card assistant and the speed test.
 - **The rules are pure functions beside it.** `outcome_of` says how a call ended
-  (`whole`, `stopped`, `failed`, `refused`, `empty`, `discarded`: an error before
-  the server had the request is a refusal, and a refusal reads and writes
-  nothing), `tokens_of` takes the server's counts and estimates what it did not
+  (`whole`, `stopped`, `failed`, `refused`, `empty`: an error before the server
+  had the request is a refusal, and a refusal reads and writes nothing; `discarded`
+  is never its answer, but set by `Recording.mark` and `discard` for an answer
+  thrown away), `tokens_of` takes the server's counts and estimates what it did not
   say, `pricing_of` copies the price as applied, `at_home` says whether a call
-  was free at home, and `cost_of` gives the cost: what the service reported; else,
+  was free at home (by `providers/catalog.at_home_free`, the one rule the list of
+  the AIs reads too: a local family at a private address with no price typed), and
+  `cost_of` gives the cost: what the service reported; else,
   away from home, what the whole price makes; else nothing known. A refusal costs
   zero, never "no price". A price counts only whole (read and written).
 - **OpenRouter's record completes what it did not say.** A call that ended
@@ -407,7 +410,12 @@ those copied names; only "Clear the history" removes rows.
   its end, again at 2 minutes if the record is not there yet, and at start-up
   while it is still missing and less than an hour old.
   Rows a killed process left `running` are ended `stopped` at start-up
-  (`after_start`). A price typed later fills only the rows with no price for the
+  (`after_start`); the server's own stop cancels the turns and the card drafts
+  under way first (`turns.cancel_all`, `card_assistant.cancel_all`, five seconds at
+  most), so that theirs end `stopped` with what arrived. A request stopped, or
+  cancelled, while its row is being inserted is never sent, and its row is removed.
+  The end of a row waits five seconds at most for the database (`END_WAITS_S`):
+  past that it is given up with a warning, and the next start ends it. A price typed later fills only the rows with no price for the
   same model id (`repositories/calls.reprice`, in the transaction that saves the
   price). Tests replace `calls.client_factory`, and `conftest.py` awaits
   `calls.drain()` after each test.
@@ -420,7 +428,9 @@ those copied names; only "Clear the history" removes rows.
   My AIs, an AI's page and a character's page. The panel of a conversation reads
   its sum once, then follows the `spent` that the end of each turn carries
   (`services/turns.py`), which also carries `glance`, so that a reply costs the
-  page one request less than in 3.8.0.
+  page one request less than in 3.8.0. Both are `null` once the revision moved, a
+  write went through the API (`app/writes.py`), or a memory operation ended
+  (`memory_service.one_at_a_time`).
 - **No request to a model changes.** `backend/tests/test_requests_3_8.py` compares
   the requests recorded on 3.8.0 (`fixtures/requests_3_8.json`) with what each AI
   is sent now, with no exception. Run it with `tests/cases_kept.py` before every

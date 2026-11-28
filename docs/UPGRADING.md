@@ -27,6 +27,14 @@ when Evermind starts, and a copy of it is kept first, as
   for me", automatic memory, the card assistant and speed tests, stopped or cut
   short ones included. A call refused at once, or that never reached the server,
   costs nothing.
+- **An AI at home is free**: a server of a family that loads its own models (Ollama,
+  LM Studio, llama.cpp, KoboldCpp) at a private address, unless you typed a price
+  for it; a price it lists itself does not make it money. A server at home of no
+  known family (an OpenAI-compatible gateway at a private address) may forward to
+  a paid service: it counts as "price not given", not under "Free", until you type
+  a price.
+- **Stopping the server** (Ctrl+C or Ctrl+Break) ends a reply or
+  a card being written as a stop does: what arrived is kept, cut short, and counted.
 - **In My AIs and on an AI's page**, the estimate "per 100 messages" gives way
   to what your last 100 messages really cost, once 20 replies have a known
   price. The two lists of a conversation keep the estimate.
@@ -37,7 +45,9 @@ when Evermind starts, and a copy of it is kept first, as
   window says so, and offers "without keeping its name". Clearing the history is
   a gesture of its own, on the Spending page ("Clear the history…"), all of it
   or what is before a date. "Export (CSV)" saves the calls of the period shown
-  as a file, one per line: the only place where calls are listed one by one.
+  as a file, one per line: the only place where calls are listed one by one. The
+  file holds the titles of your conversations (a title is the first words you
+  typed) and the names of your characters: mind where you send it.
 - **On OpenRouter**, after a call whose cost OpenRouter did not report (stopped,
   cut off, or not counted), Evermind asks OpenRouter what that call cost, with the key
   you gave it for that service: at 20 seconds, again at 2 minutes if the record
@@ -56,12 +66,22 @@ when Evermind starts, and a copy of it is kept first, as
 - **For a script that calls the API**: `/api/spending` (sums by period), its
   `/detail`, `/total`, `/export.csv`, `DELETE /api/spending` (`before`, `dry_run`)
   and `POST /api/spending/forget` are new, and a malformed day, zone or offset, an
-  offset out of range, or a day outside 2000–2100, answers `422` (`bad_period`); a
+  offset out of range, a day outside 2000–2100, a period that ends before it
+  starts, or more than one of `model`, `card` and `conversation` on `/total`,
+  answers `422` (`bad_period`); a
   zone Python does not know falls back to the offset, else UTC. `DELETE` of a conversation or a character takes
   `?forget_name=1`. `POST /api/characters` takes `assist_jobs`. `GET /api/models`
   gives each AI a `per100`, `PUT /api/models/{id}` answers `repriced`, and
   `GET /api/conversations/{id}/turn` carries `glance` and `spent` once a turn
-  has ended, `null` again once anything has been written. The body of a request
+  has ended, `null` again once anything has been written through the API since the
+  turn ended (the turn's own requests apart), or a memory pass or a condensation has
+  ended. In `/api/spending`, `previous` is `{cost, unpriced_calls}`, `null` from the
+  start and for days that end before counting began; `outside_replies` also gives
+  `unpriced_calls` and `free_calls`; each line of `cards` and `conversations` gives
+  the tokens in and out of its calls with no price, before `free_only`. A
+  character's `/detail` lists her 12 dearest conversations, each with `free_only`,
+  then `conversations_rest`; an AI's says `priceable` only when calls of the period
+  had no price. The body of a request
   to an AI does not change; after a call whose cost OpenRouter did not report
   (stopped, cut off, or not counted), OpenRouter receives `GET /generation?id=…` with your key.
 
