@@ -5,7 +5,7 @@ import { NumberField, ROLES } from "@/components/editor/LoreEntrySettings";
 import { RereadBanner } from "@/components/editor/RereadBanner";
 import { fieldLabelKey, KIND_COPY, labelKey } from "@/components/editor/fieldLabels";
 import { TagInput } from "@/components/editor/TagInput";
-import { keptOnDelete } from "@/components/spending/SpentLine";
+import { keptOnDelete } from "@/components/spending/keptOnDelete";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { data, DataError, type AssistField, type AssistState, type CharacterInput, type OriginalCard } from "@/data";

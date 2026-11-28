@@ -1,9 +1,6 @@
-import { translate } from "@/i18n/translate";
 import type { SpentTotal } from "@/types";
 import { describe, expect, test } from "vitest";
-import { keptOnDelete, keptSaid, spentLineShown } from "./SpentLine";
-
-const t = ((key: string, vars?: Record<string, string | number>) => translate("en", key, vars)) as never;
+import { spentLineShown } from "./SpentLine";
 
 const without = {};
 const withIt = { spending: {} as never };
@@ -28,19 +25,5 @@ describe("the line of what was spent", () => {
 
   test("Settings draws its line at a total of nothing", () => {
     expect(spentLineShown(withIt, spent(0), false)).toBe(true);
-  });
-});
-
-describe("what a window of deletion says is kept", () => {
-  test("an edition without Spending says nothing of it and offers no tick", () => {
-    expect(keptOnDelete(t, without)).toBeNull();
-    expect(keptSaid(t, without)).toBeNull();
-  });
-
-  test("with Spending, the sentence is said and the tick starts unticked", () => {
-    const kept = keptOnDelete(t, withIt);
-    expect(kept).not.toBeNull();
-    expect(kept!.forgetName()).toBe(false);
-    expect(keptSaid(t, withIt)).toBe("Its spending stays in Spending, under its name.");
   });
 });

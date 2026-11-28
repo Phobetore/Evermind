@@ -5,7 +5,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { describeError } from "@/lib/errors";
 import { amountText, duringText, measuredText, moneyText, type Period } from "@/lib/spending";
 import { isolated } from "@/lib/utils";
-import { PriceFields } from "@/pages/AiPage";
+import { PriceFields } from "@/components/ai/PriceFields";
 import type {
   Ai, SpendingDetail, SpendingDetailOfCard, SpendingDetailOfConversation, SpendingDetailOfModel, SpendingDetailOfUse,
   SpendingModelLine, SpendingSources,

@@ -1,7 +1,7 @@
 import { CardSummary } from "@/components/chat/CardSummary";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
-import { keptOnDelete } from "@/components/spending/SpentLine";
+import { keptOnDelete } from "@/components/spending/keptOnDelete";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadFailure } from "@/components/ui/LoadFailure";
 import { data } from "@/data";
