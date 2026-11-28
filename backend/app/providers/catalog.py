@@ -263,6 +263,16 @@ def is_local(family: Family, base_url: str) -> bool:
             or host.endswith((".local", ".lan", ".home.arpa", ".internal", ".localhost")))
 
 
+def at_home_free(family: Family, base_url: str, model: dict) -> bool:
+    """The one rule of a server at home that is never money: a family that loads its own models,
+    at a private address, with no price typed. A price read from it is not money; one the person
+    typed is. A gateway of no known family is not, even at home: it may forward to a paid
+    service. The list of the AIs (repositories/models.py) and each call's row
+    (services/calls.py) both read it here."""
+    typed = model.get("price_own_in") is not None or model.get("price_own_out") is not None
+    return family in LOCAL_FAMILIES and not typed and is_local(family, base_url)
+
+
 def root_of(base_url: str) -> str:
     """The server's own address, where its native routes live: base_url without its final /v1."""
     return _bare(base_url).removesuffix("/v1")

@@ -1,7 +1,7 @@
 import { data, DataError, type Asking, type TurnRequest } from "@/data";
 import { arrived, loadSending, settleSending } from "@/lib/drafts";
 import { isUnanswered } from "@/lib/errors";
-import type { Conversation, Message, TurnState } from "@/types";
+import type { Conversation, Message, Outlook, SpentTotal, TurnState } from "@/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const PATIENCE_MS = 10_000;
@@ -13,6 +13,15 @@ const WAKING_MS = 200;
 const QUIET_FAILURES = 2;
 
 export type Outcome = Extract<TurnState, { running: false }>["outcome"];
+
+/** What a turn's end hands the page, when it carries it. */
+export type Ended = { glance: Outlook["current"] | null; spent: SpentTotal | null };
+
+/** Only for a turn this page saw run: one found over, as the page opens or its answer lost, may
+ *  have ended before a way was changed elsewhere, which changes no revision. */
+export function endOf(state: Extract<TurnState, { running: false }>, sawItRun: boolean): Ended {
+  return sawItRun ? { glance: state.glance ?? null, spent: state.spent ?? null } : { glance: null, spent: null };
+}
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -105,12 +114,12 @@ function askFor(id: string, request: TurnRequest): Promise<void> {
  *  `settled` is told, once for each time the page has shown the story, when nothing is being
  *  written: at the end of a turn the page saw run, and otherwise once nothing asked for is still
  *  on its way. That is how the page learns a turn has ended, whether it saw it run or, its answer
- *  lost, only found it over. */
+ *  lost, only found it over. It is handed what the end of a turn it saw run carries. */
 export function useTurn(
   id: string,
   read: (asking: Asking) => Promise<{ conversation: Conversation; show: () => boolean }>,
   add: (message: Message) => void,
-  settled: () => void = () => {},
+  settled: (ended: Ended) => void = () => {},
 ) {
   // The message being written, "" until the server says which.
   const [writing, setWriting] = useState<string | null>(null);
@@ -174,7 +183,7 @@ export function useTurn(
           // one: it is told on the first pass once none is, and this loop goes on until then.
           if (owed.current && (shown.current.writing !== null || !waiting.has(id))) {
             owed.current = false;
-            settling.current();
+            settling.current(endOf(state, shown.current.writing !== null));
           }
           shown.current.writing = null;
           setWriting(null);

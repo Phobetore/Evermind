@@ -7,15 +7,17 @@ from ..db import write_transaction
 from ..errors import NotFoundError
 from ..prompting import ways
 from ..providers.catalog import (
-    LOCAL_FAMILIES,
     Listed,
     amount,
+    at_home_free,
     family_of,
     is_local,
     is_loopback,
     whole,
 )
 from ..services import ai_call
+from ..services.calls import pricing_of
+from . import calls as calls_repo
 from . import connections as services_repo
 from . import settings as settings_repo
 from .base import new_id, now_iso
@@ -48,10 +50,7 @@ def is_free(model: dict, service: dict) -> bool:
     """The only definition, which the page reads and never works out again: a server at home of a
     family that loads its own models, with no price typed, or a price of 0 and 0, read or typed.
     A gateway of no known family is not free, even at home: it may forward to a paid service."""
-    family = _family(service)
-    typed = model["price_own_in"] is not None or model["price_own_out"] is not None
-    if family in LOCAL_FAMILIES and not typed and is_local(family,
-                                                                          service["base_url"]):
+    if at_home_free(_family(service), service["base_url"], model):
         return True
     return (_price(model, "price_in", "price_own_in") == 0
             and _price(model, "price_out", "price_own_out") == 0)
@@ -66,9 +65,10 @@ def _measured(average) -> int | None:
 
 
 def to_out(model_row, service_row, conversation_count: int = 0,
-           room: int | None = None) -> dict:
+           room: int | None = None, per100: dict | None = None) -> dict:
     """Public shape: the key never leaves, only its end. ``room`` is the reply room of the way
-    offered to new conversations, which its notices weigh."""
+    offered to new conversations, which its notices weigh. ``per100``: what a hundred of its
+    replies cost, measured (repositories/calls.py, per100_all); None under 20."""
     model, service = dict(model_row), dict(service_row)
     family = _family(service)
     counted = ai_call.window(model, family=family)
@@ -107,6 +107,7 @@ def to_out(model_row, service_row, conversation_count: int = 0,
         "usage_seen": None if model["usage_seen"] is None else bool(model["usage_seen"]),
         "anthropic": service["provider"] == "anthropic",
         "conversation_count": conversation_count,
+        "per100": per100,
         "created_at": model["created_at"], "updated_at": model["updated_at"],
     }
 
@@ -125,7 +126,9 @@ async def list_all(db: aiosqlite.Connection) -> list[dict]:
     rows = await (await db.execute(f"{_JOINED} ORDER BY {_DEFAULT_FIRST}")).fetchall()
     services = await _services(db)
     room = ways.way_for(None, await settings_repo.get_all(db))["reply_room"]
-    out = [to_out(r, services[r["connection_id"]], r["conversation_count"], room) for r in rows]
+    measured = await calls_repo.per100_all(db)
+    out = [to_out(r, services[r["connection_id"]], r["conversation_count"], room,
+                  measured.get(r["id"])) for r in rows]
     if out:
         out[0]["is_default"] = True
     return out
@@ -292,7 +295,9 @@ async def _insert(db: aiosqlite.Connection, service_id: str, service: dict, fami
 
 async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict | None:
     """``fields`` as ModelUpdate gave them, only those sent. A model id changed forgets in the
-    same write all that was read and measured of the one before; what was typed stays."""
+    same write all that was read and measured of the one before; what was typed stays. A whole
+    price typed prices, in the same write, the calls of this AI's server id that had none; the AI
+    comes back with ``repriced``, how many."""
     sets: dict = {}
     for key in ("name", "model", "context_own", *SAMPLING, "price_own_in", "price_own_out"):
         if key in fields:
@@ -320,7 +325,16 @@ async def update(db: aiosqlite.Connection, model_id: str, fields: dict) -> dict 
         sets["updated_at"] = now_iso()
         await db.execute(f"UPDATE models SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
                          (*sets.values(), model_id))
-    return await get(db, model_id)
+        repriced = 0
+        if "price_own_in" in fields or "price_own_out" in fields:
+            saved = await get_row(db, model_id)
+            pricing = pricing_of(saved)
+            # A price typed, not one read again once the typed one is taken away: a read price
+            # that changes touches no call.
+            if pricing.source == "typed":
+                repriced = await calls_repo.reprice(db, model_id, saved["model"], pricing)
+    updated = await get(db, model_id)
+    return {**updated, "repriced": repriced} if updated else None
 
 
 async def successor(db: aiosqlite.Connection, model_id: str) -> dict | None:

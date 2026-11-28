@@ -9,7 +9,8 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
  *  (overscroll-behavior: contain), the title row staying in sight. `seeThrough`: no shade over the
  *  page, for a setting judged on what is behind it. `alert`: what failed while it is open,
  *  drawn inside it (the page behind is out of reach and may be covered). `returnTo`: where the
- *  focus goes on closing when what opened the sheet is no longer in the page. */
+ *  focus goes on closing when what opened the sheet is no longer in the page. `named`: the title is
+ *  a name someone typed, isolated so that one written right to left keeps to itself. */
 export function Sheet({
   title,
   onClose,
@@ -18,6 +19,7 @@ export function Sheet({
   seeThrough = false,
   alert = null,
   returnTo,
+  named = false,
 }: {
   title: string;
   onClose: () => void;
@@ -26,6 +28,7 @@ export function Sheet({
   seeThrough?: boolean;
   alert?: string | null;
   returnTo?: () => HTMLElement | null;
+  named?: boolean;
 }) {
   const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -72,7 +75,7 @@ export function Sheet({
           <div className="min-w-0 pt-2">
             {/* A title can be a name, whatever its owner typed: a handle is one long word. A long word
                 is cut as its language cuts it (the page's lang), and anywhere only past that. */}
-            <h2 className="break-words hyphens-auto font-display text-lg font-semibold">{title}</h2>
+            <h2 className="break-words hyphens-auto font-display text-lg font-semibold">{named ? <bdi>{title}</bdi> : title}</h2>
             {hint && <p id={hintId} className="mt-0.5 text-xs text-mist">{hint}</p>}
           </div>
           <button

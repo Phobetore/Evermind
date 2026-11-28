@@ -64,6 +64,81 @@ async def test_a_server_going_down_keeps_every_word_written_and_says_it_was_cut_
     assert await turns.running_for(convo["id"]) is None
 
 
+def held_by_another() -> bool:
+    """Whether another connection holds the database's write."""
+    conn = sqlite3.connect(db_path(), timeout=0)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.rollback()
+        return False
+    except sqlite3.OperationalError:
+        return True
+    finally:
+        conn.close()
+
+
+async def test_a_cancel_that_lands_in_begin_leaves_no_write_held(client):
+    conn = await db._connect()
+    real, began = conn.execute, asyncio.Event()
+
+    async def execute(sql, *args):
+        if sql == "BEGIN IMMEDIATE":
+            # BEGIN has run on the connection's thread when the cancel lands in its await.
+            await real(sql, *args)
+            began.set()
+            await asyncio.Event().wait()
+        return await real(sql, *args)
+
+    conn.execute = execute
+    try:
+        async def write():
+            async with db.write_transaction(conn):
+                await conn.execute("UPDATE settings SET value = value")
+
+        writing = asyncio.create_task(write())
+        await asyncio.wait_for(began.wait(), timeout=5)
+        writing.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await writing
+        assert not held_by_another()
+    finally:
+        await conn.close()
+
+
+async def test_a_cancel_that_lands_in_a_save_ends_its_row_at_once(client, held_back, monkeypatch):
+    """A save cut between its write and its commit leaves the write open on the turn's
+    connection: the row's end, written on another, must not wait for it."""
+    from app.repositories import conversations as convo_repo
+    from app.services import calls
+
+    convo = await setup_conversation(client)
+    real, holding = convo_repo.update_message, asyncio.Event()
+
+    async def update_message(db_, message_id, *args, **kwargs):
+        if "mot4" in json.dumps(kwargs.get("variants") or []):
+            # Written, not committed, when the server's stop lands.
+            await db_.execute("UPDATE messages SET meta = meta WHERE id = ?", (message_id,))
+            holding.set()
+            await asyncio.Event().wait()
+        return await real(db_, message_id, *args, **kwargs)
+
+    monkeypatch.setattr(convo_repo, "update_message", update_message)
+    turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Coupe"))
+    await asyncio.wait_for(holding.wait(), timeout=10)
+    turn.task.cancel()
+    await asyncio.wait_for(turn.finished.wait(), timeout=5)
+    await asyncio.wait_for(calls.drain(), timeout=5)
+
+    with closing(sqlite3.connect(db_path())) as conn:
+        [(outcome, ended)] = conn.execute("SELECT outcome, ended_at FROM calls").fetchall()
+    assert (outcome, ended is not None) == ("stopped", True)
+    assert not held_by_another()
+    # What the last committed save wrote is kept: the save cut short wrote the same words again.
+    reply = (await messages_of(client, convo["id"]))[-1]
+    assert reply["role"] == "assistant" and reply["content"].startswith("mot0")
+    assert reply["meta"] == {"interrupted": [0]}
+
+
 async def test_a_reply_says_it_is_unfinished_until_it_is_whole(client, held_back):
     convo = await setup_conversation(client)
     turn = await turns.start(ChatRequest(conversation_id=convo["id"], mode="send", content="Ecris-moi"))

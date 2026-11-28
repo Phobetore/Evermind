@@ -183,3 +183,36 @@ def test_a_server_that_refuses_a_prompt_longer_than_it_reads(mock):
     assert words == ("This model's maximum context length is 10 tokens. However, you requested "
                      "9500 tokens.")
     assert an_ordinary_reply(ask(mock, CHAT, "MOCK_TOO_LONG_100000", usage=True))
+
+
+def events_of(url: str, said: str) -> list[dict]:
+    """Every object of the stream the mock sent, as a server's own; the count is asked for."""
+    body = {"model": "evermind-demo-fast", "stream": True, "stream_options": {"include_usage": True},
+            "messages": [{"role": "system", "content": CHAT}, {"role": "user", "content": said}]}
+    events = []
+    # To its last line, as the server reads it: the stream sends no length, and stays open.
+    with httpx.stream("POST", url, json=body, timeout=10) as response:
+        for line in response.iter_lines():
+            if line == "data: [DONE]":
+                break
+            if line.startswith("data: "):
+                events.append(json.loads(line[6:]))
+    return events
+
+
+def test_a_cost_is_said_as_openrouter_says_it(mock):
+    assert ask(mock, CHAT, "MOCK_COSTS_2100", usage=True)["usage"]["cost"] == 0.0021
+    byok = ask(mock, CHAT, "MOCK_BYOK_12300", usage=True)["usage"]
+    assert byok["cost"] == 0
+    assert byok["cost_details"]["upstream_inference_cost"] == 0.0123
+    assert "cost" not in ask(mock, CHAT, "Hello", usage=True)["usage"]
+
+
+def test_each_piece_names_its_generation_and_the_model_asked(mock):
+    first, second = events_of(mock, "Hello"), events_of(mock, "Hello")
+    for events in (first, second):
+        assert len(events) > 2
+        assert {e["id"] for e in events} == {events[0]["id"]}
+        assert events[0]["id"].startswith("gen-mock-")
+        assert {e["model"] for e in events} == {"evermind-demo-fast"}
+    assert first[0]["id"] != second[0]["id"]

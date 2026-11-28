@@ -9,7 +9,8 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="ui-label mb-1.5 block">{label}</span>
+      {/* A long word at the largest text ("Ausgangssituation") breaks rather than past the screen. */}
+      <span className="ui-label mb-1.5 block break-words">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs leading-relaxed text-mist-dim">{hint}</span>}
     </label>

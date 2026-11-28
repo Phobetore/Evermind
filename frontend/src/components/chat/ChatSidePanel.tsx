@@ -1,4 +1,5 @@
 import type { ConversationBackdrop } from "@/components/chat/useConversationBackdrop";
+import { SpentLine } from "@/components/spending/SpentLine";
 import { Avatar } from "@/components/ui/Avatar";
 import { PlainText } from "@/components/ui/PlainText";
 import { data, DataError } from "@/data";
@@ -9,7 +10,7 @@ import { backdropOf, useDisplay } from "@/lib/display";
 import { describeError, describeFailure, isUnanswered } from "@/lib/errors";
 import { PATIENCE_MS } from "@/lib/useTurn";
 import { cardText, smallPortrait } from "@/lib/utils";
-import type { Backdrop, Conversation, Memory, Persona } from "@/types";
+import type { Backdrop, Conversation, Memory, Persona, SpentTotal } from "@/types";
 import { clsx } from "clsx";
 import { BrainCircuit, Image as ImageIcon, Layers, Loader2, Megaphone, Pin, Plus, RotateCcw, SlidersHorizontal, Type, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type SetStateAction } from "react";
@@ -28,6 +29,7 @@ export function ChatSidePanel({
   backdrop,
   persona,
   storyCuts = 0,
+  spent = null,
   takeFocus = false,
   onClose,
   onConversationChange,
@@ -40,6 +42,9 @@ export function ChatSidePanel({
   persona: Persona | null;
   /** Changes when the server takes the memory back, with a cut or a reply written over. */
   storyCuts?: number;
+  /** What the conversation has cost, as the last turn's end said it: the line follows it while the
+   *  panel is open, and reads its own as it opens. */
+  spent?: SpentTotal | null;
   /** Opened by hand: the focus starts on its close button. */
   takeFocus?: boolean;
   onClose: () => void;
@@ -86,6 +91,15 @@ export function ChatSidePanel({
   const asking = useRef(false);
   const remembering = memorizing || elsewhere === "extract" || elsewhere === "pass";
   const condensing = consolidating || elsewhere === "consolidate";
+  // Each end of an operation on the memory the panel shows: it called the AI, and no turn's end
+  // says what that cost, so the line of what was spent reads it again.
+  const [memoryEnds, setMemoryEnds] = useState(0);
+  const memoryBusy = remembering || condensing;
+  const wasBusy = useRef(memoryBusy);
+  useEffect(() => {
+    if (wasBusy.current && !memoryBusy) setMemoryEnds((n) => n + 1);
+    wasBusy.current = memoryBusy;
+  }, [memoryBusy]);
   const summary = summaryDraft?.text ?? conversation.summary;
   const directive = directiveDraft ?? conversation.author_note ?? "";
   const wallpaperInput = useRef<HTMLInputElement>(null);
@@ -725,6 +739,15 @@ export function ChatSidePanel({
           </button>
         )}
         {memoryNote && <p className="mt-1.5 break-words text-xs text-moss">{memoryNote}</p>}
+        {/* Under the memory, whose passes are part of it. Never "free" nor "$0": absent then. */}
+        <SpentLine
+          query={{ conversation: conversation.id, days: "all" }}
+          sentence="conversation"
+          to={`#/spending?cut=conversation&key=${encodeURIComponent(conversation.id)}&per=all`}
+          known={spent}
+          reread={memoryEnds}
+          hideWhenNothing
+        />
       </div>
 
       {character.scenario && (

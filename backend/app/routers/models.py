@@ -11,6 +11,7 @@ from ..db import get_db
 from ..errors import MODEL_UNREADABLE, AppError, NotFoundError
 from ..models.schemas import ModelsCreate, ModelUpdate, ObservedIn, RefreshIn
 from ..prompting.engine import PromptPayload
+from ..prompting.payloads import prompt_tokens
 from ..prompting.tokens import estimate_tokens
 from ..providers import catalog, get_provider
 from ..providers.base import NO_TEXT, Answer, ProviderError, unwritten
@@ -18,7 +19,7 @@ from ..repositories import connections as services_repo
 from ..repositories import models as repo
 from ..repositories import settings as settings_repo
 from ..repositories.connections import bare
-from ..services import ai_call, limits
+from ..services import ai_call, calls, limits
 from .connections import held_service
 
 router = APIRouter(prefix="/api/models", tags=["models"])
@@ -204,15 +205,20 @@ async def benchmark_model(model_id: str, db: aiosqlite.Connection = Depends(get_
     thought, stop = 0, None
     started = time.monotonic()
     first_token = None
-    async for event in get_provider(call).stream_chat(payload):
-        if event.type == "delta":
-            if first_token is None:
-                first_token = time.monotonic()
-            chunks.append(event.text)
-        elif event.type == "thought":
-            thought += event.count
-        else:
-            stop = event.stop
+    provider = get_provider(call)
+    # A speed test is a real generation, paid like any other.
+    async with calls.recording(provider, resolved, calls.Who("speed"),
+                               prompt_estimate=prompt_tokens(payload)) as recording:
+        async for event in provider.stream_chat(payload):
+            if event.type == "delta":
+                if first_token is None:
+                    first_token = time.monotonic()
+                chunks.append(event.text)
+            elif event.type == "thought":
+                thought += event.count
+            else:
+                stop = event.stop
+        recording.mark("whole" if "".join(chunks).strip() else "empty")
     now = time.monotonic()
     if first_token is None:
         raise unwritten(Answer("", thought, stop)) or AppError(

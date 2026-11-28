@@ -5,20 +5,21 @@ import { NumberField, ROLES } from "@/components/editor/LoreEntrySettings";
 import { RereadBanner } from "@/components/editor/RereadBanner";
 import { fieldLabelKey, KIND_COPY, labelKey } from "@/components/editor/fieldLabels";
 import { TagInput } from "@/components/editor/TagInput";
+import { keptOnDelete } from "@/components/spending/keptOnDelete";
 import { Avatar } from "@/components/ui/Avatar";
 import { useConfirm } from "@/components/ui/Confirm";
 import { data, DataError, type AssistField, type AssistState, type CharacterInput, type OriginalCard } from "@/data";
 import { useT } from "@/i18n/useT";
 import {
-  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, moveJob, outcome, rememberJob, rememberedJob,
-  scopeOf,
+  clientIdFor, describeOutcome, fieldsToTake, follow, forgetJob, forgetJobIds, jobIdsOf, keepJobId, moveJob, outcome,
+  rememberJob, rememberedJob, scopeOf,
 } from "@/lib/assist";
 import { cardFile, findOriginal, rereadPlan, type ExportWarning, type FoundCard, type RereadMode } from "@/lib/cards";
 import { newLoreEntry } from "@/lib/loreEntry";
 import { usePlaceholderRoom } from "@/lib/placeholderRoom";
 import { savePortrait } from "@/lib/portraitSizes";
 import { describeError, isUnanswered } from "@/lib/errors";
-import { downloadBlob, newId } from "@/lib/utils";
+import { downloadBlob, isolated, newId } from "@/lib/utils";
 import type { Ai, CharacterWithLore, LoreEntry, NoteRole } from "@/types";
 import { clsx } from "clsx";
 import {
@@ -211,6 +212,12 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   }
 
   useEffect(() => {
+    // A new card that opens with no job to find again has lost the text of the drafts before it:
+    // what they cost is not this card's.
+    if (scope === "new" && !remembered) forgetJobIds(scope);
+  }, [scope, remembered]);
+
+  useEffect(() => {
     here.current = true;
     const picking = remembered ? setTimeout(() => watch(remembered.id)) : undefined;
     return () => {
@@ -258,16 +265,21 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       }
       delete existing.kind;
       existing.lore_entries = loreEntries.length > 0 ? loreEntries : undefined;
+      // A saved card names itself, and what the job costs counts under it.
+      const cardId = initial?.id || created.current || undefined;
       const { id } = await data.characters.assist.start({
         prompt: brief,
         kind: draft.kind,
         existing,
         model_id: assistAiId || null,
         client_id: clientId,
+        ...(cardId ? { card_id: cardId } : {}),
       });
       // Written down before anything else: from here the job is the server's, and a page that is
       // left or reloaded from now on finds it again.
       rememberJob(scopeNow(), { id, brief, kind: draft.kind });
+      // A card not saved yet claims it at its first save.
+      if (!cardId) keepJobId(scopeNow(), id);
       lostStart.current = null;
       if (here.current) watch(id);
     } catch (e) {
@@ -291,7 +303,9 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
       const card = { ...draft, lore_entries: loreEntries, ...(pendingCard ? { card: pendingCard } : {}) };
       const saved = id
         ? await data.characters.update(id, card)
-        : await data.characters.create(card);
+        : await data.characters.create({ ...card, assist_jobs: jobIdsOf("new") });
+      // Claimed: the next new card starts with none.
+      if (!id) forgetJobIds("new");
       created.current = saved.id;
       // A job begun on this card while it was not saved is the new card's now.
       if (!initial) moveJob("new", saved.id);
@@ -307,9 +321,12 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
 
   async function remove() {
     if (!initial) return;
-    if (!(await confirm(t("characters.form.confirmDelete", { name: initial.name }), { action: t("common.delete"), danger: true }))) return;
+    const kept = keptOnDelete(t);
+    const asked = { action: t("common.delete"), danger: true, details: kept?.details };
+    if (!(await confirm(t("characters.form.confirmDelete", { name: isolated(initial.name) }), asked))) return;
+    const forgetName = kept?.forgetName() ?? false;
     try {
-      await data.characters.remove(initial.id);
+      await data.characters.remove(initial.id, { forgetName });
       navigate("/");
     } catch (e) {
       setError(describeError(e, t));
@@ -336,13 +353,14 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
   const briefRoom = usePlaceholderRoom(briefPlaceholder);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    // Gutters of 24px at most: layout, not text, so that a very large text keeps its room.
+    <div className="mx-auto max-w-3xl px-[min(1.5rem,24px)] py-10">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 animate-rise">
         <h1 className="min-w-0 break-words font-display text-3xl font-semibold">
           {editing ? t("characters.form.editCardTitle", { name: initial!.name }) : t("characters.form.newCardTitle")}
         </h1>
         {editing && (
-          <div className="flex gap-2">
+          <div className="flex max-w-full flex-wrap gap-2">
             <button className="btn btn-ghost" onClick={() => exportCard("json")}>
               <FileDown className="h-4 w-4" /> JSON
             </button>
@@ -388,7 +406,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           />
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(
             [
               { value: "character", labelKey: "chat.panel.kindCharacter", icon: UserRound },
@@ -400,7 +418,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
               type="button"
               onClick={() => set("kind", value)}
               className={clsx(
-                "flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 font-display font-medium transition-colors",
+                "flex max-w-full flex-1 items-center justify-center gap-2 rounded-xl border py-3 font-display font-medium transition-colors",
                 draft.kind === value
                   ? value === "scenario"
                     ? "border-arcane-500/60 bg-arcane-glow text-arcane-300"
@@ -433,7 +451,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             <div className="flex min-w-0 flex-[1_1_16rem] flex-wrap items-center gap-2">
               {ais.length > 1 && (
                 <select
-                  className="field !w-auto max-w-52 !py-1.5 text-xs"
+                  className="field !w-auto max-w-[min(13rem,100%)] !py-1.5 text-xs"
                   value={assistAiId}
                   onChange={(e) => setAssistAiId(e.target.value)}
                   disabled={generating}
@@ -456,7 +474,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
             </div>
             <button
               type="button"
-              className="btn btn-primary !py-2 text-sm"
+              className="btn btn-primary max-w-full whitespace-normal !py-2 text-sm"
               onClick={generate}
               disabled={!brief.trim() || generating}
             >
@@ -493,7 +511,8 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           )}
         </div>
 
-        <div className="flex gap-5">
+        {/* At the largest text, the name and the tagline go under the portrait. */}
+        <div className="flex flex-wrap gap-5">
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
@@ -525,7 +544,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
               }
             }}
           />
-          <div className="flex flex-1 flex-col gap-4">
+          <div className="flex min-w-[min(10rem,100%)] flex-1 flex-col gap-4">
             <Field label={t("personas.nameLabel")}>
               <input
                 className="field"
@@ -552,7 +571,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
           />
         </Field>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <Field label={t(copy.personality.labelKey)} hint={t(copy.personality.hintKey)}>
             <textarea
               className="field min-h-24"
@@ -578,11 +597,11 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
         </Field>
 
         <div>
-          <div className="mb-1.5 flex items-center justify-between">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
             <span className="ui-label">{t("characters.form.alternateGreetingsLabel")}</span>
             <button
               type="button"
-              className="btn btn-ghost !px-2.5 !py-1 text-xs"
+              className="btn btn-ghost max-w-full whitespace-normal !px-2.5 !py-1 text-xs"
               onClick={() => set("alternate_greetings", [...draft.alternate_greetings, ""])}
             >
               <Plus className="h-3.5 w-3.5" /> {t("characters.form.addGreetingButton")}
@@ -693,7 +712,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
                     onChange={(e) => set("character_note", e.target.value)}
                   />
                 </Field>
-                <div className="grid gap-5 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <Field
                     label={t("characters.form.noteDepthLabel")}
                     hint={t("characters.form.noteDepthHint", { count: draft.character_note_depth })}
@@ -735,7 +754,7 @@ export function CharacterForm({ initial }: { initial?: CharacterWithLore }) {
                 )}
               </>
             )}
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <Field label={t("characters.form.creatorLabel")}>
                 <input
                   className="field"

@@ -105,6 +105,8 @@ export interface Ai {
   price: { read_in: number | null; read_out: number | null; own_in: number | null; own_out: number | null; varies: boolean };
   /** The server's own word: read, never worked out again here. */
   free: boolean;
+  /** What a hundred of its replies cost, measured; null under 20 replies whose price is known. */
+  per100: Per100 | null;
   limits_read_at: string | null;
   reply_cap: { mode: "auto" | "unsent" | "fixed"; tokens: number | null };
   /** Null leaves a setting to the model: it is not sent. */
@@ -373,11 +375,145 @@ export interface TurnFailure {
   reason?: string;
 }
 
+/** What one AI, one character or one conversation has cost. `free`: it was called, never for money. */
+export interface SpentTotal {
+  total: number;
+  currency: string;
+  calls: number;
+  unpriced_calls: number;
+  free: boolean;
+}
+
+/** What calls to a model are for, as Spending splits them; "memory" holds the condensations too. */
+export type SpendingUse = "reply" | "regenerate" | "continue" | "pen" | "memory" | "card" | "speed";
+
+/** The money of each origin of an amount. "estimated" overlaps the others: counted from what
+ *  arrived, at the price read or typed. */
+export interface SpendingSources { reported: number; computed_read: number; computed_typed: number; estimated: number }
+
+/** A long list past its 50 dearest, in one line. */
+export type SpendingRest = [lines: number, cost: number, calls: number, unpriced_calls: number];
+
+/** Sums of the calls of a period, as the server writes them: lists are rows, to stay small on a
+ *  slow link. Instants are UTC; days are the device's. The filter of one AI narrows `uses`, `cards`
+ *  and `conversations`, and gives `model_total`; never the rest. */
+export interface Spending {
+  /** Since when calls are counted: the update, or the last clear. */
+  since: string;
+  currency: string;
+  total: number;
+  model_total: number | null;
+  /** The same number of days just before, with its calls that had no price; null since the
+   *  start, and when those days end before counting began. */
+  previous: { cost: number; unpriced_calls: number } | null;
+  calls: number;
+  sources: SpendingSources;
+  outside_replies: { cost: number; calls: number; unpriced_calls: number; free_calls: number };
+  uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number,
+    unpriced_tokens_in: number, unpriced_tokens_out: number, free_calls: number][];
+  /** A bar a day up to 31 days, a week beyond; `start` is the bar's first local day. */
+  series: { step: "day" | "week"; points: [start: string, cost_replies: number, cost_other: number][] };
+  /** Never a free one: those are in `free`. */
+  models: [model_id: string | null, name: string | null, service_name: string | null, cost: number,
+    cost_upstream: number, upstream: string | null, calls: number, replies: number, tokens_in: number,
+    tokens_out: number, unpriced_calls: number, deleted: boolean][];
+  free: [model_id: string | null, name: string | null, where: "pc" | "network" | "service", replies: number,
+    tokens_in: number, service_name: string | null][];
+  /** A null `card_id`: the drafts of cards not saved yet, "New card". */
+  cards: [card_id: string | null, name: string | null, kind: Kind | null, cost: number, calls: number,
+    unpriced_calls: number, unpriced_tokens_in: number, unpriced_tokens_out: number, free_only: boolean,
+    deleted: boolean][];
+  cards_rest: SpendingRest | null;
+  conversations: [id: string, title: string | null, card_name: string | null, cost: number, calls: number,
+    unpriced_calls: number, unpriced_tokens_in: number, unpriced_tokens_out: number, free_only: boolean,
+    deleted: boolean][];
+  conversations_rest: SpendingRest | null;
+  unpriced: { calls: number; tokens_in: number; tokens_out: number };
+}
+
+/** What a hundred replies of an AI cost, from its last ones (at most 100, at least 20). */
+export interface Per100 { cost: number; n: number; typed: boolean }
+
+/** [model_id, name, cost, calls, unpriced_calls, free] */
+export type SpendingModelLine = [model_id: string | null, name: string | null, cost: number, calls: number,
+  unpriced_calls: number, free: boolean];
+
+/** The detail of one line of Spending opened, by what it is a line of. */
+export interface SpendingDetailOfModel {
+  name: string | null;
+  service_name: string | null;
+  deleted: boolean;
+  /** The AI exists, has no whole price, and calls of the period had none: one can be typed. */
+  priceable: boolean;
+  per100: Per100 | null;
+  cost: number;
+  cost_upstream: number;
+  upstream: string | null;
+  calls: number;
+  unpriced_calls: number;
+  tokens: { in: number; out: number; cached: number; reasoning: number };
+  sources: SpendingSources;
+  /** A computed amount read from the cache with no price for it: at most this much. */
+  at_most: boolean;
+  uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number, free_calls: number][];
+  cards: [card_id: string | null, name: string | null, kind: Kind | null, cost: number, calls: number,
+    unpriced_calls: number, free_only: boolean, deleted: boolean][];
+  cards_rest: SpendingRest | null;
+}
+
+export interface SpendingDetailOfCard {
+  name: string | null;
+  kind: Kind | null;
+  deleted: boolean;
+  cost: number;
+  calls: number;
+  unpriced_calls: number;
+  models: SpendingModelLine[];
+  /** Her dearest 12, then the rest in one line. */
+  conversations: [id: string, title: string | null, cost: number, calls: number, unpriced_calls: number,
+    free_only: boolean, deleted: boolean][];
+  conversations_rest: SpendingRest | null;
+}
+
+export interface SpendingDetailOfConversation {
+  title: string | null;
+  card_name: string | null;
+  deleted: boolean;
+  cost: number;
+  calls: number;
+  unpriced_calls: number;
+  models: SpendingModelLine[];
+  uses: [use: SpendingUse, cost: number, calls: number, retried: number, unpriced_calls: number, free_calls: number][];
+  /** What a reply cost in the first tenth and in the last; null under 10 such replies. */
+  growth: { first: number; last: number } | null;
+}
+
+export interface SpendingDetailOfUse {
+  use: SpendingUse;
+  cost: number;
+  calls: number;
+  retried: number;
+  unpriced_calls: number;
+  unpriced_tokens_in: number;
+  unpriced_tokens_out: number;
+  models: SpendingModelLine[];
+}
+
+export type SpendingDetail =
+  | SpendingDetailOfModel | SpendingDetailOfCard | SpendingDetailOfConversation | SpendingDetailOfUse;
+
 /** What the server says of a conversation's turn: the message being written, as far as it has
- *  got, or how the last one ended when it failed or added nothing; first, its messages' revision. */
+ *  got, or how the last one ended when it failed or added nothing; first, its messages' revision.
+ *  Once it has ended, what the page would read next, while the story is the one it was read on:
+ *  what the AI reads of it under its way, and what the conversation has cost. */
 export type TurnState = { revision: number | null } & (
   | { running: true; message_id: string; text: string }
-  | { running: false; outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null });
+  | {
+      running: false;
+      outcome: (TurnFailure & { mode: "send" | "regenerate" | "continue" }) | null;
+      glance?: Outlook["current"] | null;
+      spent?: SpentTotal | null;
+    });
 
 /** What following a turn hands over: the message so far, then each piece as it arrives. */
 export type TurnEvent = { text: string } | { delta: string } | { end: true };

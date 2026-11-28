@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { SHOWN_TEXT_BOUND, cardText, firstCodePoints, mediumPortrait, namesFit, previewMacros, smallPortrait } from "./utils";
+import { SHOWN_TEXT_BOUND, cardText, firstCodePoints, isolated, mediumPortrait, namesFit, previewMacros, smallPortrait } from "./utils";
 
 describe("a card's text for people", () => {
   test("a card's own text is shown as its rules have it", () => {
@@ -87,5 +87,16 @@ describe("the copy of a portrait", () => {
     expect(mediumPortrait({ avatar_url: whole, avatar_backdrop_url: "api/media/face-960.webp" })).toBe("api/media/face-960.webp");
     expect(mediumPortrait({ avatar_url: whole, avatar_backdrop_url: null })).toBe(whole);
     expect(mediumPortrait({ avatar_url: null, avatar_backdrop_url: null })).toBeNull();
+  });
+});
+
+describe("a name in a sentence", () => {
+  test("is isolated, so that one written right to left keeps the sentence's order around it", () => {
+    expect(isolated("ليلى")).toBe("\u2068ليلى\u2069");
+    expect(`Spent with ${isolated("ليلى")} since the start: $1.20`.endsWith(": $1.20")).toBe(true);
+  });
+
+  test("an empty name stays empty: nothing is drawn around nothing", () => {
+    expect(isolated("")).toBe("");
   });
 });

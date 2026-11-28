@@ -58,6 +58,9 @@ MODEL_NO_CREDIT = "model_no_credit"
 # A model's server that refused the prompt as longer than it reads, again once what it said was
 # learned and the turn asked again.
 MODEL_TOO_LONG = "model_too_long"
+# What Spending was asked for and the page could not have sent: a day, a zone or an offset
+# unread, a start after its end, or a total of no single AI, character or conversation.
+BAD_PERIOD = "bad_period"
 RELOAD = "Evermind has been updated: reload this page."
 
 _LENGTH_BOUNDS = {"string_too_long": (TEXT_TOO_LONG, "max_length"),

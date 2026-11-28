@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { data, DataError, onLocked } from "@/data";
 import type { TurnEvent } from "@/types";
+import { zoneOfDevice } from "./zone";
 
 let calls: { url: string; init: RequestInit }[];
 let replies: (Response | Error)[];
@@ -38,7 +39,7 @@ describe("the contract", () => {
   test("offers what the contract names, and nothing else", () => {
     expect(Object.keys(data).sort()).toEqual([
       "access", "characters", "connections", "conversations", "device", "file", "library", "memories",
-      "messages", "personas", "remoteImages", "settings", "turns", "updates", "ways",
+      "messages", "personas", "remoteImages", "settings", "spending", "turns", "updates", "ways",
     ]);
   });
 });
@@ -158,6 +159,71 @@ describe("what is sent", () => {
     expect(calls.map((c) => [c.url, c.init.cache])).toEqual([
       ["api/conversations/v%2F1/outlook", "no-store"],
       ["api/conversations/v1/outlook?only=current", "no-store"],
+    ]);
+  });
+
+  test("spending is asked in the device's days, past any cache, each at its own address", async () => {
+    const { tz, tzo } = zoneOfDevice();
+    const zone = `tz=${encodeURIComponent(tz)}&tzo=${tzo}`;
+    const csv = new Response("id\n", {
+      headers: { "Content-Disposition": 'attachment; filename="evermind-spending-2026-11-26.csv"' },
+    });
+    replies.push(json({}), json({}), json({}), csv, json({}), json({}), json({}));
+    const spending = data.spending!;
+    await spending.summary({ from: "2026-11-01", to: "2026-11-26", model: "m/1" });
+    await spending.detail({ cut: "card", key: "", to: "2026-11-26" });
+    await spending.total({ conversation: "v1", days: "all" });
+    const file = await spending.exportCsv({});
+    await spending.clear({ before: "2026-11-01", dryRun: true });
+    await spending.clear({ dryRun: false });
+    await spending.forget("card", "c/1");
+    expect(calls.map((c) => [c.url, c.init.method ?? "GET", c.init.cache])).toEqual([
+      [`api/spending?from=2026-11-01&to=2026-11-26&model=m%2F1&${zone}`, "GET", "no-store"],
+      [`api/spending/detail?cut=card&key=&to=2026-11-26&${zone}`, "GET", "no-store"],
+      [`api/spending/total?conversation=v1&days=all&${zone}`, "GET", "no-store"],
+      [`api/spending/export.csv?${zone}`, "GET", undefined],
+      [`api/spending?before=2026-11-01&dry_run=1&${zone}`, "DELETE", undefined],
+      [`api/spending?${zone}`, "DELETE", undefined],
+      ["api/spending/forget", "POST", undefined],
+    ]);
+    expect(file.filename).toBe("evermind-spending-2026-11-26.csv");
+    expect(await file.blob.text()).toBe("id\n");
+    expect(JSON.parse(calls[6].init.body as string)).toEqual({ cut: "card", key: "c/1" });
+  });
+
+  test("a device that names no zone sends its offset alone, which the server reads", async () => {
+    // The server refuses an empty zone name ("tz=" is 422), so no name means no tz at all.
+    const options = Intl.DateTimeFormat.prototype.resolvedOptions;
+    const unnamed = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockImplementation(function (this: Intl.DateTimeFormat) {
+        return { ...options.call(this), timeZone: undefined } as unknown as Intl.ResolvedDateTimeFormatOptions;
+      });
+    try {
+      const { tzo } = zoneOfDevice();
+      await data.spending!.summary({ to: "2026-11-26" });
+      expect(calls.map((c) => c.url)).toEqual([`api/spending?to=2026-11-26&tzo=${tzo}`]);
+    } finally {
+      unnamed.mockRestore();
+    }
+  });
+
+  test("an export the server names no file for is saved under Evermind's own name", async () => {
+    replies.push(new Response("id\n"));
+    const file = await data.spending!.exportCsv({});
+    expect(file.filename).toBe("evermind-spending.csv");
+  });
+
+  test("a deletion that forgets the name says so, and one that keeps it sends nothing more", async () => {
+    replies.push(...Array.from({ length: 4 }, () => new Response(null, { status: 204 })));
+    await data.conversations.remove("v/1", { forgetName: true });
+    await data.conversations.remove("v1");
+    await data.characters.remove("c/1", { forgetName: true });
+    await data.characters.remove("c1", { forgetName: false });
+    expect(calls.map((c) => [c.url, c.init.method])).toEqual([
+      ["api/conversations/v%2F1?forget_name=1", "DELETE"],
+      ["api/conversations/v1", "DELETE"],
+      ["api/characters/c%2F1?forget_name=1", "DELETE"],
+      ["api/characters/c1", "DELETE"],
     ]);
   });
 

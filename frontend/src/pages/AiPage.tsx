@@ -1,8 +1,11 @@
 import { AiLine } from "@/components/ai/AiLine";
-import { EstimateLine } from "@/components/ai/EstimateLine";
+import { CostLine } from "@/components/ai/CostLine";
 import { LOCAL_FAMILIES } from "@/components/ai/addFlow";
 import { MigrationNotice } from "@/components/ai/MigrationNotice";
+import { PriceFields, type Said, type Save } from "@/components/ai/PriceFields";
 import { ServiceForm } from "@/components/ai/ServiceForm";
+import { keptSaid } from "@/components/spending/keptOnDelete";
+import { SpentLine } from "@/components/spending/SpentLine";
 import { useConfirm } from "@/components/ui/Confirm";
 import { decimalOf, FigureField, tokensOf, type FieldHandle } from "@/components/ui/FigureField";
 import { LoadFailure } from "@/components/ui/LoadFailure";
@@ -12,8 +15,7 @@ import type { Translate } from "@/i18n/I18nProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { pages, successorOf, warningsOf } from "@/lib/ai";
 import { describeError, describeFailure } from "@/lib/errors";
-import { readerOfAi } from "@/lib/estimate";
-import { timeAgo } from "@/lib/utils";
+import { isolated, timeAgo } from "@/lib/utils";
 import { offeredWay } from "@/lib/ways";
 import type { Ai, Service, Ways } from "@/types";
 import { clsx } from "clsx";
@@ -61,6 +63,9 @@ function AiView({ id }: { id: string }) {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<{ at: string; message: string } | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The earlier calls with no price that the last price saved filled; each such save reads the
+  // line of what was spent with it again.
+  const [repriced, setRepriced] = useState({ count: 0, saves: 0 });
   const grouped = new Intl.NumberFormat(locale);
 
   const replace = useCallback((model: Ai) => {
@@ -127,6 +132,7 @@ function AiView({ id }: { id: string }) {
     try {
       const saved: AiSaved = await connections.models.update(id, change);
       replace(saved);
+      if (at === "price") setRepriced((was) => ({ count: saved.repriced ?? 0, saves: was.saves + (saved.repriced ? 1 : 0) }));
       setSavedAt(at);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setSavedAt(null), SAVED_MS);
@@ -162,6 +168,9 @@ function AiView({ id }: { id: string }) {
     <>
       {savedAt === at && <span role="status" className="text-xs text-moss animate-fade">{t("ai.page.saved")}</span>}
       {saveError?.at === at && <p role="alert" className="text-sm text-blood">{saveError.message}</p>}
+      {at === "price" && repriced.count > 0 && (
+        <p role="status" className="text-sm text-moss">{t("spending.repriced", { count: repriced.count })}</p>
+      )}
     </>
   );
   const online = !ai.service.local;
@@ -189,19 +198,22 @@ function AiView({ id }: { id: string }) {
     const after = successorOf(current, ais ?? []);
     const count = current.conversation_count;
     const last = !others.some((other) => other.service.id === current.service.id);
-    const sure = await confirm(t("ai.page.removeConfirm", { name: current.name }), {
+    // Its name is no secret of a story: what it cost stays under it, with no choice to forget it.
+    const kept = keptSaid(t);
+    const sure = await confirm(t("ai.page.removeConfirm", { name: isolated(current.name) }), {
       action: t("ai.page.removeAction"),
       danger: true,
-      details: (count > 0 || (last && current.service.api_key_set)) && (
+      details: (count > 0 || (last && current.service.api_key_set) || kept) && (
         <>
           {count > 0 && (
             <p>
               {after
-                ? t("ai.page.removeMoves", { count, name: after.name })
+                ? t("ai.page.removeMoves", { count, name: isolated(after.name) })
                 : t("ai.page.removeOrphans", { count })}
             </p>
           )}
-          {last && current.service.api_key_set && <p>{t("ai.page.removeKey", { service: current.service.name })}</p>}
+          {last && current.service.api_key_set && <p>{t("ai.page.removeKey", { service: isolated(current.service.name) })}</p>}
+          {kept && <p>{kept}</p>}
         </>
       ),
     });
@@ -243,7 +255,16 @@ function AiView({ id }: { id: string }) {
       <header className="mb-6 animate-rise">
         <h1 className="font-display text-3xl font-semibold [overflow-wrap:anywhere]">{ai.name}</h1>
         <div className="mt-2">
-          <AiLine ai={ai} extra={ways && <EstimateLine reader={readerOfAi(ai)} way={offeredWay(ways)} />} />
+          <AiLine ai={ai} extra={ways && <CostLine ai={ai} way={offeredWay(ways)} />} />
+        </div>
+        <div className="mt-1">
+          <SpentLine
+            key={repriced.saves}
+            query={{ model: ai.id, days: 30 }}
+            sentence="ai"
+            to={`#/spending?cut=model&key=${encodeURIComponent(ai.id)}&per=30`}
+            hideWhenNothing
+          />
         </div>
       </header>
 
@@ -426,9 +447,6 @@ function ServerRead({ ai, t, reading, failure, onReread, bench, benching, onBenc
     </section>
   );
 }
-
-type Save = (at: string, change: ModelUpdate) => Promise<void>;
-type Said = (at: string) => React.ReactNode;
 
 function DefaultSwitch({ ai, t, onSave }: { ai: Ai; t: Translate; onSave(): void }) {
   const ids = useId();
@@ -662,41 +680,6 @@ function Sampling({ ai, t, onSave, said }: { ai: Ai; t: Translate; onSave: Save;
           <p className="text-xs leading-relaxed text-mist">{t("ai.page.penaltyHint")}</p>
         </>
       )}
-    </div>
-  );
-}
-
-/** Its price, typed, when the server gives none: per million tokens read and written. A negative
- *  one is sent as typed, for the server's refusal to be said under the fields rather than the
- *  figure dropped in silence. */
-function PriceFields({ ai, t, hint, onSave, said }: { ai: Ai; t: Translate; hint: string; onSave: Save; said: Said }) {
-  const ids = useId();
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className="text-sm text-parchment-dim">{t("ai.list.priceTitle")}</p>
-      {/* Side by side, even at 320px in the advanced part (113px each); stacked only at large text. */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-3">
-        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-mist" htmlFor={`${ids}-in`}>
-          {t("ai.list.priceIn")}
-          <FigureField
-            parse={decimalOf}
-            id={`${ids}-in`}
-            value={ai.price.own_in}
-            onSave={(value) => void onSave("price", { price_own_in: value })}
-          />
-        </label>
-        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-mist" htmlFor={`${ids}-out`}>
-          {t("ai.list.priceOut")}
-          <FigureField
-            parse={decimalOf}
-            id={`${ids}-out`}
-            value={ai.price.own_out}
-            onSave={(value) => void onSave("price", { price_own_out: value })}
-          />
-        </label>
-      </div>
-      {said("price")}
-      <p className="text-xs text-mist">{hint}</p>
     </div>
   );
 }

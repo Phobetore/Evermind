@@ -47,6 +47,7 @@ from ..repositories import memories as memories_repo
 from ..repositories import models as models_repo
 from ..repositories import personas as personas_repo
 from ..repositories import settings as settings_repo
+from . import calls
 from . import turns as chat_turns
 from .ai_call import call_for, reply_room
 from .llm_json import describe_answer, parse_llm_json
@@ -228,6 +229,9 @@ async def one_at_a_time(convo_id: str, work: Callable[[], Awaitable[dict]],
         return await work()
     finally:
         _running.pop(convo_id, None)
+        # It wrote inside the process, never through the API, and its calls are counted: the
+        # end of a turn read before it says neither what the story is nor what it cost.
+        chat_turns.wrote()
 
 
 async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
@@ -242,7 +246,9 @@ async def run_maintenance(db: aiosqlite.Connection, convo_id: str,
     return await one_at_a_time(convo_id, work, operation)
 
 
-async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
+async def _resolve_connection(db: aiosqlite.Connection, convo: dict
+                              ) -> tuple[dict, tuple[dict, dict]]:
+    """The call a pass makes, and the AI it is made on (model, service), which its rows name."""
     resolved = await models_repo.resolve(db, convo.get("model_id"))
     if resolved is None:
         raise AppError(NO_AI_MESSAGE, kind=NO_CONNECTION)
@@ -254,7 +260,7 @@ async def _resolve_connection(db: aiosqlite.Connection, convo: dict) -> dict:
     call = {**call, "least_reasoning": True}
     if call.get("max_tokens"):
         call = {**call, "max_tokens": max(call["max_tokens"], MIN_ANSWER_TOKENS)}
-    return call
+    return call, (model, service)
 
 
 async def _learn_if_it_thought(db: aiosqlite.Connection, call: dict, answer: Answer) -> None:
@@ -264,8 +270,10 @@ async def _learn_if_it_thought(db: aiosqlite.Connection, call: dict, answer: Ans
 
 
 async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], bool],
-               what: str) -> Answer:
-    """The model's answer to a pass, asked again once, with more room, if it ran out of it.
+               what: str, *, ai: tuple[dict, dict], who: calls.Who
+               ) -> tuple[Answer, str | None]:
+    """The model's answer to a pass, asked again once, with more room, if it ran out of it; and
+    the id of the row of the ask it came from, which the caller marks if it throws it away.
 
     A model that reasons before it writes can spend the whole ceiling thinking and answer nothing,
     and a JSON cut short is as unreadable. Either is a lack of room, not of will, so the second
@@ -280,12 +288,22 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
     first = own
     if (learned := _learned.get(key, 0)) > own:
         first = max(own, learned if left is None else min(learned, left))
+    estimate = prompt_tokens(payload)
+
+    async def asked(call: dict, attempt: int) -> tuple[Answer, str | None]:
+        # Each ask is a request of its own, and its own row.
+        provider = get_provider(call)
+        async with calls.recording(provider, ai, who, attempt=attempt,
+                                   prompt_estimate=estimate) as recording:
+            answer = await complete_answer(provider, payload)
+            recording.mark("whole" if answer.text.strip() else "empty")
+        return answer, recording.row_id
+
     if first == own:
-        answer = await complete_answer(get_provider(connection), payload)
+        answer, row = await asked(connection, 0)
     else:
         try:
-            answer = await complete_answer(get_provider({**connection, "max_tokens": first}),
-                                           payload)
+            answer, row = await asked({**connection, "max_tokens": first}, 0)
         except ProviderError as exc:
             if exc.status not in REFUSED_AS_WRITTEN:
                 raise
@@ -294,32 +312,46 @@ async def _ask(connection: dict, payload: PromptPayload, reads: Callable[[str], 
             _learned.pop(key, None)
             logger.warning("%s: max_tokens %d, learned on an earlier pass, was refused (%s); "
                            "asking with this AI's own.", what, first, exc.message)
-            return await complete_answer(get_provider(connection), payload)
+            return await asked(connection, 1)
     if reads(answer.text):
-        return answer
+        return answer, row
     ran_out = answer.stop == STOPPED_FOR_LENGTH or (
         not answer.text.strip() and answer.thought > 0 and first > 0)
     if not ran_out:
-        return answer
+        return answer, row
     room = max(MORE_ROOM_TOKENS, 4 * first)
     if left is not None:
         room = min(room, left)
     # With no ceiling sent, the server's own default ran out, and it may be above a smaller one.
     if room <= first or (not first and room < MORE_ROOM_TOKENS):
-        return answer
+        return answer, row
     logger.warning("%s: the model ran out of room (%d characters of reasoning, stopped with %r, "
                    "max_tokens %s); asking again with %d. Raising this AI's reply ceiling "
                    "avoids the second call.", what, answer.thought, answer.stop, first or "unset",
                    room)
     try:
-        second = await complete_answer(get_provider({**connection, "max_tokens": room}), payload)
+        second, second_row = await asked({**connection, "max_tokens": room}, 1)
     except ProviderError as exc:
         # A server whose output limit is lower refuses it: the first answer's failure stands.
         logger.warning("%s: the second ask was refused: %s", what, exc.message)
-        return answer
+        return answer, row
+    except BaseException:
+        # Cut (the server stopping) or failed: the pass ends here, and the first answer is lost
+        # with it. Shielded, so that a cancel does not cut the mark as well.
+        await asyncio.shield(calls.discard(row))
+        raise
+    # The first answer was thrown away for this one.
+    await calls.discard(row)
     if reads(second.text):
         _learned[key] = room
-    return second
+    return second, second_row
+
+
+async def _thrown_away(exc: AppError, row: str | None) -> None:
+    """An answer refused because what it was read from changed: its row says it was thrown away.
+    Marked once the transaction is over: it held the database the mark is written to."""
+    if exc.kind in (CONVERSATION_CHANGED, FACTS_CHANGED):
+        await calls.discard(row)
 
 
 def _unreadable(answer: Answer, what: str, said: str) -> AppError:
@@ -346,7 +378,7 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
     if not convo:
         raise NotFoundError("Conversation not found.", "conversation")
     character = await characters_repo.get(db, convo["character_id"]) or {}
-    connection = await _resolve_connection(db, convo)
+    connection, ai = await _resolve_connection(db, convo)
     persona = await personas_repo.for_conversation(db, convo)
 
     all_facts = await memories_repo.list_for_conversation(db, convo_id)
@@ -361,32 +393,39 @@ async def _consolidate(db: aiosqlite.Connection, convo_id: str) -> dict:
         return plan_consolidation(parse_llm_json(text), movable)
 
     what = "consolidation"
-    answer = await _ask(connection, payload, lambda text: merge(text) is not None, what)
+    answer, row = await _ask(connection, payload, lambda text: merge(text) is not None, what,
+                             ai=ai, who=calls.for_conversation("consolidation", convo, character))
     await _learn_if_it_thought(db, connection, answer)
     merged = merge(answer.text)
     if merged is None:
+        await calls.discard(row)
         raise _unreadable(answer, what, "Unreadable consolidation — try again.")
 
     vectors = await _vectors_of(merged["facts"])
 
     # Refused when a fact sent changed since: its old text may be inside a merged one. Its position
     # counts too, as a merged fact takes the oldest of those it replaces, which a cut may have moved.
-    async with write_transaction(db):
-        now = await memories_repo.list_for_conversation(db, convo_id)
-        still = {(m["id"], m["content"], m["source_position"]) for m in movable_facts(now)}
-        if any((m["id"], m["content"], m["source_position"]) not in still for m in movable):
-            raise AppError("The facts changed while the model merged them.", 409,
-                           kind=FACTS_CHANGED)
+    try:
+        async with write_transaction(db):
+            now = await memories_repo.list_for_conversation(db, convo_id)
+            still = {(m["id"], m["content"], m["source_position"]) for m in movable_facts(now)}
+            if any((m["id"], m["content"], m["source_position"]) not in still for m in movable):
+                raise AppError("The facts changed while the model merged them.", 409,
+                               kind=FACTS_CHANGED)
 
-        # A fact the merge repeats stays as it is: adding it again is refused as a double.
-        for content in merged["facts"]:
-            await memories_repo.add_with_vector(db, convo_id, content, merged["source_position"],
-                                                vectors.get(content))
-        kept = set(merged["facts"])
-        for m in movable:
-            if m["content"] not in kept:
-                await memories_repo.remove(db, m["id"])
-        remaining = await memories_repo.list_for_conversation(db, convo_id)
+            # A fact the merge repeats stays as it is: adding it again is refused as a double.
+            for content in merged["facts"]:
+                await memories_repo.add_with_vector(db, convo_id, content,
+                                                    merged["source_position"],
+                                                    vectors.get(content))
+            kept = set(merged["facts"])
+            for m in movable:
+                if m["content"] not in kept:
+                    await memories_repo.remove(db, m["id"])
+            remaining = await memories_repo.list_for_conversation(db, convo_id)
+    except AppError as exc:
+        await _thrown_away(exc, row)
+        raise
     return {"before": len(now), "after": len(remaining), "memories": remaining}
 
 
@@ -423,7 +462,7 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     character = await characters_repo.get(db, convo["character_id"]) or {}
     persona = await personas_repo.for_conversation(db, convo)
 
-    connection = await _resolve_connection(db, convo)
+    connection, ai = await _resolve_connection(db, convo)
 
     # A reply being written is read once finished, and what follows it: asked first, never half.
     turn = await chat_turns.running_for(convo_id)
@@ -442,29 +481,37 @@ async def _run(db: aiosqlite.Connection, convo_id: str, hold_back: int) -> dict:
     sent = {(m["id"], m["content"]) for m in existing}
 
     what = "memory extraction"
-    answer = await _ask(connection, payload, lambda text: parse_llm_json(text) is not None, what)
+    answer, row = await _ask(connection, payload, lambda text: parse_llm_json(text) is not None,
+                             what, ai=ai, who=calls.for_conversation("memory", convo, character))
     await _learn_if_it_thought(db, connection, answer)
     parsed = parse_llm_json(answer.text)
     if parsed is None:
+        await calls.discard(row)
         raise _unreadable(answer, what, "Unreadable memory response (JSON expected).")
     vectors = await _vectors_of(answer_texts(parsed))
 
     # Nothing is kept of turns cut, or rewritten among those told, or of facts changed meanwhile.
-    async with write_transaction(db):
-        current = await convo_repo.get(db, convo_id, with_messages=False)
-        now = await memories_repo.list_for_conversation(db, convo_id)
-        story = await convo_repo.turns_through(db, convo_id, top_position)
-        if [i for i, _ in story] != read or not told <= set(story):
-            raise AppError("The conversation changed while the model read it.", 409,
-                           kind=CONVERSATION_CHANGED)
-        if not sent <= {(m["id"], m["content"]) for m in now}:
-            raise AppError("A fact changed while the model read the story.", 409, kind=FACTS_CHANGED)
-        changes = plan_memory_changes(parsed, now, top_position)
-        added = await _apply(db, convo_id, changes, vectors, top_position)
-        # A summary typed meanwhile stays where it put the memory: the next pass reads these turns.
-        typed = current["summary"] != convo["summary"]
-        if not typed:
-            await convo_repo.remember(db, convo_id, top_position, changes["summary"])
+    try:
+        async with write_transaction(db):
+            current = await convo_repo.get(db, convo_id, with_messages=False)
+            now = await memories_repo.list_for_conversation(db, convo_id)
+            story = await convo_repo.turns_through(db, convo_id, top_position)
+            if [i for i, _ in story] != read or not told <= set(story):
+                raise AppError("The conversation changed while the model read it.", 409,
+                               kind=CONVERSATION_CHANGED)
+            if not sent <= {(m["id"], m["content"]) for m in now}:
+                raise AppError("A fact changed while the model read the story.", 409,
+                               kind=FACTS_CHANGED)
+            changes = plan_memory_changes(parsed, now, top_position)
+            added = await _apply(db, convo_id, changes, vectors, top_position)
+            # A summary typed meanwhile stays where it put the memory: the next pass reads these
+            # turns.
+            typed = current["summary"] != convo["summary"]
+            if not typed:
+                await convo_repo.remember(db, convo_id, top_position, changes["summary"])
+    except AppError as exc:
+        await _thrown_away(exc, row)
+        raise
 
     return {"facts_added": added,
             "summary": current["summary"] if typed else changes["summary"] or current["summary"]}

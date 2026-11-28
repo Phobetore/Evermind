@@ -171,6 +171,16 @@ can move the buttons from under the click.
   (`frontend/src/lib/estimate.ts`), the server never
 - `POST /api/models/{id}/observed`: records the size an AI really reads when its server
   cut a story without saying so; the conversation then plays again with it
+- `GET /api/spending`, `/api/spending/detail`, `/api/spending/total`,
+  `/api/spending/export.csv`, `DELETE /api/spending` (`before`, `dry_run`) and
+  `POST /api/spending/forget`: what the calls cost, as sums (see "Spending"); the
+  periods are the device's days (`tz`, and `tzo` for a zone Python does not know),
+  and a day or a zone that cannot be read answers `422` (`bad_period`).
+  `DELETE /api/conversations/{id}` and `DELETE /api/characters/{id}` take
+  `?forget_name=1`; `POST /api/characters` takes `assist_jobs`; `GET /api/models`
+  gives each AI a `per100`; `PUT /api/models/{id}` answers `repriced`; and
+  `GET .../turn` carries `glance` and `spent` once the turn has ended, until
+  anything is written through the API
 - `GET /api/library`: the cards in `library/`. The browser reads and writes card
   files itself (`frontend/src/lib/cards.ts`), and installs or imports a card by
   creating a character
@@ -368,6 +378,69 @@ should.
   (`requests_before.json`), compared byte for byte with what an AI sends now.
   When the engine, a provider or a service that builds a request changes,
   record the file again on the code of `main` itself, not on a branch.
+
+## Spending
+
+Every request sent to a model's server leaves one row in `calls` (migration
+`023_calls.sql`), and the rows are only ever summed. The table has **no foreign
+key**, on purpose: what a conversation, a character or an AI cost stays spent once
+it is deleted, so the ids are plain text and the names are copied onto the row at
+call time. Deleting with `?forget_name=1`, or `POST /api/spending/forget`, blanks
+those copied names; only "Clear the history" removes rows.
+
+- **`services/calls.py` is the recorder.** `recording(...)` is an asynchronous
+  context manager: it inserts the row when the request starts (`running`, the
+  prompt as the engine estimates it) and completes it when it ends, however it
+  ends. Each write is on a short connection of its own, committed at once, so
+  that a caller's rollback or a stop never takes the row with it, and a recording
+  is never opened inside a caller's `write_transaction`. A write that fails is
+  logged as a warning and the call goes on. Six callers open it: the turn
+  (`chat_service.run_turn`, each pass), the pen, the memory pass (each request of
+  `_ask`), the condensation, the card assistant and the speed test.
+- **The rules are pure functions beside it.** `outcome_of` says how a call ended
+  (`whole`, `stopped`, `failed`, `refused`, `empty`: an error before the server
+  had the request is a refusal, and a refusal reads and writes nothing; `discarded`
+  is never its answer, but set by `Recording.mark` and `discard` for an answer
+  thrown away), `tokens_of` takes the server's counts and estimates what it did not
+  say, `pricing_of` copies the price as applied, `at_home` says whether a call
+  was free at home (by `providers/catalog.at_home_free`, the one rule the list of
+  the AIs reads too: a local family at a private address with no price typed), and
+  `cost_of` gives the cost: what the service reported; else,
+  away from home, what the whole price makes; else nothing known. A refusal costs
+  zero, never "no price". A price counts only whole (read and written).
+- **OpenRouter's record completes what it did not say.** A call that ended
+  without a cost OpenRouter reported (stopped, cut off, failed midway, or not counted; any use) is
+  read from `GET {base}/generation?id=` with the service's key: 20 seconds after
+  its end, again at 2 minutes if the record is not there yet, and at start-up
+  while it is still missing and less than an hour old.
+  Rows a killed process left `running` are ended `stopped` at start-up
+  (`after_start`); the server's own stop cancels the turns and the card drafts
+  under way first (`turns.cancel_all`, `card_assistant.cancel_all`, five seconds at
+  most), so that theirs end `stopped` with what arrived. A request stopped, or
+  cancelled, while its row is being inserted is never sent, and its row is removed.
+  The end of a row waits five seconds at most for the database (`END_WAITS_S`):
+  past that it is given up with a warning, and the next start ends it. A price typed later fills only the rows with no price for the
+  same model id (`repositories/calls.reprice`, in the transaction that saves the
+  price). Tests replace `calls.client_factory`, and `conftest.py` awaits
+  `calls.drain()` after each test.
+- **`repositories/calls.py` makes every sum in SQL**; no row is read into Python,
+  and no list of calls is served but the CSV. `services/periods.py` turns the
+  device's days into UTC instants (a day is 23, 24 or 25 hours long when the
+  clocks change); the bars are cut by a table of bounds joined to the rows.
+- **The page asks for little**: one request to open Spending, one to change
+  period, one for a line's detail, and `/api/spending/total` for the lines under
+  My AIs, an AI's page and a character's page. The panel of a conversation reads
+  its sum each time it opens, and again when a memory operation it shows ends;
+  in between it follows the `spent` that the end of each turn carries, and a read
+  sent before the last end it was given loses to it (`SpentLine`). The end
+  of a turn (`services/turns.py`) also carries `glance`, so that a reply costs the
+  page one request less than in 3.8.0. Both are `null` once the revision moved, a
+  write went through the API (`app/writes.py`), or a memory operation ended
+  (`memory_service.one_at_a_time`).
+- **No request to a model changes.** `backend/tests/test_requests_3_8.py` compares
+  the requests recorded on 3.8.0 (`fixtures/requests_3_8.json`) with what each AI
+  is sent now, with no exception. Run it with `tests/cases_kept.py` before every
+  commit that touches a provider, the engine or a service that builds a request.
 
 ## Ways of playing
 

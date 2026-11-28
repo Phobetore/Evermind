@@ -26,8 +26,8 @@ logging.getLogger("aiosqlite").setLevel(logging.INFO)
 BUSY_TIMEOUT_S = 30
 
 
-async def _connect() -> aiosqlite.Connection:
-    conn = await aiosqlite.connect(db_path(), timeout=BUSY_TIMEOUT_S)
+async def _connect(busy_timeout: float = BUSY_TIMEOUT_S) -> aiosqlite.Connection:
+    conn = await aiosqlite.connect(db_path(), timeout=busy_timeout)
     try:
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA foreign_keys = ON")
@@ -95,9 +95,12 @@ async def write_transaction(conn: aiosqlite.Connection) -> AsyncIterator[None]:
     """All of what is written inside, or none of it, with the database held from the start,
     so that what is read inside is still true when it is acted on. It waits for no model:
     what takes a while comes first. Whatever raises rolls back; leaving early commits
-    what was written, which is nothing when the checks come first."""
-    await conn.execute("BEGIN IMMEDIATE")
+    what was written, which is nothing when the checks come first.
+
+    BEGIN is inside: a cancel that lands while it runs leaves it run on the connection's thread,
+    and the database held by a transaction nobody would end."""
     try:
+        await conn.execute("BEGIN IMMEDIATE")
         yield
     except BaseException:
         await conn.rollback()

@@ -2,9 +2,9 @@
 
 The draft is written on a job the server owns, so that a page that goes away, or a phone that
 locks, loses nothing: the page asks how far it has got, and fetches the draft once it has ended.
-A card the model did not finish still gives the fields it did. Nothing is persisted here: the
-draft goes to the editor for the creator to adjust. Uses the requested AI, else the default
-one.
+A card the model did not finish still gives the fields it did. Nothing of the card is persisted
+here: the draft goes to the editor for the creator to adjust. The request to the model leaves its
+row of `calls`, like any other. Uses the requested AI, else the default one.
 """
 
 import asyncio
@@ -44,9 +44,10 @@ from ..prompting.payloads import (
 from ..prompting.text import text_of
 from ..prompting.tokens import estimate_tokens
 from ..providers import get_provider
-from ..providers.base import STOPPED_FOR_LENGTH, Answer, Provider, unwritten
+from ..providers.base import STOPPED_FOR_LENGTH, Answer, CallFigures, Provider, unwritten
 from ..repositories import models as models_repo
 from ..repositories import settings as settings_repo
+from . import calls
 from .ai_call import call_for, reply_room
 from .llm_json import describe_answer, parse_llm_json, partial_json
 
@@ -73,15 +74,18 @@ def _now() -> float:
     return time.monotonic()
 
 
-async def _resolve_connection(db: aiosqlite.Connection, model_id: str | None) -> dict:
-    # A page from before AIs names a service: its first AI answers.
+async def _resolve_connection(db: aiosqlite.Connection, model_id: str | None
+                              ) -> tuple[dict, tuple[dict, dict]]:
+    """The call a card is written by, and the AI it is made on (model, service), which its row
+    names. A page from before AIs names a service: its first AI answers."""
     asked = await models_repo.by_any_id(db, model_id)
     resolved = await models_repo.resolve(db, asked["id"] if asked else None)
     if resolved is None:
         raise AppError(NO_AI_MESSAGE, kind=NO_CONNECTION)
     model, service = resolved
     # No conversation: the room of the reply length set for every one.
-    return call_for(model, service, room=reply_room(None, await settings_repo.get_all(db)))
+    call = call_for(model, service, room=reply_room(None, await settings_repo.get_all(db)))
+    return call, (model, service)
 
 
 def _same(text: str) -> str:
@@ -251,7 +255,7 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     _forget()
     if job := _joined(request.client_id):
         return job.id
-    connection = await _resolve_connection(db, request.model_id)
+    connection, ai = await _resolve_connection(db, request.model_id)
     # Asked twice at once: the second has waited for the database while the first began.
     if job := _joined(request.client_id):
         return job.id
@@ -261,7 +265,13 @@ async def start(db: aiosqlite.Connection, request: CardAssistRequest) -> str:
     job = Job(uuid.uuid4().hex, request.client_id, dict(request.existing or {}), _now())
     _jobs[job.id] = job
     _forget()
-    job.task = asyncio.create_task(_run(job, provider, payload, connection))
+    # A card not saved yet has no id, and keeps no name, which nothing could forget: its first
+    # save claims the row by the job's, and writes the name it was saved under.
+    who = calls.Who("card", card_id=request.card_id,
+                    card_name=(text_of(request.existing.get("name")) or None)
+                    if request.card_id else None,
+                    card_kind=request.kind, job_id=job.id)
+    job.task = asyncio.create_task(_run(job, provider, payload, connection, ai, who))
     return job.id
 
 
@@ -278,15 +288,27 @@ async def _read(job: Job, provider: Provider, payload: PromptPayload) -> None:
                 job.stop_reason = event.stop
 
 
-async def _run(job: Job, provider: Provider, payload: PromptPayload, call: dict) -> None:
+async def _run(job: Job, provider: Provider, payload: PromptPayload, call: dict,
+               ai: tuple[dict, dict], who: calls.Who) -> None:
     error: BaseException | None = None
     try:
         if not job.stopped:
-            job.reading = asyncio.create_task(_read(job, provider, payload))
-            # Waited for, not awaited: a stop cancels the reading, not this, which still ends the job.
-            await asyncio.wait({job.reading})
-            if not job.reading.cancelled():
-                error = job.reading.exception()
+            async with calls.recording(provider, ai, who,
+                                       prompt_estimate=prompt_tokens(payload)) as recording:
+                if job.stopped:
+                    # Stopped while its row was written: the request never went, and leaves no row.
+                    recording.unsent()
+                else:
+                    job.reading = asyncio.create_task(_read(job, provider, payload))
+                    # Waited for, not awaited: a stop cancels the reading, not this, which still
+                    # ends the job.
+                    await asyncio.wait({job.reading})
+                    if not job.reading.cancelled():
+                        error = job.reading.exception()
+                    recording.mark(calls.outcome_of(
+                        error, getattr(provider, "figures", None) or CallFigures(),
+                        stopped=job.stopped or job.reading.cancelled(),
+                        wrote=bool(job.text().strip())), error=error)
     except asyncio.CancelledError:
         # The server is going down: an answer it no longer reads is not one the model got wrong.
         job.stopped = True
@@ -416,6 +438,15 @@ def _state_of(job: Job) -> dict:
 
 def state(job_id: str) -> dict:
     return _state_of(_known(job_id))
+
+
+def cancel_all() -> list[asyncio.Task]:
+    """At the server's stop: every card being written is cancelled, and ends stopped with what
+    was complete, its call's row with it. Returns the tasks, for the stop to wait for."""
+    tasks = [job.task for job in _jobs.values() if job.task and not job.task.done()]
+    for task in tasks:
+        task.cancel()
+    return tasks
 
 
 async def stop(job_id: str) -> dict:
